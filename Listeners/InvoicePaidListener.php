@@ -21,7 +21,7 @@ class InvoicePaidListener
             }
 
             $service = $item->reference;
-            if (! $service) {
+            if (!$service) {
                 continue;
             }
 
@@ -31,7 +31,7 @@ class InvoicePaidListener
                 ->value('value');
 
             // Check if this service has a reservation
-            if (! $reservationToken) {
+            if (!$reservationToken) {
                 continue;
             }
 
@@ -41,7 +41,7 @@ class InvoicePaidListener
 
                 $reservation = $reservationService->getByToken($reservationToken);
 
-                if (! $reservation) {
+                if (!$reservation) {
                     Log::warning('Reservation not found for paid invoice', [
                         'service_id' => $service->id,
                         'invoice_id' => $invoice->id,
@@ -60,7 +60,7 @@ class InvoicePaidListener
                     ]
                 );
 
-                if (! $available) {
+                if (!$available) {
                     // This should rarely happen, but we need to handle it
                     Log::error('Resources no longer available for paid service', [
                         'service_id' => $service->id,
@@ -76,13 +76,26 @@ class InvoicePaidListener
                     continue;
                 }
 
-                // Confirm the reservation
-                $reservationService->confirm($reservationToken, $service->id);
+                // Confirm the reservation. Returns false if no pending row matched —
+                // meaning the reservation was already cancelled or expired between
+                // verifyAvailability() and this call (state drift).
+                $confirmed = $reservationService->confirm($reservationToken, $service->id);
 
-                Log::info('Confirmed reservation for paid service', [
-                    'service_id' => $service->id,
-                    'node_id' => $reservation->node_id,
-                ]);
+                if ($confirmed) {
+                    Log::info('Confirmed reservation for paid service', [
+                        'service_id' => $service->id,
+                        'node_id' => $reservation->node_id,
+                    ]);
+                } else {
+                    $current = $reservationService->getByToken($reservationToken);
+                    Log::warning('Reservation could not be confirmed (state drift)', [
+                        'service_id' => $service->id,
+                        'reservation_id' => $reservation->id,
+                        'current_status' => $current?->status,
+                    ]);
+                    // TODO: notify admin — server still provisions via Pterodactyl
+                    // extension, but reservation bookkeeping/linkage is now broken.
+                }
 
             } catch (\Exception $e) {
                 Log::error('Failed to confirm reservation', [

@@ -10,8 +10,11 @@ use Illuminate\Support\Str;
 class ReservationService
 {
     private NodeSelectionService $nodeService;
+
     private PricingCalculatorService $pricingService;
+
     private AuditLogService $auditService;
+
     private int $ttlMinutes;
 
     public function __construct(
@@ -55,7 +58,7 @@ class ReservationService
             // Find best node
             $node = $this->nodeService->selectBestNode($locationId, $resources);
 
-            if (! $node) {
+            if (!$node) {
                 throw new \RuntimeException('No node with sufficient resources available');
             }
 
@@ -103,6 +106,7 @@ class ReservationService
         return DB::table('ptero_resource_reservations')
             ->where('token', $token)
             ->where('status', 'pending')
+            ->where('expires_at', '>', now())
             ->update([
                 'status' => 'confirmed',
                 'service_id' => $serviceId,
@@ -117,7 +121,7 @@ class ReservationService
     {
         $reservation = $this->getByToken($token);
 
-        if (! $reservation) {
+        if (!$reservation) {
             return false;
         }
 
@@ -192,16 +196,16 @@ class ReservationService
                 'users.email as user_email',
             ]);
 
-        if (! empty($filters['status'])) {
+        if (!empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
-        if (! empty($filters['location_id'])) {
+        if (!empty($filters['location_id'])) {
             $query->where('location_id', $filters['location_id']);
         }
-        if (! empty($filters['node_id'])) {
+        if (!empty($filters['node_id'])) {
             $query->where('node_id', $filters['node_id']);
         }
-        if (! empty($filters['user_id'])) {
+        if (!empty($filters['user_id'])) {
             $query->where('ptero_resource_reservations.user_id', $filters['user_id']);
         }
 

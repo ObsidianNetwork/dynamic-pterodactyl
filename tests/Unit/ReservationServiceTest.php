@@ -3,31 +3,33 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use Illuminate\Support\Facades\DB;
-use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
+use PHPUnit\Framework\Assert;
 
 class ReservationServiceTest extends LaravelTestCase
 {
     private $mockNodeService;
+
     private $mockPricingService;
+
     private $mockAuditService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->mockNodeService = Mockery::mock(NodeSelectionService::class);
-        $this->mockPricingService = Mockery::mock(PricingCalculatorService::class);
-        $this->mockAuditService = Mockery::mock(AuditLogService::class);
+        $this->mockNodeService = \Mockery::mock(NodeSelectionService::class);
+        $this->mockPricingService = \Mockery::mock(PricingCalculatorService::class);
+        $this->mockAuditService = \Mockery::mock(AuditLogService::class);
     }
 
     protected function tearDown(): void
     {
-        Mockery::close();
+        \Mockery::close();
         parent::tearDown();
     }
 
@@ -37,7 +39,8 @@ class ReservationServiceTest extends LaravelTestCase
      */
     private function createService(): ReservationService
     {
-        $service = new class($this->mockNodeService, $this->mockPricingService, $this->mockAuditService) extends ReservationService {
+        $service = new class($this->mockNodeService, $this->mockPricingService, $this->mockAuditService) extends ReservationService
+        {
             private int $testTtl = 15;
 
             public function __construct($nodeService, $pricingService, $auditService)
@@ -51,8 +54,11 @@ class ReservationServiceTest extends LaravelTestCase
 
             // Access to protected properties
             private NodeSelectionService $nodeService;
+
             private PricingCalculatorService $pricingService;
+
             private AuditLogService $auditService;
+
             private int $ttlMinutes;
         };
 
@@ -76,8 +82,11 @@ class ReservationServiceTest extends LaravelTestCase
         DB::shouldReceive('where')
             ->with('status', 'pending')
             ->andReturnSelf();
+        DB::shouldReceive('where')
+            ->with('expires_at', '>', \Mockery::any())
+            ->andReturnSelf();
         DB::shouldReceive('update')
-            ->with(Mockery::on(function ($data) use ($serviceId) {
+            ->with(\Mockery::on(function ($data) use ($serviceId) {
                 return $data['status'] === 'confirmed'
                     && $data['service_id'] === $serviceId
                     && isset($data['updated_at']);
@@ -87,7 +96,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->confirm($token, $serviceId);
 
-        $this->assertTrue($result);
+        Assert::assertTrue($result);
     }
 
     /**
@@ -98,13 +107,40 @@ class ReservationServiceTest extends LaravelTestCase
         DB::shouldReceive('table')
             ->with('ptero_resource_reservations')
             ->andReturnSelf();
-        DB::shouldReceive('where')->andReturnSelf();
+        DB::shouldReceive('where')->times(3)->andReturnSelf();
         DB::shouldReceive('update')->andReturn(0);
 
         $service = $this->createService();
         $result = $service->confirm('nonexistent', 1);
 
-        $this->assertFalse($result);
+        Assert::assertFalse($result);
+    }
+
+    /**
+     * Test that expired reservations cannot be confirmed.
+     */
+    public function test_expired_reservation_cannot_be_confirmed(): void
+    {
+        $token = 'expired_token_123';
+
+        DB::shouldReceive('table')
+            ->with('ptero_resource_reservations')
+            ->andReturnSelf();
+        DB::shouldReceive('where')
+            ->with('token', $token)
+            ->andReturnSelf();
+        DB::shouldReceive('where')
+            ->with('status', 'pending')
+            ->andReturnSelf();
+        DB::shouldReceive('where')
+            ->with('expires_at', '>', \Mockery::any())
+            ->andReturnSelf();
+        DB::shouldReceive('update')->andReturn(0);
+
+        $service = $this->createService();
+        $result = $service->confirm($token, 1);
+
+        Assert::assertFalse($result);
     }
 
     /**
@@ -139,7 +175,7 @@ class ReservationServiceTest extends LaravelTestCase
             ->with('status', 'pending')
             ->andReturnSelf();
         DB::shouldReceive('update')
-            ->with(Mockery::on(function ($data) {
+            ->with(\Mockery::on(function ($data) {
                 return $data['status'] === 'cancelled'
                     && isset($data['updated_at']);
             }))
@@ -148,7 +184,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->cancel($token);
 
-        $this->assertTrue($result);
+        Assert::assertTrue($result);
     }
 
     /**
@@ -165,7 +201,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->cancel('nonexistent');
 
-        $this->assertFalse($result);
+        Assert::assertFalse($result);
     }
 
     /**
@@ -180,10 +216,10 @@ class ReservationServiceTest extends LaravelTestCase
             ->with('status', 'pending')
             ->andReturnSelf();
         DB::shouldReceive('where')
-            ->with('expires_at', '<', Mockery::any())
+            ->with('expires_at', '<', \Mockery::any())
             ->andReturnSelf();
         DB::shouldReceive('update')
-            ->with(Mockery::on(function ($data) {
+            ->with(\Mockery::on(function ($data) {
                 return $data['status'] === 'expired'
                     && isset($data['updated_at']);
             }))
@@ -192,7 +228,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->cleanupExpired();
 
-        $this->assertEquals(5, $result);
+        Assert::assertEquals(5, $result);
     }
 
     /**
@@ -219,7 +255,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->getByToken($token);
 
-        $this->assertEquals($expected, $result);
+        Assert::assertEquals($expected, $result);
     }
 
     /**
@@ -249,6 +285,6 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->getByCartItem($cartItemId);
 
-        $this->assertEquals($expected, $result);
+        Assert::assertEquals($expected, $result);
     }
 }

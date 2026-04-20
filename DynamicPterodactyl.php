@@ -9,11 +9,13 @@ use App\Events\Invoice\Paid as InvoicePaid;
 use App\Events\Service\Created as ServiceCreated;
 use App\Helpers\ExtensionHelper;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemDeletedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\InvoicePaidListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\ServiceCreatedListener;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
 /**
  * DynamicPterodactyl Extension
@@ -92,8 +94,12 @@ class DynamicPterodactyl extends Extension
         // Note: Frontend sliders now handled by native Paymenter dynamic_slider config option type
         // The extension now only manages resource reservations and availability checks
 
-        // TODO: Register scheduled jobs for cleanup
-        // $schedule->job(new CleanupExpiredReservations)->everyMinute();
+        // Scheduled cleanup: transition expired pending reservations.
+        // Keeps admin dashboards accurate and preserves the TTL guarantee on confirm().
+        Schedule::call(fn () => app(ReservationService::class)->cleanupExpired())
+            ->everyMinute()
+            ->name('dynamic-pterodactyl:cleanup-expired-reservations')
+            ->withoutOverlapping();
     }
 
     /**
