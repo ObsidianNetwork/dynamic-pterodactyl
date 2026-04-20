@@ -1,6 +1,6 @@
 # Dynamic Resource Sliders for Pterodactyl Integration
 
-**Version:** 3.1  
+**Version:** 3.1.0  
 **Status:** Final Design  
 **Pattern:** Companion Extension  
 
@@ -88,14 +88,13 @@ Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using slid
 ## File Structure
 
 ```
-extension/Others/DynamicPterodactyl/
+extensions/Others/DynamicPterodactyl/
 ├── DynamicPterodactyl.php          # Main extension class
 ├── database/migrations/            # 4 migration files
-├── Filament/
+├── Admin/
 │   ├── Pages/                      # Dashboard, Analytics, Settings, etc.
 │   └── Resources/                  # PricingConfig, Reservation, Alert
 ├── Http/Controllers/               # API and Admin controllers
-├── Jobs/                           # Cleanup, alert checking
 ├── Models/                         # Eloquent models
 ├── resources/views/                # Blade templates
 ├── routes/                         # API and web routes
@@ -109,7 +108,6 @@ extension/Others/DynamicPterodactyl/
 | Table | Purpose |
 |-------|---------|
 | `ptero_resource_reservations` | Temporary resource holds during checkout |
-| `ptero_pricing_configs` | Per-product pricing & slider configuration |
 | `ptero_audit_logs` | Admin action tracking |
 | `ptero_alert_configs` | Capacity alert thresholds |
 

@@ -2,8 +2,8 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests;
 
-use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class LaravelTestCase extends BaseTestCase
 {
@@ -12,7 +12,13 @@ abstract class LaravelTestCase extends BaseTestCase
      */
     public function createApplication()
     {
-        $app = require __DIR__ . '/../../../../bootstrap/app.php';
+        $bootstrap = __DIR__ . '/../../../../bootstrap/app.php';
+
+        if (!file_exists($bootstrap)) {
+            $bootstrap = '/var/www/paymenter/bootstrap/app.php';
+        }
+
+        $app = require $bootstrap;
         $app->make(Kernel::class)->bootstrap();
 
         return $app;
@@ -30,10 +36,14 @@ abstract class LaravelTestCase extends BaseTestCase
         $defaults = $this->getResourceDefaults($resourceType);
         $slider = array_merge($defaults, $sliderConfig);
 
-        return new class($resourceType, $pricingModel, $pricingConfig, $slider) {
+        return new class($resourceType, $pricingModel, $pricingConfig, $slider)
+        {
             public int $id;
+
             public string $name;
+
             public string $type = 'dynamic_slider';
+
             public array $metadata;
 
             public function __construct(string $resourceType, string $pricingModel, array $pricingConfig, array $slider)
@@ -65,6 +75,7 @@ abstract class LaravelTestCase extends BaseTestCase
                 switch ($model) {
                     case 'linear':
                         $rate = $pricing['rate_per_unit'] ?? 0;
+
                         return $displayValue * $rate * $quantity;
 
                     case 'tiered':
@@ -74,6 +85,7 @@ abstract class LaravelTestCase extends BaseTestCase
                         $included = $pricing['included_units'] ?? 0;
                         $overage = max(0, $displayValue - $included);
                         $overageRate = $pricing['overage_rate'] ?? 0;
+
                         return $overage * $overageRate * $quantity;
 
                     default:
@@ -102,7 +114,9 @@ abstract class LaravelTestCase extends BaseTestCase
                     }
 
                     $previousLimit = $limit;
-                    if ($remaining <= 0) break;
+                    if ($remaining <= 0) {
+                        break;
+                    }
                 }
 
                 return $total * $quantity;

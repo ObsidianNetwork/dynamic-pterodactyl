@@ -4,12 +4,21 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 
 ---
 
-## [Unreleased]
+## [3.1.0] — 2026-04-21
 
-### Planning Phase Complete
-- Full documentation suite (9 specification files)
-- Implementation tracking system (CLAUDE.md, DECISIONS.md, PROGRESS.md)
-- Directory structure skeleton
+### Fixed
+- Reservation lifecycle race: cart-clear no longer cancels reservations consumed by checkout
+- InvoicePaidListener now checks confirm() return value and logs warning on state drift
+
+### Added
+- Scheduled cleanup cron for expired pending reservations
+- expires_at predicate in ReservationService::confirm() — expired reservations cannot be confirmed
+
+### Changed
+- Extension metadata attribute added
+- Route throttling (30 req/min) on availability and pricing endpoints
+- Documentation updated to match current implementation
+- skeleton/ directory removed
 
 ---
 

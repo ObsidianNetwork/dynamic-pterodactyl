@@ -60,7 +60,7 @@ PricingCalculatorService (service)
 ## Extension Location
 
 ```
-app/Extensions/Others/DynamicPterodactyl/
+extensions/Others/DynamicPterodactyl/
 ```
 
 ## Useful Commands

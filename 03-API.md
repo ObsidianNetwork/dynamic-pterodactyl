@@ -17,7 +17,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Availabi
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\PricingController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ReservationController;
 
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(function () {
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
     
     // Availability
     Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
@@ -34,6 +34,8 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(fun
     Route::post('/reservation/{token}/extend', [ReservationController::class, 'extend']);
 });
 ```
+
+> Pricing config no longer uses `ptero_pricing_configs`. It now uses native Paymenter ConfigOption rows with `type='dynamic_slider'` and `metadata.resource_type`.
 
 ### Admin API Routes
 
@@ -418,9 +420,9 @@ class PricingController
     
     public function getConfig(int $productId): JsonResponse
     {
-        $config = DB::table('ptero_pricing_configs')
+        $config = DB::table('config_options')
             ->where('product_id', $productId)
-            ->where('is_active', true)
+            ->where('type', 'dynamic_slider')
             ->first();
         
         if (!$config) {

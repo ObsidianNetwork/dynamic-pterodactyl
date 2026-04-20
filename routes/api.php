@@ -11,17 +11,16 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Availabi
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\PricingController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ReservationController;
 
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(function () {
-
-    // Availability endpoints
+// Availability and pricing — throttled (30 req/min) to protect Pterodactyl API budget
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
     Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
     Route::get('/availability/{locationId}/nodes', [AvailabilityController::class, 'getNodes']);
-
-    // Pricing endpoints
     Route::post('/pricing/calculate', [PricingController::class, 'calculate']);
     Route::get('/pricing/config/{productId}', [PricingController::class, 'getConfig']);
+});
 
-    // Reservation endpoints
+// Reservation endpoints — no throttle; these are cart-lifecycle-driven, not polling
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(function () {
     Route::post('/reservation', [ReservationController::class, 'create']);
     Route::get('/reservation/{token}', [ReservationController::class, 'get']);
     Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);

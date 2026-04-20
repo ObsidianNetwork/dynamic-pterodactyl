@@ -1,2 +1,7 @@
 *.Identifier
 /.phpunit.cache
+vendor/
+.env
+.env.local
+.phpunit.result.cache
+.phpunit.cache/

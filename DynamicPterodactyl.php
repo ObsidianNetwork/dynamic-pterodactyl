@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl;
 
+use App\Attributes\ExtensionMeta;
 use App\Classes\Extension\Extension;
 use App\Events\CartItem\Created as CartItemCreated;
 use App\Events\CartItem\Deleted as CartItemDeleted;
@@ -17,6 +18,14 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\InvoicePaidListener
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\ServiceCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
+#[ExtensionMeta(
+    name: 'Dynamic Pterodactyl',
+    description: 'Dynamic resource sliders (RAM/CPU/Disk), real-time availability, and 15-min reservations for Pterodactyl products.',
+    version: '3.1.0',
+    author: 'Paymenter',
+    url: '',
+    icon: 'heroicon-o-server',
+)]
 /**
  * DynamicPterodactyl Extension
  *
