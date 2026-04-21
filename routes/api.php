@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Route;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\PricingController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ReservationController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
 
 // Availability and pricing — throttled (30 req/min) to protect Pterodactyl API budget
 Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
@@ -27,9 +30,11 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(fun
     Route::post('/reservation/{token}/extend', [ReservationController::class, 'extend']);
 });
 
-// Admin routes (to be implemented in Phase 3)
+// Admin routes — session-based, gated by non-null role (matches User::canAccessPanel)
 Route::prefix('api/dynamic-pterodactyl/admin')
-    ->middleware(['web', 'auth', 'admin'])
+    ->middleware(['web', 'auth', EnsureUserIsAdmin::class])
     ->group(function () {
-        // TODO: Admin API endpoints
+        Route::get('/reservations', [AdminReservationController::class, 'index']);
+        Route::post('/reservations/{token}/cancel', [AdminReservationController::class, 'cancel']);
+        Route::get('/capacity', [AdminCapacityController::class, 'summary']);
     });

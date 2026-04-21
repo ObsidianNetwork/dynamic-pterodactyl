@@ -6,6 +6,7 @@ use App\Models\Extension;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 
 class ReservationService
 {
@@ -256,6 +257,34 @@ class ReservationService
         }
 
         return $query->orderBy('created_at', 'desc')->get();
+    }
+
+    /**
+     * Get all reservations as a paginatable Eloquent builder (for admin API).
+     *
+     * Does NOT modify getAll() — callers of that method are unaffected.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return \Illuminate\Database\Eloquent\Builder<ResourceReservation>
+     */
+    public function queryAll(array $filters = []): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = ResourceReservation::query();
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+        if (!empty($filters['location_id'])) {
+            $query->where('location_id', (int) $filters['location_id']);
+        }
+        if (!empty($filters['node_id'])) {
+            $query->where('node_id', (int) $filters['node_id']);
+        }
+        if (!empty($filters['user_id'])) {
+            $query->where('user_id', (int) $filters['user_id']);
+        }
+
+        return $query->orderBy('created_at', 'desc');
     }
 
     /**
