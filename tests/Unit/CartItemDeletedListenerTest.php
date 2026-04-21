@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemDeletedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
-use PHPUnit\Framework\Assert;
 
 class CartItemDeletedListenerTest extends LaravelTestCase
 {
@@ -28,7 +27,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $listener = new CartItemDeletedListener;
         $listener->handle(new Deleted($this->makeCartItem()));
 
-        Assert::assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function test_skip_checkout_path_does_not_cancel_and_logs_debug(): void
@@ -65,7 +64,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $listener = new CartItemDeletedListener;
         $listener->handle(new Deleted($this->makeCartItem($token)));
 
-        Assert::assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function test_abandonment_path_cancels_reservation(): void
@@ -79,7 +78,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $serviceModel->shouldReceive('whereHas')->once()->andReturn($serviceQuery);
 
         $reservationService = \Mockery::mock(ReservationService::class);
-        $reservationService->shouldReceive('cancel')->once()->with($token);
+        $reservationService->shouldReceive('cancel')->once()->with($token, null, 'cart_deleted');
         $this->app->instance(ReservationService::class, $reservationService);
 
         Log::shouldReceive('info')
@@ -92,7 +91,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $listener = new CartItemDeletedListener;
         $listener->handle(new Deleted($this->makeCartItem($token)));
 
-        Assert::assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     public function test_exception_path_logs_error_without_rethrowing(): void
@@ -108,7 +107,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $reservationService = \Mockery::mock(ReservationService::class);
         $reservationService->shouldReceive('cancel')
             ->once()
-            ->with($token)
+            ->with($token, null, 'cart_deleted')
             ->andThrow(new \RuntimeException('boom'));
         $this->app->instance(ReservationService::class, $reservationService);
 
@@ -122,7 +121,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $listener = new CartItemDeletedListener;
         $listener->handle(new Deleted($this->makeCartItem($token)));
 
-        Assert::assertTrue(true);
+        $this->addToAssertionCount(1);
     }
 
     private function makeCartItem(?string $token = null): CartItem

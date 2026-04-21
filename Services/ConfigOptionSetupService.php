@@ -71,6 +71,19 @@ class ConfigOptionSetupService
             $created['location'] = $this->createLocationOption($productId, $locations);
         }
 
+        if (! empty($created)) {
+            /** @var \Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService $audit */
+            $audit = app(\Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService::class);
+            try {
+                $audit->log('setup_run', 'product_config', $productId, [
+                    'sliders_configured' => array_keys($created),
+                    'count' => count($created),
+                ]);
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
+
         return $created;
     }
 

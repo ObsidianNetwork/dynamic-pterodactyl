@@ -100,6 +100,10 @@ class DynamicPterodactyl extends Extension
         // Register event listeners for cart and checkout flow (reservations)
         $this->registerEventListeners();
 
+        \Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig::observe(
+            \Paymenter\Extensions\Others\DynamicPterodactyl\Models\Observers\AlertConfigObserver::class
+        );
+
         // Note: Frontend sliders now handled by native Paymenter dynamic_slider config option type
         // The extension now only manages resource reservations and availability checks
 

@@ -3,12 +3,13 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Config;
+use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
-use PHPUnit\Framework\Assert;
 
 class ReservationServiceTest extends LaravelTestCase
 {
@@ -22,14 +23,16 @@ class ReservationServiceTest extends LaravelTestCase
     {
         parent::setUp();
 
-        $this->mockNodeService = \Mockery::mock(NodeSelectionService::class);
-        $this->mockPricingService = \Mockery::mock(PricingCalculatorService::class);
-        $this->mockAuditService = \Mockery::mock(AuditLogService::class);
+        Config::set('settings.debug', false);
+
+        $this->mockNodeService = Mockery::mock(NodeSelectionService::class);
+        $this->mockPricingService = Mockery::mock(PricingCalculatorService::class);
+        $this->mockAuditService = Mockery::mock(AuditLogService::class);
     }
 
     protected function tearDown(): void
     {
-        \Mockery::close();
+        Mockery::close();
         parent::tearDown();
     }
 
@@ -39,28 +42,19 @@ class ReservationServiceTest extends LaravelTestCase
      */
     private function createService(): ReservationService
     {
-        $service = new class($this->mockNodeService, $this->mockPricingService, $this->mockAuditService) extends ReservationService
-        {
-            private int $testTtl = 15;
+        $reflection = new \ReflectionClass(ReservationService::class);
+        $service = $reflection->newInstanceWithoutConstructor();
 
-            public function __construct($nodeService, $pricingService, $auditService)
-            {
-                // Skip parent constructor to avoid ExtensionHelper call
-                $this->nodeService = $nodeService;
-                $this->pricingService = $pricingService;
-                $this->auditService = $auditService;
-                $this->ttlMinutes = $this->testTtl;
-            }
-
-            // Access to protected properties
-            private NodeSelectionService $nodeService;
-
-            private PricingCalculatorService $pricingService;
-
-            private AuditLogService $auditService;
-
-            private int $ttlMinutes;
-        };
+        foreach ([
+            'nodeService' => $this->mockNodeService,
+            'pricingService' => $this->mockPricingService,
+            'auditService' => $this->mockAuditService,
+            'ttlMinutes' => 15,
+        ] as $property => $value) {
+            $instanceProperty = $reflection->getProperty($property);
+            $instanceProperty->setAccessible(true);
+            $instanceProperty->setValue($service, $value);
+        }
 
         return $service;
     }
@@ -83,20 +77,25 @@ class ReservationServiceTest extends LaravelTestCase
             ->with('status', 'pending')
             ->andReturnSelf();
         DB::shouldReceive('where')
-            ->with('expires_at', '>', \Mockery::any())
+            ->with('expires_at', '>', Mockery::any())
             ->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 99, 'token' => $token]);
         DB::shouldReceive('update')
-            ->with(\Mockery::on(function ($data) use ($serviceId) {
+            ->with(Mockery::on(function ($data) use ($serviceId) {
                 return $data['status'] === 'confirmed'
                     && $data['service_id'] === $serviceId
                     && isset($data['updated_at']);
             }))
             ->andReturn(1);
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('confirmed', 'reservation', 99, Mockery::type('array'))
+            ->andReturn(1);
 
         $service = $this->createService();
         $result = $service->confirm($token, $serviceId);
 
-        Assert::assertTrue($result);
+        $this->assertTrue($result);
     }
 
     /**
@@ -107,13 +106,14 @@ class ReservationServiceTest extends LaravelTestCase
         DB::shouldReceive('table')
             ->with('ptero_resource_reservations')
             ->andReturnSelf();
-        DB::shouldReceive('where')->times(3)->andReturnSelf();
+        DB::shouldReceive('where')->times(4)->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn(null);
         DB::shouldReceive('update')->andReturn(0);
 
         $service = $this->createService();
         $result = $service->confirm('nonexistent', 1);
 
-        Assert::assertFalse($result);
+        $this->assertFalse($result);
     }
 
     /**
@@ -133,14 +133,15 @@ class ReservationServiceTest extends LaravelTestCase
             ->with('status', 'pending')
             ->andReturnSelf();
         DB::shouldReceive('where')
-            ->with('expires_at', '>', \Mockery::any())
+            ->with('expires_at', '>', Mockery::any())
             ->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 5, 'token' => $token]);
         DB::shouldReceive('update')->andReturn(0);
 
         $service = $this->createService();
         $result = $service->confirm($token, 1);
 
-        Assert::assertFalse($result);
+        $this->assertFalse($result);
     }
 
     /**
@@ -175,16 +176,20 @@ class ReservationServiceTest extends LaravelTestCase
             ->with('status', 'pending')
             ->andReturnSelf();
         DB::shouldReceive('update')
-            ->with(\Mockery::on(function ($data) {
+            ->with(Mockery::on(function ($data) {
                 return $data['status'] === 'cancelled'
                     && isset($data['updated_at']);
             }))
+            ->andReturn(1);
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('cancelled', 'reservation', 1, Mockery::type('array'))
             ->andReturn(1);
 
         $service = $this->createService();
         $result = $service->cancel($token);
 
-        Assert::assertTrue($result);
+        $this->assertTrue($result);
     }
 
     /**
@@ -201,7 +206,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->cancel('nonexistent');
 
-        Assert::assertFalse($result);
+        $this->assertFalse($result);
     }
 
     /**
@@ -216,19 +221,23 @@ class ReservationServiceTest extends LaravelTestCase
             ->with('status', 'pending')
             ->andReturnSelf();
         DB::shouldReceive('where')
-            ->with('expires_at', '<', \Mockery::any())
+            ->with('expires_at', '<', Mockery::any())
             ->andReturnSelf();
         DB::shouldReceive('update')
-            ->with(\Mockery::on(function ($data) {
+            ->with(Mockery::on(function ($data) {
                 return $data['status'] === 'expired'
                     && isset($data['updated_at']);
             }))
             ->andReturn(5);
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('batch_expired', 'reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5))
+            ->andReturn(1);
 
         $service = $this->createService();
         $result = $service->cleanupExpired();
 
-        Assert::assertEquals(5, $result);
+        $this->assertEquals(5, $result);
     }
 
     /**
@@ -255,7 +264,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->getByToken($token);
 
-        Assert::assertEquals($expected, $result);
+        $this->assertEquals($expected, $result);
     }
 
     /**
@@ -285,6 +294,170 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
         $result = $service->getByCartItem($cartItemId);
 
-        Assert::assertEquals($expected, $result);
+        $this->assertEquals($expected, $result);
     }
+
+    public function test_create_logs_audit_entry(): void
+    {
+        $this->mockNodeService->shouldReceive('selectBestNode')
+            ->once()
+            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
+
+        $this->mockPricingService->shouldReceive('calculate')
+            ->once()
+            ->andReturn(['total' => 9.99, 'breakdown' => []]);
+
+        DB::shouldReceive('transaction')
+            ->once()
+            ->andReturnUsing(fn ($callback) => $callback());
+
+        DB::shouldReceive('table')
+            ->with('ptero_resource_reservations')
+            ->andReturnSelf();
+        DB::shouldReceive('where')->andReturnSelf();
+        DB::shouldReceive('lockForUpdate')->andReturnSelf();
+        DB::shouldReceive('get')->andReturn(collect([]));
+        DB::shouldReceive('insertGetId')->andReturn(42);
+
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('created', 'reservation', 42, Mockery::type('array'))
+            ->andReturn(1);
+
+        $service = $this->createService();
+        $result = $service->create(1, 1, ['memory' => 4096, 'cpu' => 200, 'disk' => 51200], 10, 5);
+
+        $this->assertEquals(42, $result['id']);
+    }
+
+    public function test_confirm_logs_audit_entry_on_success(): void
+    {
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->times(4)->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 42, 'token' => 'test_token']);
+        DB::shouldReceive('update')->andReturn(1);
+
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('confirmed', 'reservation', 42, Mockery::type('array'))
+            ->andReturn(1);
+
+        $service = $this->createService();
+        $result = $service->confirm('test_token', 42);
+
+        $this->assertTrue($result);
+    }
+
+    public function test_confirm_skips_audit_on_state_drift(): void
+    {
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->times(4)->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn(null);
+        DB::shouldReceive('update')->andReturn(0);
+
+        $this->mockAuditService->shouldReceive('log')->never();
+
+        $service = $this->createService();
+        $result = $service->confirm('expired_token', 42);
+
+        $this->assertFalse($result);
+    }
+
+    public function test_extend_logs_audit_entry_on_success(): void
+    {
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->times(3)->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 42, 'token' => 'test_token']);
+        DB::shouldReceive('raw')->once()->andReturn('DATE_ADD_SQL');
+        DB::shouldReceive('update')->andReturn(1);
+
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('extended', 'reservation', 42, Mockery::on(fn ($ctx) => $ctx['additional_minutes'] === 15))
+            ->andReturn(1);
+
+        $service = $this->createService();
+        $result = $service->extend('test_token', 15);
+
+        $this->assertTrue($result);
+    }
+
+    public function test_cleanup_expired_logs_batch_count(): void
+    {
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->times(2)->andReturnSelf();
+        DB::shouldReceive('update')->andReturn(5);
+
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('batch_expired', 'reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5))
+            ->andReturn(1);
+
+        $service = $this->createService();
+        $result = $service->cleanupExpired();
+
+        $this->assertEquals(5, $result);
+    }
+
+    public function test_cancel_audits_with_source_admin(): void
+    {
+        $token = 'admin_cancel_token';
+        $mockReservation = (object) ['id' => 5, 'token' => $token, 'memory' => 4096, 'cpu' => 200, 'disk' => 51200, 'status' => 'pending'];
+
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->with('token', $token)->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn($mockReservation);
+        DB::shouldReceive('where')->with('status', 'pending')->andReturnSelf();
+        DB::shouldReceive('update')->andReturn(1);
+
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('cancelled', 'reservation', 5, Mockery::on(fn ($ctx) => $ctx['source'] === 'admin'))
+            ->andReturn(1);
+
+        $service = $this->createService();
+        $service->cancel($token, 'admin override', 'admin');
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_cancel_audits_with_source_customer(): void
+    {
+        $token = 'system_cancel_token';
+        $mockReservation = (object) ['id' => 6, 'token' => $token, 'memory' => 4096, 'cpu' => 200, 'disk' => 51200, 'status' => 'pending'];
+
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->with('token', $token)->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn($mockReservation);
+        DB::shouldReceive('where')->with('status', 'pending')->andReturnSelf();
+        DB::shouldReceive('update')->andReturn(1);
+
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('cancelled', 'reservation', 6, Mockery::on(fn ($ctx) => $ctx['source'] === 'customer'))
+            ->andReturn(1);
+
+        $service = $this->createService();
+        $service->cancel($token, null, 'customer');
+
+        $this->addToAssertionCount(1);
+    }
+    public function test_audit_failure_does_not_break_confirm(): void
+    {
+        $token = 'audit_fail_token';
+        $mockReservation = (object) ['id' => 77, 'token' => $token];
+
+        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
+        DB::shouldReceive('where')->andReturnSelf();
+        DB::shouldReceive('first')->once()->andReturn($mockReservation);
+        DB::shouldReceive('update')->once()->andReturn(1);
+
+        $this->mockAuditService->shouldReceive('log')->once()
+            ->andThrow(new \RuntimeException('audit db down'));
+
+        $service = $this->createService();
+
+        $this->assertTrue($service->confirm($token, 42));
+    }
+
 }
