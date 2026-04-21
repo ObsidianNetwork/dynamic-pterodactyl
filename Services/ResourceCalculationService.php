@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\Extension;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
@@ -123,6 +124,7 @@ class ResourceCalculationService
     /**
      * Test API connection
      */
+    // Does not use pterodactylGet() — admin-initiated diagnostic needs longer timeout and different error surfaces.
     public function testConnection(): array
     {
         try {
@@ -134,10 +136,17 @@ class ResourceCalculationService
             if ($response->successful()) {
                 $data = $response->json();
 
+                if (! is_array($data) || ! is_array($data['data'] ?? null)) {
+                    return [
+                        'success' => false,
+                        'message' => 'Connection succeeded but response body was not a valid Pterodactyl nodes payload.',
+                    ];
+                }
+
                 return [
                     'success' => true,
                     'message' => 'Connection successful',
-                    'node_count' => count($data['data'] ?? []),
+                    'node_count' => count($data['data']),
                     'panel_version' => $response->header('X-Pterodactyl-Version'),
                 ];
             }
@@ -179,18 +188,9 @@ class ResourceCalculationService
      */
     public function getLocations(): array
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/locations", [
-            'per_page' => 100,
-        ]);
+        $data = $this->pterodactylGet('/api/application/locations', ['per_page' => 100]);
 
-        if (! $response->successful()) {
-            throw new \RuntimeException('Failed to fetch locations from Pterodactyl');
-        }
-
-        return collect($response->json('data', []))
+        return collect($data['data'] ?? [])
             ->map(fn ($loc) => [
                 'id' => $loc['attributes']['id'],
                 'short' => $loc['attributes']['short'],
@@ -203,40 +203,71 @@ class ResourceCalculationService
 
     private function fetchNodesInLocation(int $locationId): array
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/nodes", [
+        $data = $this->pterodactylGet('/api/application/nodes', [
             'filter[location_id]' => $locationId,
             'per_page' => 100,
         ]);
 
-        if (! $response->successful()) {
-            throw new \RuntimeException('Failed to fetch nodes: ' . $response->body());
-        }
-
-        return collect($response->json('data', []))
+        return collect($data['data'] ?? [])
             ->map(fn ($node) => $node['attributes'])
             ->toArray();
     }
 
     private function fetchServersOnNode(int $nodeId): array
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/nodes/{$nodeId}", [
-            'include' => 'servers',
-        ]);
+        $data = $this->pterodactylGet("/api/application/nodes/{$nodeId}", ['include' => 'servers']);
 
-        if (! $response->successful()) {
-            throw new \RuntimeException('Failed to fetch node details');
-        }
-
-        return collect($response->json('attributes.relationships.servers.data', []))
+        return collect($data['attributes']['relationships']['servers']['data'] ?? [])
             ->map(fn ($server) => $server['attributes'])
             ->toArray();
+    }
+
+    private function pterodactylGet(string $path, array $query = []): array
+    {
+        try {
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $this->apiKey,
+                'Accept' => 'application/json',
+            ])
+                ->timeout(3)            // per-attempt; worst case: 2 × 3s + 250ms = ~6.25s
+                ->connectTimeout(2)
+                ->retry(2, 250, function ($exception) {
+                    // Per-attempt timeout, not end-to-end. Retry on connection errors only.
+                    // Do not retry 4xx (other than 429) or 5xx — Pterodactyl returns meaningful errors.
+                    return $exception instanceof ConnectionException;
+                }, throw: false)
+                ->get($this->apiUrl . $path, $query);
+        } catch (ConnectionException $exception) {
+            // Full message may contain internal hostnames/ports; log for diagnostics, throw sanitized.
+            report($exception);
+            throw new \RuntimeException('Pterodactyl API connection failed.', previous: $exception);
+        }
+
+        if ($response->status() === 429) {
+            throw new \RuntimeException('Pterodactyl rate limit exceeded. Retry in a few seconds.');
+        }
+        if ($response->failed()) {
+            // Log full upstream body for diagnostics, but do NOT leak it to callers —
+            // AvailabilityController surfaces exception messages to API clients.
+            report(new \RuntimeException(sprintf(
+                'Pterodactyl API error (%d) body: %s',
+                $response->status(),
+                $response->body()
+            )));
+
+            throw new \RuntimeException(sprintf('Pterodactyl API error (%d).', $response->status()));
+        }
+
+        $payload = $response->json();
+
+        if (! is_array($payload)) {
+            throw new \RuntimeException(sprintf(
+                'Pterodactyl API returned an invalid JSON payload (status %d).',
+                $response->status()
+            ));
+        }
+
+        return $payload;
     }
 
     private function getPendingReservations(int $nodeId): array
@@ -259,12 +290,14 @@ class ResourceCalculationService
 
     private function getNodeLocation(int $nodeId): int
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/nodes/{$nodeId}");
+        $data = $this->pterodactylGet("/api/application/nodes/{$nodeId}");
 
-        return $response->json('attributes.location_id');
+        $locationId = $data['attributes']['location_id'] ?? null;
+        if (! is_int($locationId)) {
+            throw new \RuntimeException("Pterodactyl node {$nodeId} response is missing location_id.");
+        }
+
+        return $locationId;
     }
 
     private function getExtensionConfig(): array
