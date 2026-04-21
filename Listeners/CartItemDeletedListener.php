@@ -41,7 +41,7 @@ class CartItemDeletedListener
 
         try {
             $reservationService = app(ReservationService::class);
-            $reservationService->cancel($token);
+            $reservationService->cancel($token, null, 'cart_deleted');
 
             Log::info('Cancelled reservation for deleted cart item', [
                 'cart_item_id' => $cartItem->id,

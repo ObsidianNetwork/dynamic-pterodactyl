@@ -34,6 +34,15 @@ class ReservationService
         $this->ttlMinutes = (int) ($config['reservation_ttl'] ?? 15);
     }
 
+    private function safeAudit(string $action, string $entityType, int $entityId, ?array $newValues = null): void
+    {
+        try {
+            $this->auditService->log($action, $entityType, $entityId, $newValues);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
     /**
      * Create a resource reservation
      *
@@ -86,6 +95,18 @@ class ReservationService
                 'updated_at' => now(),
             ]);
 
+            $this->safeAudit('created', 'reservation', $id, [
+                'token_prefix' => substr($token, 0, 8) . '...',
+                'product_id' => $productId,
+                'location_id' => $locationId,
+                'node_id' => $node['node_id'],
+                'memory' => $resources['memory'],
+                'cpu' => $resources['cpu'],
+                'disk' => $resources['disk'],
+                'price' => $pricing['total'],
+                'cart_item_id' => $cartItemId,
+            ]);
+
             return [
                 'id' => $id,
                 'token' => $token,
@@ -103,7 +124,10 @@ class ReservationService
      */
     public function confirm(string $token, int $serviceId): bool
     {
-        return DB::table('ptero_resource_reservations')
+        $reservation = $this->getByToken($token);
+        $reservationId = $reservation?->id ?? 0;
+
+        $rows = DB::table('ptero_resource_reservations')
             ->where('token', $token)
             ->where('status', 'pending')
             ->where('expires_at', '>', now())
@@ -111,13 +135,22 @@ class ReservationService
                 'status' => 'confirmed',
                 'service_id' => $serviceId,
                 'updated_at' => now(),
-            ]) > 0;
+            ]);
+
+        if ($rows > 0) {
+            $this->safeAudit('confirmed', 'reservation', $reservationId, [
+                'token_prefix' => substr($token, 0, 8) . '...',
+                'service_id' => $serviceId,
+            ]);
+        }
+
+        return $rows > 0;
     }
 
     /**
      * Cancel a reservation
      */
-    public function cancel(string $token, ?string $reason = null, bool $isAdminAction = false): bool
+    public function cancel(string $token, ?string $reason = null, string $source = 'system'): bool
     {
         $reservation = $this->getByToken($token);
 
@@ -134,9 +167,10 @@ class ReservationService
                 'updated_at' => now(),
             ]) > 0;
 
-        if ($result && $isAdminAction) {
-            $this->auditService->log('cancelled', 'reservation', $reservation->id, [
+        if ($result) {
+            $this->safeAudit('cancelled', 'reservation', $reservation->id, [
                 'reason' => $reason,
+                'source' => $source,
                 'resources' => [
                     'memory' => $reservation->memory,
                     'cpu' => $reservation->cpu,
@@ -153,13 +187,25 @@ class ReservationService
      */
     public function extend(string $token, int $additionalMinutes = 15): bool
     {
-        return DB::table('ptero_resource_reservations')
+        $reservation = $this->getByToken($token);
+        $reservationId = $reservation?->id ?? 0;
+
+        $rows = DB::table('ptero_resource_reservations')
             ->where('token', $token)
             ->where('status', 'pending')
             ->update([
                 'expires_at' => DB::raw("DATE_ADD(expires_at, INTERVAL {$additionalMinutes} MINUTE)"),
                 'updated_at' => now(),
-            ]) > 0;
+            ]);
+
+        if ($rows > 0) {
+            $this->safeAudit('extended', 'reservation', $reservationId, [
+                'token_prefix' => substr($token, 0, 8) . '...',
+                'additional_minutes' => $additionalMinutes,
+            ]);
+        }
+
+        return $rows > 0;
     }
 
     /**
@@ -269,12 +315,20 @@ class ReservationService
      */
     public function cleanupExpired(): int
     {
-        return DB::table('ptero_resource_reservations')
+        $count = DB::table('ptero_resource_reservations')
             ->where('status', 'pending')
             ->where('expires_at', '<', now())
             ->update([
                 'status' => 'expired',
                 'updated_at' => now(),
             ]);
+
+        if ($count > 0) {
+            $this->safeAudit('batch_expired', 'reservation', 0, [
+                'count' => $count,
+            ]);
+        }
+
+        return $count;
     }
 }

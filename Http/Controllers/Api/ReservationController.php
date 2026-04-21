@@ -99,7 +99,7 @@ class ReservationController
             ], 403);
         }
 
-        $result = $this->reservationService->cancel($token);
+        $result = $this->reservationService->cancel($token, null, 'customer');
 
         return response()->json([
             'success' => $result,
