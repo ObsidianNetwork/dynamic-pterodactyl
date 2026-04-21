@@ -2,9 +2,12 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
+use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
 
 class AlertService
 {
@@ -152,5 +155,51 @@ class AlertService
         ];
 
         $this->sendNotifications($config, $testAvailability, $testAlerts);
+    }
+
+    /**
+     * Notify all admins of a reservation shortfall or state drift after payment.
+     */
+    public function notifyShortfall(
+        int $serviceId,
+        int $invoiceId,
+        array $snapshot,
+        string $reason,
+    ): void {
+        $recipients = $this->getAdminRecipients();
+
+        if ($recipients->isEmpty()) {
+            Log::warning('No admin recipients configured for shortfall alert', [
+                'service_id' => $serviceId,
+                'invoice_id' => $invoiceId,
+                'reason' => $reason,
+            ]);
+        }
+
+        foreach ($recipients as $recipient) {
+            try {
+                $recipient->notify(new ReservationShortfallNotification(
+                    serviceId: $serviceId,
+                    invoiceId: $invoiceId,
+                    reservationSnapshot: $snapshot,
+                    reason: $reason,
+                ));
+            } catch (\Throwable $e) {
+                Log::error('Failed to notify admin recipient for shortfall alert', [
+                    'service_id' => $serviceId,
+                    'invoice_id' => $invoiceId,
+                    'recipient_id' => $recipient->id ?? null,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Get all admin users (non-null role_id = admin in Paymenter).
+     */
+    private function getAdminRecipients(): Collection
+    {
+        return User::whereNotNull('role_id')->get();
     }
 }

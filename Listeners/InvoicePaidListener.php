@@ -7,6 +7,7 @@ use App\Models\Service;
 use Illuminate\Support\Facades\Log;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 
 class InvoicePaidListener
 {
@@ -15,7 +16,6 @@ class InvoicePaidListener
         $invoice = $event->invoice;
 
         foreach ($invoice->items as $item) {
-            // Skip items that don't reference a service
             if ($item->reference_type !== Service::class) {
                 continue;
             }
@@ -25,12 +25,10 @@ class InvoicePaidListener
                 continue;
             }
 
-            // Get reservation token from service properties (morphMany relationship)
             $reservationToken = $service->properties()
                 ->where('key', '_reservation_token')
                 ->value('value');
 
-            // Check if this service has a reservation
             if (!$reservationToken) {
                 continue;
             }
@@ -38,6 +36,7 @@ class InvoicePaidListener
             try {
                 $reservationService = app(ReservationService::class);
                 $resourceService = app(ResourceCalculationService::class);
+                $alertService = app(AlertService::class);
 
                 $reservation = $reservationService->getByToken($reservationToken);
 
@@ -50,18 +49,19 @@ class InvoicePaidListener
                     continue;
                 }
 
+                $snapshot = [
+                    'memory' => $reservation->memory,
+                    'cpu' => $reservation->cpu,
+                    'disk' => $reservation->disk,
+                ];
+
                 // CRITICAL: Final availability verification
                 $available = $resourceService->verifyAvailability(
                     $reservation->node_id,
-                    [
-                        'memory' => $reservation->memory,
-                        'cpu' => $reservation->cpu,
-                        'disk' => $reservation->disk,
-                    ]
+                    $snapshot,
                 );
 
                 if (!$available) {
-                    // This should rarely happen, but we need to handle it
                     Log::error('Resources no longer available for paid service', [
                         'service_id' => $service->id,
                         'node_id' => $reservation->node_id,
@@ -70,9 +70,21 @@ class InvoicePaidListener
                         'disk' => $reservation->disk,
                     ]);
 
-                    // TODO: Notify admin for manual intervention
-                    // The server will still be created by Pterodactyl extension,
-                    // but may fail due to insufficient resources
+                    try {
+                        $alertService->notifyShortfall(
+                            serviceId: $service->id,
+                            invoiceId: $invoice->id,
+                            snapshot: $snapshot,
+                            reason: 'insufficient_resources',
+                        );
+                    } catch (\Throwable $e) {
+                        Log::error('Shortfall notification delivery failed', [
+                            'service_id' => $service->id,
+                            'reason' => 'insufficient_resources',
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+
                     continue;
                 }
 
@@ -93,12 +105,25 @@ class InvoicePaidListener
                         'reservation_id' => $reservation->id,
                         'current_status' => $current?->status,
                     ]);
-                    // TODO: notify admin — server still provisions via Pterodactyl
-                    // extension, but reservation bookkeeping/linkage is now broken.
+
+                    try {
+                        $alertService->notifyShortfall(
+                            serviceId: $service->id,
+                            invoiceId: $invoice->id,
+                            snapshot: $snapshot,
+                            reason: 'state_drift:' . ($current?->status ?? 'unknown'),
+                        );
+                    } catch (\Throwable $e) {
+                        Log::error('Shortfall notification delivery failed', [
+                            'service_id' => $service->id,
+                            'reason' => 'state_drift',
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 }
 
             } catch (\Exception $e) {
-                Log::error('Failed to confirm reservation', [
+                Log::error('Invoice reservation processing failed', [
                     'service_id' => $service->id,
                     'error' => $e->getMessage(),
                 ]);
