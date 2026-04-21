@@ -7,9 +7,8 @@ use Illuminate\Support\Facades\DB;
 
 class ConfigOptionSetupService
 {
-    /**
-     * Default configurations for each resource type
-     */
+    public function __construct(private AuditLogService $audit) {}
+
     private array $resourceDefaults = [
         'memory' => [
             'min' => 1024,
@@ -40,19 +39,10 @@ class ConfigOptionSetupService
         ],
     ];
 
-    /**
-     * Create all required dynamic slider config options for a product
-     *
-     * @param  int  $productId  The product to attach config options to
-     * @param  array  $config  Configuration for sliders and pricing
-     * @param  array  $locations  Array of Pterodactyl locations [{id, short, long}, ...]
-     * @return array Created config options
-     */
     public function createDynamicSliderOptions(int $productId, array $config, array $locations = []): array
     {
         $created = [];
 
-        // Create dynamic_slider for each enabled resource type
         foreach (['memory', 'cpu', 'disk'] as $resourceType) {
             $enableKey = "enable_{$resourceType}_slider";
             if (($config[$enableKey] ?? true) === false) {
@@ -66,16 +56,13 @@ class ConfigOptionSetupService
             );
         }
 
-        // Create location option (type: select) with children
         if (! empty($locations)) {
             $created['location'] = $this->createLocationOption($productId, $locations);
         }
 
         if (! empty($created)) {
-            /** @var \Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService $audit */
-            $audit = app(\Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService::class);
             try {
-                $audit->log('setup_run', 'product_config', $productId, [
+                $this->audit->log('setup_run', 'product_config', $productId, [
                     'sliders_configured' => array_keys($created),
                     'count' => count($created),
                 ]);
@@ -87,21 +74,15 @@ class ConfigOptionSetupService
         return $created;
     }
 
-    /**
-     * Create a dynamic_slider ConfigOption for a resource type
-     */
     public function createResourceOption(int $productId, string $resourceType, array $config): ConfigOption
     {
         $defaults = $this->resourceDefaults[$resourceType] ?? [];
 
-        // Build metadata from config (convert GB/cores to MB/%)
         $metadata = $this->buildResourceMetadata($resourceType, $config, $defaults);
 
-        // Check if option already exists for this product
         $existingOption = $this->findExistingOption($productId, $resourceType);
 
         if ($existingOption) {
-            // Update existing option
             $existingOption->update([
                 'type' => 'dynamic_slider',
                 'metadata' => $metadata,
@@ -110,7 +91,6 @@ class ConfigOptionSetupService
             return $existingOption;
         }
 
-        // Create new config option
         $option = ConfigOption::create([
             'name' => ucfirst($resourceType),
             'type' => 'dynamic_slider',
@@ -127,20 +107,15 @@ class ConfigOptionSetupService
             'metadata' => $metadata,
         ]);
 
-        // Link to product
         $option->products()->syncWithoutDetaching([$productId]);
 
         return $option;
     }
 
-    /**
-     * Build metadata array for a resource type from wizard config
-     */
     private function buildResourceMetadata(string $resourceType, array $config, array $defaults): array
     {
         $pricingModel = $config['pricing_model'] ?? 'linear';
 
-        // Get slider values, converting from user-friendly units to internal units
         $divisor = $defaults['display_divisor'] ?? 1;
 
         $metadata = [
@@ -158,9 +133,6 @@ class ConfigOptionSetupService
         return $metadata;
     }
 
-    /**
-     * Build pricing metadata based on pricing model
-     */
     private function buildPricingMetadata(string $resourceType, string $pricingModel, array $config): array
     {
         $pricing = [
@@ -187,9 +159,6 @@ class ConfigOptionSetupService
         return $pricing;
     }
 
-    /**
-     * Create location select option with children
-     */
     public function createLocationOption(int $productId, array $locations): ConfigOption
     {
         $existingLocation = $this->findExistingOption($productId, 'location');
@@ -209,7 +178,6 @@ class ConfigOptionSetupService
             $locationOption->products()->syncWithoutDetaching([$productId]);
         }
 
-        // Create/update location children
         foreach ($locations as $loc) {
             $locationName = $loc['long'] ?: $loc['short'];
             ConfigOption::updateOrCreate([
@@ -226,11 +194,6 @@ class ConfigOptionSetupService
         return $locationOption;
     }
 
-    /**
-     * Check if dynamic slider options already exist for a product
-     *
-     * @return array Info about existing options
-     */
     public function checkExistingOptions(int $productId): array
     {
         $resourceTypes = ['memory', 'cpu', 'disk'];
@@ -258,9 +221,6 @@ class ConfigOptionSetupService
         ];
     }
 
-    /**
-     * Find existing config option for a product by name/type
-     */
     private function findExistingOption(int $productId, string $name): ?ConfigOption
     {
         $result = DB::table('config_options')
@@ -276,11 +236,6 @@ class ConfigOptionSetupService
         return $result ? ConfigOption::find($result->id) : null;
     }
 
-    /**
-     * Get products with dynamic slider configuration
-     *
-     * @return int Count of products with at least one dynamic_slider
-     */
     public static function getProductsWithSlidersCount(): int
     {
         return DB::table('config_options')
