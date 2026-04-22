@@ -249,13 +249,12 @@ Show what's included vs. what's extra:
 
 ## Database Storage
 
-All pricing configurations stored in `ptero_pricing_configs.pricing_config` as JSON.
+Slider pricing is read from ConfigOption metadata built by `Services/ConfigOptionSetupService` and consumed by `Services/PricingCalculatorService`. It is no longer stored in `ptero_pricing_configs.pricing_config`.
 
 The `pricing_model` enum determines which calculation method to use:
 - `linear` → `calculateLinear()`
 - `tiered` → `calculateTiered()`
 - `base_addon` → `calculateBasePlusAddon()`
-
 ---
 
 ## Form-to-JSON Conversion

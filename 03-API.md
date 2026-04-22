@@ -45,7 +45,7 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\AdminController;
 
 Route::prefix('api/dynamic-pterodactyl/admin')
-    ->middleware(['web', 'auth', 'admin'])
+    ->middleware(['web', 'auth', EnsureUserIsAdmin::class, 'throttle:30,1'])
     ->group(function () {
         
         // Availability

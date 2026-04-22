@@ -344,7 +344,7 @@ class AuditLogPage extends Page implements HasTable
 }
 ```
 
-The audit log table is read-only. Rows are not clickable, and there is no JSON diff modal in the current implementation.
+The audit log table is read-only for performance and simplicity. Rows are not clickable, and there is no JSON diff modal. (See DECISIONS.md: audit log is append-only tracking only; detailed diff inspection is out of scope.)
 
 ---
 

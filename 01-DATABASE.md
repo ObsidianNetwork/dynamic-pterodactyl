@@ -173,7 +173,7 @@ return new class extends Migration
             $table->enum('pricing_model', [
                 'linear',
                 'tiered',
-                'base_plus_addon'
+                'base_addon'
             ])->default('linear');
             
             // JSON configuration for pricing model
