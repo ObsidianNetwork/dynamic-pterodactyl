@@ -22,7 +22,7 @@ class ResourceCalculationService
     /**
      * Get available resources for a location (real-time from Pterodactyl API)
      */
-    public function getLocationAvailability(int $locationId): array
+    public function getLocationAvailability(int $locationId, ?string $excludeReservationToken = null): array
     {
         $nodes = $this->fetchNodesInLocation($locationId);
 
@@ -35,7 +35,7 @@ class ResourceCalculationService
         ];
 
         foreach ($nodes as $node) {
-            $nodeAvailability = $this->calculateNodeAvailability($node);
+            $nodeAvailability = $this->calculateNodeAvailability($node, $excludeReservationToken);
             $locationData['nodes'][] = $nodeAvailability;
 
             // Track maximum available across all nodes
@@ -68,7 +68,7 @@ class ResourceCalculationService
     /**
      * Calculate available resources for a specific node
      */
-    public function calculateNodeAvailability(array $node): array
+    public function calculateNodeAvailability(array $node, ?string $excludeReservationToken = null): array
     {
         $servers = $this->fetchServersOnNode($node['id']);
 
@@ -81,7 +81,7 @@ class ResourceCalculationService
         }
 
         // Get pending reservations for this node
-        $pendingReservations = $this->getPendingReservations($node['id']);
+        $pendingReservations = $this->getPendingReservations($node['id'], $excludeReservationToken);
 
         // Calculate effective totals with overallocation
         // Formula: total * (1 + overallocate_percentage / 100)
@@ -167,7 +167,7 @@ class ResourceCalculationService
     /**
      * Verify resources are still available (called at payment time)
      */
-    public function verifyAvailability(int $nodeId, array $requirements): bool
+    public function verifyAvailability(int $nodeId, array $requirements, ?string $excludeReservationToken = null): bool
     {
         $nodes = $this->fetchNodesInLocation($this->getNodeLocation($nodeId));
         $node = collect($nodes)->firstWhere('id', $nodeId);
@@ -176,7 +176,7 @@ class ResourceCalculationService
             return false;
         }
 
-        $availability = $this->calculateNodeAvailability($node);
+        $availability = $this->calculateNodeAvailability($node, $excludeReservationToken);
 
         return $availability['available']['memory'] >= $requirements['memory']
             && $availability['available']['cpu'] >= $requirements['cpu']
@@ -270,12 +270,18 @@ class ResourceCalculationService
         return $payload;
     }
 
-    private function getPendingReservations(int $nodeId): array
+    private function getPendingReservations(int $nodeId, ?string $excludeReservationToken = null): array
     {
-        $result = DB::table('ptero_resource_reservations')
+        $query = DB::table('ptero_resource_reservations')
             ->where('node_id', $nodeId)
             ->where('status', 'pending')
-            ->where('expires_at', '>', now())
+            ->where('expires_at', '>', now());
+
+        if ($excludeReservationToken !== null) {
+            $query->where('token', '!=', $excludeReservationToken);
+        }
+
+        $result = $query
             ->selectRaw('COALESCE(SUM(memory), 0) as memory')
             ->selectRaw('COALESCE(SUM(cpu), 0) as cpu')
             ->selectRaw('COALESCE(SUM(disk), 0) as disk')

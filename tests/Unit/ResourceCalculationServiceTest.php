@@ -2,6 +2,8 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Config;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
@@ -9,6 +11,8 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ResourceCalculationServiceTest extends LaravelTestCase
 {
+    use DatabaseTransactions;
+
     private ResourceCalculationService $service;
 
     protected function setUp(): void
@@ -153,5 +157,105 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->expectExceptionMessageMatches('/missing location_id/');
 
         $method->invoke($this->service, 5);
+    }
+
+    public function test_get_location_availability_excludes_given_reservation_token(): void
+    {
+        $this->insertPendingReservation('token-a', 5, 1, ['memory' => 2048, 'cpu' => 100, 'disk' => 10240]);
+        $this->insertPendingReservation('token-b', 5, 1, ['memory' => 1024, 'cpu' => 50, 'disk' => 5120]);
+
+        Http::fake($this->availabilityHttpFake(nodeId: 5, locationId: 1, totalMemory: 8192, totalDisk: 51200, totalCpuThreads: 4));
+
+        $result = $this->service->getLocationAvailability(1, 'token-a');
+
+        $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $result['nodes'][0]['reserved']);
+        $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
+    }
+
+    public function test_verify_availability_with_self_exclusion_succeeds_on_edge_fit(): void
+    {
+        $resources = ['memory' => 4096, 'cpu' => 200, 'disk' => 10240];
+        $this->insertPendingReservation('edge-fit', 5, 1, $resources);
+
+        Http::fake($this->availabilityHttpFake(nodeId: 5, locationId: 1, totalMemory: 4096, totalDisk: 10240, totalCpuThreads: 2));
+
+        $this->assertTrue($this->service->verifyAvailability(5, $resources, 'edge-fit'));
+    }
+
+    public function test_verify_availability_without_exclusion_fails_on_edge_fit(): void
+    {
+        $resources = ['memory' => 4096, 'cpu' => 200, 'disk' => 10240];
+        $this->insertPendingReservation('edge-fit', 5, 1, $resources);
+
+        Http::fake($this->availabilityHttpFake(nodeId: 5, locationId: 1, totalMemory: 4096, totalDisk: 10240, totalCpuThreads: 2));
+
+        $this->assertFalse($this->service->verifyAvailability(5, $resources));
+    }
+
+    private function insertPendingReservation(string $token, int $nodeId, int $locationId, array $resources): void
+    {
+        DB::table('ptero_resource_reservations')->insert([
+            'token' => $token,
+            'node_id' => $nodeId,
+            'location_id' => $locationId,
+            'memory' => $resources['memory'],
+            'cpu' => $resources['cpu'],
+            'disk' => $resources['disk'],
+            'calculated_price' => 9.99,
+            'pricing_breakdown' => json_encode([]),
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(15),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function availabilityHttpFake(int $nodeId, int $locationId, int $totalMemory, int $totalDisk, int $totalCpuThreads): callable
+    {
+        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads) {
+            $url = $request->url();
+
+            if (str_contains($url, '/api/application/nodes?')) {
+                return Http::response([
+                    'data' => [[
+                        'attributes' => [
+                            'id' => $nodeId,
+                            'location_id' => $locationId,
+                            'name' => 'Node ' . $nodeId,
+                            'fqdn' => 'node-' . $nodeId . '.example.com',
+                            'memory' => $totalMemory,
+                            'disk' => $totalDisk,
+                            'cpu_threads' => $totalCpuThreads,
+                            'memory_overallocate' => 0,
+                            'disk_overallocate' => 0,
+                            'maintenance_mode' => false,
+                        ],
+                    ]],
+                ], 200);
+            }
+
+            if (str_contains($url, "/api/application/nodes/{$nodeId}?include=servers")) {
+                return Http::response([
+                    'attributes' => [
+                        'relationships' => [
+                            'servers' => [
+                                'data' => [],
+                            ],
+                        ],
+                    ],
+                ], 200);
+            }
+
+            if (str_ends_with($url, "/api/application/nodes/{$nodeId}")) {
+                return Http::response([
+                    'attributes' => [
+                        'id' => $nodeId,
+                        'location_id' => $locationId,
+                    ],
+                ], 200);
+            }
+
+            return Http::response([], 404);
+        };
     }
 }
