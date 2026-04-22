@@ -48,6 +48,13 @@ class AdminReservationController
             ], 404);
         }
 
+        if ($reservation->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => "Only pending reservations can be cancelled (current status: {$reservation->status})",
+            ], 409);
+        }
+
         $result = $this->reservationService->cancel($token, $validated['reason'], 'admin');
 
         if ($result) {
@@ -59,7 +66,7 @@ class AdminReservationController
 
         return response()->json([
             'success' => false,
-            'message' => 'Failed to cancel reservation',
-        ], 500);
+            'message' => 'Reservation could not be cancelled because its status changed',
+        ], 409);
     }
 }

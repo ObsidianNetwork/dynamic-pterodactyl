@@ -42,10 +42,10 @@ class AdminCapacityController
                 ],
             ]);
         } catch (\Throwable $e) {
+            report($e);
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch capacity',
-                'error'   => $e->getMessage(),
             ], 503);
         }
     }

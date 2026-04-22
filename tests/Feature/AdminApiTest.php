@@ -22,7 +22,7 @@ class AdminApiTest extends LaravelTestCase
 
     private function makeAdminUser(): User
     {
-        $role = Role::create(['name' => 'Admin']);
+        $role = Role::firstOrCreate(['name' => 'Admin']);
         return User::factory()->create(['role_id' => $role->id]);
     }
 
@@ -48,10 +48,10 @@ class AdminApiTest extends LaravelTestCase
         ], $attrs));
     }
 
-    public function test_unauthenticated_reservations_list_returns_401_or_302(): void
+    public function test_unauthenticated_reservations_list_redirects_to_login(): void
     {
         $response = $this->get('/api/dynamic-pterodactyl/admin/reservations');
-        $this->assertContains($response->status(), [302, 401]);
+        $response->assertStatus(302);
     }
 
     public function test_non_admin_user_gets_403(): void
@@ -92,6 +92,9 @@ class AdminApiTest extends LaravelTestCase
 
         $response->assertStatus(200);
         $this->assertCount(2, $response->json('data.data'));
+        foreach ($response->json('data.data') as $row) {
+            $this->assertEquals('pending', $row['status']);
+        }
     }
 
     public function test_admin_cancels_reservation_with_reason(): void

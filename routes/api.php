@@ -32,7 +32,7 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(fun
 
 // Admin routes — session-based, gated by non-null role (matches User::canAccessPanel)
 Route::prefix('api/dynamic-pterodactyl/admin')
-    ->middleware(['web', 'auth', EnsureUserIsAdmin::class])
+    ->middleware(['web', 'auth', EnsureUserIsAdmin::class, 'throttle:30,1'])
     ->group(function () {
         Route::get('/reservations', [AdminReservationController::class, 'index']);
         Route::post('/reservations/{token}/cancel', [AdminReservationController::class, 'cancel']);

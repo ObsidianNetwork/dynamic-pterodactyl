@@ -284,7 +284,7 @@ class ReservationService
             $query->where('user_id', (int) $filters['user_id']);
         }
 
-        return $query->orderBy('created_at', 'desc');
+        return $query->orderBy('created_at', 'desc')->orderBy('id', 'desc');
     }
 
     /**
