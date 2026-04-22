@@ -4,6 +4,15 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 
 ---
 
+## [Unreleased]
+
+### Changed
+- `released` reservation status removed from schema and PHP enum. Lifecycle: `pending → confirmed | expired | cancelled`.
+- `base_plus_addon` pricing model alias removed from `PricingConfigValidator`. Use `base_addon`.
+- `/availability/{locationId}/nodes` API route moved to admin-only middleware group.
+
+---
+
 ## [3.1.0] — 2026-04-21
 
 ### Fixed

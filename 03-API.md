@@ -21,7 +21,6 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
     
     // Availability
     Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
-    Route::get('/availability/{locationId}/nodes', [AvailabilityController::class, 'getNodes']);
     
     // Pricing
     Route::post('/pricing/calculate', [PricingController::class, 'calculate']);
@@ -46,9 +45,12 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\AdminController;
 
 Route::prefix('api/dynamic-pterodactyl/admin')
-    ->middleware(['web', 'auth', 'admin'])
+    ->middleware(['web', 'auth', EnsureUserIsAdmin::class, 'throttle:30,1'])
     ->group(function () {
         
+        // Availability
+        Route::get('/availability/{locationId}/nodes', [AvailabilityController::class, 'getNodes']);
+
         // Dashboard
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
         Route::get('/statistics', [AdminController::class, 'statistics']);
@@ -91,34 +93,6 @@ Get maximum available resources for a location.
         "max_disk": 204800,
         "node_count": 3,
         "has_capacity": true
-    }
-}
-```
-
-### GET /api/dynamic-pterodactyl/availability/{locationId}/nodes
-
-Get detailed per-node availability (admin-level detail).
-
-**Response:**
-```json
-{
-    "success": true,
-    "data": {
-        "location_id": 1,
-        "nodes": [
-            {
-                "node_id": 1,
-                "name": "Node-US-01",
-                "total": { "memory": 65536, "cpu": 1600, "disk": 512000 },
-                "allocated": { "memory": 32768, "cpu": 800, "disk": 256000 },
-                "reserved": { "memory": 4096, "cpu": 200, "disk": 20480 },
-                "available": { "memory": 28672, "cpu": 600, "disk": 235520 },
-                "utilization": { "memory": 56.2, "disk": 54.0 },
-                "server_count": 12
-            }
-        ],
-        "total_capacity": { "memory": 131072, "cpu": 3200, "disk": 1024000 },
-        "total_allocated": { "memory": 65536, "cpu": 1600, "disk": 512000 }
     }
 }
 ```
@@ -288,6 +262,34 @@ Extend reservation TTL.
     "success": true,
     "data": {
         "expires_at": "2025-11-28T12:45:00Z"
+    }
+}
+```
+
+### GET /api/dynamic-pterodactyl/admin/availability/{locationId}/nodes
+
+Get detailed per-node availability for admin diagnostics.
+
+**Response:**
+```json
+{
+    "success": true,
+    "data": {
+        "location_id": 1,
+        "nodes": [
+            {
+                "node_id": 1,
+                "name": "Node-US-01",
+                "total": { "memory": 65536, "cpu": 1600, "disk": 512000 },
+                "allocated": { "memory": 32768, "cpu": 800, "disk": 256000 },
+                "reserved": { "memory": 4096, "cpu": 200, "disk": 20480 },
+                "available": { "memory": 28672, "cpu": 600, "disk": 235520 },
+                "utilization": { "memory": 56.2, "disk": 54.0 },
+                "server_count": 12
+            }
+        ],
+        "total_capacity": { "memory": 131072, "cpu": 3200, "disk": 1024000 },
+        "total_allocated": { "memory": 65536, "cpu": 1600, "disk": 512000 }
     }
 }
 ```

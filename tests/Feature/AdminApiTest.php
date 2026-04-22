@@ -157,4 +157,38 @@ class AdminApiTest extends LaravelTestCase
         $this->assertCount(1, $response->json('data.locations'));
         $this->assertEquals('Data Center 1', $response->json('data.locations.0.name'));
     }
+
+    public function test_customer_cannot_read_per_node_availability(): void
+    {
+        $user = $this->makeRegularUser();
+        $response = $this->actingAs($user)
+            ->getJson('/api/dynamic-pterodactyl/admin/availability/1/nodes');
+
+        $response->assertStatus(403);
+    }
+
+    public function test_admin_can_read_per_node_availability(): void
+    {
+        $admin = $this->makeAdminUser();
+
+        $mock = $this->mock(ResourceCalculationService::class);
+        $mock->shouldReceive('getLocationAvailability')
+            ->once()
+            ->with(1)
+            ->andReturn([
+                'location_id'     => 1,
+                'nodes'           => [['node_id' => 1, 'name' => 'Node 1']],
+                'total_capacity'  => ['memory' => 65536, 'cpu' => 800, 'disk' => 512000],
+                'total_allocated' => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
+                'max_available'   => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
+            ]);
+
+        $response = $this->actingAs($admin)
+            ->getJson('/api/dynamic-pterodactyl/admin/availability/1/nodes');
+
+        $response->assertStatus(200);
+        $response->assertJson(['success' => true]);
+        $this->assertArrayHasKey('nodes', $response->json('data'));
+        $this->assertCount(1, $response->json('data.nodes'));
+    }
 }

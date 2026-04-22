@@ -86,8 +86,7 @@ return new class extends Migration
                 'pending',      // Cart item exists, awaiting payment
                 'confirmed',    // Payment received, server created
                 'expired',      // TTL exceeded without payment
-                'cancelled',    // User removed from cart
-                'released'      // Resources released back to pool
+                'cancelled'     // User removed from cart
             ])->default('pending');
             
             // Admin notes
@@ -137,13 +136,15 @@ return new class extends Migration
 │ (none)  │ ──────────────▶ │ pending │ ────────────▶ │ confirmed │
 └─────────┘                 └─────────┘               └───────────┘
                                  │
-                    ┌────────────┼────────────┐
-                    ▼            ▼            ▼
-               ┌─────────┐ ┌───────────┐ ┌──────────┐
-               │ expired │ │ cancelled │ │ released │
-               │ (TTL)   │ │ (user)    │ │ (admin)  │
-               └─────────┘ └───────────┘ └──────────┘
+                    ┌────────────┴────────────┐
+                    ▼                         ▼
+               ┌─────────┐              ┌───────────┐
+               │ expired │              │ cancelled │
+               │ (TTL)   │              │ (user)    │
+               └─────────┘              └───────────┘
 ```
+
+Reservation lifecycle: `pending → confirmed | expired | cancelled`.
 
 ---
 
@@ -172,7 +173,7 @@ return new class extends Migration
             $table->enum('pricing_model', [
                 'linear',
                 'tiered',
-                'base_plus_addon'
+                'base_addon'
             ])->default('linear');
             
             // JSON configuration for pricing model
@@ -572,3 +573,7 @@ services (Paymenter)
     │
     └──< ptero_resource_reservations (1:1 after confirmation)
 ```
+
+## Removed / deprecated
+
+- `released` removed in dp-07 (2026-04-22). No service ever set this state. Use `provision_failed` if a post-confirm failure state is needed.

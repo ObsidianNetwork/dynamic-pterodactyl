@@ -276,6 +276,9 @@ When debugging, record:
 | Date | What Happened |
 |------|---------------|
 | 2025-11-29 | **PricingConfig → Setup Wizard** - Converted redundant PricingConfig system to Setup Wizard that creates native dynamic_slider ConfigOptions. Deleted PricingConfig model, PricingConfigResource (3 pages), added drop table migration. Updated Dashboard, PricingCalculatorService, PricingController to read from ConfigOptions. Rewrote tests for new architecture. |
+| 2026-04-22 | **dp-06 shipped** - Squash commit `3b1f1da`, merged 2026-04-22. |
+| 2026-04-22 | **dp-07 in progress** - Doc consolidation + decision narrowing. |
+| 2026-04-22 | **dp-core-01 drafted** - Pricing patches for the Paymenter fork, queued post-dp-07. |
 | 2025-11-29 | **Extended Pricing + Extension Simplification** - Added tiered/base_addon pricing models to native `dynamic_slider`. Simplified DynamicPterodactyl: removed custom frontend sliders (head-scripts.blade.php), updated all event listeners to read from native config_options with `metadata.resource_type`, fixed property access to use morphMany relationship. Extension now focuses only on reservations and availability. |
 | 2025-11-29 | **Paymenter Core - dynamic_slider Type** - Implemented native `dynamic_slider` config option type in Paymenter core. Adds continuous value selection (e.g., memory 1GB-64GB) with price calculated as `value × rate`. Changes to 7 files: migration, model, admin UI, blade component, Checkout.php, CartItem.php, Cart.php. |
 | 2025-11-29 | **Round 10 Slider Fix** - Used `Livewire.hook('morph.updating')` with `skip()` to prevent DOM morphing of slider elements. Removed failing reinit/MutationObserver logic. Updated slider to use `$wire.set()` with debouncing. |

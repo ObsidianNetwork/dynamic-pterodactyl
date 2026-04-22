@@ -17,7 +17,6 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsA
 // Availability and pricing — throttled (30 req/min) to protect Pterodactyl API budget
 Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
     Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
-    Route::get('/availability/{locationId}/nodes', [AvailabilityController::class, 'getNodes']);
     Route::post('/pricing/calculate', [PricingController::class, 'calculate']);
     Route::get('/pricing/config/{productId}', [PricingController::class, 'getConfig']);
 });
@@ -37,4 +36,5 @@ Route::prefix('api/dynamic-pterodactyl/admin')
         Route::get('/reservations', [AdminReservationController::class, 'index']);
         Route::post('/reservations/{token}/cancel', [AdminReservationController::class, 'cancel']);
         Route::get('/capacity', [AdminCapacityController::class, 'summary']);
+        Route::get('/availability/{locationId}/nodes', [AvailabilityController::class, 'getNodes']);
     });

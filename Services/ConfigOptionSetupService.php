@@ -156,7 +156,6 @@ class ConfigOptionSetupService
                 break;
 
             case 'base_addon':
-            case 'base_plus_addon':
                 $pricing['included_units'] = (float) ($config["{$resourceType}_included"] ?? 0);
                 $pricing['overage_rate'] = (float) ($config["{$resourceType}_overage"] ?? 0);
                 break;

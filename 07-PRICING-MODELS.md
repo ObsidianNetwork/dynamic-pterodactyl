@@ -6,6 +6,8 @@
 
 ## Overview
 
+Paymenter core is the intended pricing authority for `dynamic_slider` pricing. This extension keeps pricing scaffolding in place because core still has known defects that are being patched in `dp-core-01-pricing-patches`.
+
 Three pricing models serve different business needs:
 
 | Model | Best For | Example |
@@ -13,6 +15,19 @@ Three pricing models serve different business needs:
 | **Linear** | Simple per-unit pricing | $0.50/GB RAM, $2/core |
 | **Tiered** | Volume discounts | First 8GB at $0.60, next 8GB at $0.45 |
 | **Base + Addon** | Package upsells | $10 base includes 4GB, +$0.75/extra GB |
+
+## Core gaps and interim extension responsibilities
+
+The following defects exist in Paymenter core's `dynamic_slider` pricing as of 2026-04-22. Until `dp-core-01-pricing-patches` lands, the extension's `PricingCalculatorService` compensates for these gaps. **Do not delete `PricingCalculatorService` or `ConfigOptionSetupService::buildPricingMetadata` until dp-core-01 is merged and verified on production.**
+
+| Defect | Core location | Impact |
+|---|---|---|
+| Per-slider base-price duplication | `app/Livewire/Products/Checkout.php:102-137`, `app/Models/CartItem.php:45-116` | `base_price` charged N times where N = number of sliders on the product. |
+| `base_plus_addon` falls through to linear | `app/Models/ConfigOption.php:61-65` | Any config using `base_plus_addon` is silently priced as linear. Use `base_addon`. |
+| Recalc paths blind to dynamic sliders | `app/Models/Service.php:207-235`, `app/Console/Commands/CronJob.php:57-93` | Renewal invoices ignore slider selections; customer is re-invoiced at wrong amount. |
+| Upgrade flow incompatible with numeric sliders | `app/Livewire/Services/Upgrade.php:60-127` | Admin can mark slider upgradable; upgrade attempt silently fails. |
+
+Fixes tracked in `/var/www/paymenter/.sisyphus/plans/dp-core-01-pricing-patches.md`.
 
 ---
 
@@ -155,6 +170,8 @@ Memory Total:         $9.00
 
 Package with included resources; charge only for overages.
 
+`base_plus_addon` was a documentation alias; `base_addon` is the single canonical name as of dp-07 (2026-04-22).
+
 ### Configuration JSON
 
 ```json
@@ -232,13 +249,12 @@ Show what's included vs. what's extra:
 
 ## Database Storage
 
-All pricing configurations stored in `ptero_pricing_configs.pricing_config` as JSON.
+Slider pricing is read from ConfigOption metadata built by `Services/ConfigOptionSetupService` and consumed by `Services/PricingCalculatorService`. It is no longer stored in `ptero_pricing_configs.pricing_config`.
 
 The `pricing_model` enum determines which calculation method to use:
 - `linear` → `calculateLinear()`
 - `tiered` → `calculateTiered()`
-- `base_plus_addon` → `calculateBasePlusAddon()`
-
+- `base_addon` → `calculateBasePlusAddon()`
 ---
 
 ## Form-to-JSON Conversion
@@ -289,7 +305,7 @@ All models return the same response structure:
         { "label": "Extra Memory (+4 GB)", "amount": 3.00 },
         { "label": "Extra CPU (+2 cores)", "amount": 6.00 }
     ],
-    "model": "base_plus_addon"
+    "model": "base_addon"
 }
 ```
 
