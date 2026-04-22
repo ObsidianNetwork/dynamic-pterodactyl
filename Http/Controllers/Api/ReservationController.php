@@ -21,16 +21,17 @@ class ReservationController
     {
         $user = $request->user();
         $validated = $request->validated();
+        $resources = [
+            'memory' => (int) ($validated['memory'] ?? 0),
+            'cpu' => (int) ($validated['cpu'] ?? 0),
+            'disk' => (int) ($validated['disk'] ?? 0),
+        ];
 
         try {
             $reservation = $this->reservationService->create(
                 productId: $validated['product_id'],
                 locationId: $validated['location_id'],
-                resources: [
-                    'memory' => $validated['memory'],
-                    'cpu' => $validated['cpu'],
-                    'disk' => $validated['disk'],
-                ],
+                resources: $resources,
                 cartItemId: $validated['cart_item_id'] ?? null,
                 userId: $user?->id,
                 idempotencyKey: $validated['idempotency_key'] ?? null,
