@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-08 reservation verification in flight
-**Last Updated**: 2026-04-22
-**Last Session**: dp-08 branch active. Fix 1-4 implemented on `dp-08-reservation-verification`: self-exclusion at payment verification, reservation create idempotency keys, slider-bound FormRequest validation, and strict availability `has_capacity` semantics. Next: docs/push/PR review loop.
+**Phase**: dp-08 reservation verification shipped
+**Last Updated**: 2026-04-23
+**Last Session**: dp-08 merged via PR #7 as squash commit `5a28acb`. Shipped self-exclusion at payment verification, active-reservation idempotency keys, slider-bound reservation validation, and strict availability `has_capacity` semantics.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*dp-08 actively shipping on `dp-08-reservation-verification`.*
+*dp-08 shipped on `dynamic-slider` (`5a28acb`).*
 
 ---
 
@@ -54,38 +54,22 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-22
-**Working on**: dp-08 reservation verification
-**Status**: Fixes 1-4 implemented and green in extension phpunit
-**Current file**: 03-API.md / CHANGELOG.md / PROGRESS.md
-**Next action**: Commit docs, push branch, open PR, then enter CodeRabbit wait/fix loop
+**Last checkpoint**: 2026-04-23
+**Working on**: Post-merge bookkeeping
+**Status**: dp-08 merged and branch deleted; recording shipped state on `dynamic-slider`
+**Current file**: PROGRESS.md
+**Next action**: Push shipped-progress update, then move to the next backlog item
 **Blockers**: None
 
 ### This Session's Changes:
 
-#### Phase 1: ConfigOptionSetupService Update
-1. `Services/ConfigOptionSetupService.php` - Rewrote to create `dynamic_slider` type ConfigOptions with full metadata (slider ranges + pricing models)
-
-#### Phase 2: Setup Wizard (New)
-2. `Admin/Pages/SetupWizard.php` - NEW: Filament page wizard to configure slider + pricing for products
-3. `resources/views/admin/setup-wizard.blade.php` - NEW: Blade view for wizard
-
-#### Phase 3: Remove PricingConfig System
-4. `Admin/Resources/PricingConfigResource.php` - DELETED (replaced by SetupWizard)
-5. `Admin/Resources/PricingConfigResource/Pages/*.php` - DELETED (3 page classes)
-6. `Models/PricingConfig.php` - DELETED (no longer needed)
-7. `skeleton/Models/PricingConfig.php` - DELETED
-8. `database/migrations/2025_01_01_000005_drop_ptero_pricing_configs_table.php` - NEW: Migration to drop table
-
-#### Phase 4: Dashboard + Services Update
-9. `Admin/Pages/Dashboard.php` - Updated to query ConfigOptions instead of ptero_pricing_configs
-10. `resources/views/admin/dashboard.blade.php` - Updated label from "Active Pricing Configs" to "Products with Sliders"
-11. `Services/PricingCalculatorService.php` - Rewrote to read from ConfigOptions, delegates to ConfigOption::calculateDynamicPrice()
-12. `Http/Controllers/Api/PricingController.php` - Updated getConfig() to use PricingCalculatorService
-
-#### Phase 5: Tests Update
-13. `tests/LaravelTestCase.php` - Added createConfigOption() helper for mocking dynamic_slider options
-14. `tests/Unit/PricingCalculatorServiceTest.php` - Rewrote all tests to use ConfigOption mocks instead of DB mocks
+1. `a60e8d4` — payment-time availability verification excludes the reservation being confirmed.
+2. `f53aae3` — reservation create requests now support active idempotency-key replay.
+3. `e20f648` — `StoreReservationRequest` enforces configured slider bounds, steps, and required resources.
+4. `f050605` — availability summary exposes `resource_capacity` and requires all resources for `has_capacity=true`.
+5. `c26bfb5` — docs updated for dp-08 API and progress tracking.
+6. `5b01cae` / `5fd4134` — CodeRabbit follow-up fixes for duplicate-key race handling and doc/sample sync.
+7. `5a28acb` — final squash commit on `dynamic-slider` after PR #7 merge.
 
 <!-- 
 Update this section:
