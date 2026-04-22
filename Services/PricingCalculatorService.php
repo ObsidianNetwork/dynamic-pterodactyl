@@ -4,9 +4,17 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\ConfigOption;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\InvalidPricingConfigException;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\PricingConfigValidator;
 
 class PricingCalculatorService
 {
+    public function __construct(private ?PricingConfigValidator $pricingConfigValidator = null)
+    {
+        $this->pricingConfigValidator ??= app(PricingConfigValidator::class);
+    }
+
     /**
      * Calculate price for given resources using native ConfigOptions
      *
@@ -34,6 +42,25 @@ class PricingCalculatorService
             $metadata = $option->metadata;
             if (! is_array($metadata)) {
                 $metadata = json_decode($metadata, true) ?? [];
+            }
+
+            try {
+                $this->pricingConfigValidator->validate($metadata['pricing'] ?? []);
+            } catch (InvalidPricingConfigException $e) {
+                Log::warning('Pricing config invalid', [
+                    'product_id' => $productId,
+                    'config_option_id' => $option->id,
+                    'resource_type' => $metadata['resource_type'] ?? strtolower($option->name),
+                    'error' => $e->getMessage(),
+                    'config' => $metadata['pricing'] ?? [],
+                ]);
+
+                return [
+                    'total' => 0.0,
+                    'breakdown' => [],
+                    'model' => 'invalid',
+                    'error' => 'invalid_pricing_config',
+                ];
             }
 
             $resourceType = $metadata['resource_type'] ?? strtolower($option->name);

@@ -72,8 +72,14 @@ class ReservationService
                 throw new \RuntimeException('No node with sufficient resources available');
             }
 
-            // Calculate pricing
+            // Calculate pricing — refuse to persist a reservation against an invalid config.
+            // PricingCalculatorService returns an explicit `error` key (see Services/PricingCalculatorService.php)
+            // when validation fails so the API layer can surface structured errors; for the reservation path
+            // the correct behaviour is to abort the transaction rather than write a $0 reservation.
             $pricing = $this->pricingService->calculate($productId, $resources);
+            if (isset($pricing['error'])) {
+                throw new \RuntimeException('Invalid pricing configuration: ' . $pricing['error']);
+            }
 
             // Create reservation
             $token = Str::random(64);

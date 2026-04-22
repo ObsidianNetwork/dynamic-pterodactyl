@@ -4,10 +4,14 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\ConfigOption;
 use Illuminate\Support\Facades\DB;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\PricingConfigValidator;
 
 class ConfigOptionSetupService
 {
-    public function __construct(private AuditLogService $audit) {}
+    public function __construct(
+        private AuditLogService $audit,
+        private PricingConfigValidator $pricingConfigValidator,
+    ) {}
 
     private array $resourceDefaults = [
         'memory' => [
@@ -117,6 +121,8 @@ class ConfigOptionSetupService
         $pricingModel = $config['pricing_model'] ?? 'linear';
 
         $divisor = $defaults['display_divisor'] ?? 1;
+        $pricing = $this->buildPricingMetadata($resourceType, $pricingModel, $config);
+        $this->pricingConfigValidator->validate($pricing);
 
         $metadata = [
             'resource_type' => $resourceType,
@@ -127,7 +133,7 @@ class ConfigOptionSetupService
             'unit' => $defaults['unit'],
             'display_unit' => $defaults['display_unit'],
             'display_divisor' => $defaults['display_divisor'],
-            'pricing' => $this->buildPricingMetadata($resourceType, $pricingModel, $config),
+            'pricing' => $pricing,
         ];
 
         return $metadata;
