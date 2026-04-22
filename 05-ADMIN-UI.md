@@ -339,17 +339,12 @@ class AuditLogPage extends Page implements HasTable
             ->filters([
                 Tables\Filters\SelectFilter::make('action'),
                 Tables\Filters\SelectFilter::make('entity_type'),
-            ])
-            ->actions([
-                Tables\Actions\Action::make('view_changes')
-                    ->modalContent(fn ($record) => view('dynamic-pterodactyl::admin.audit-detail', [
-                        'old' => json_decode($record->old_values, true),
-                        'new' => json_decode($record->new_values, true),
-                    ])),
             ]);
     }
 }
 ```
+
+The audit log table is read-only. Rows are not clickable, and there is no JSON diff modal in the current implementation.
 
 ---
 

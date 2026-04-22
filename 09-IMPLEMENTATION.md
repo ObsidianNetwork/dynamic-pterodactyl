@@ -9,7 +9,6 @@
 ```
 extension/Others/DynamicPterodactyl/
 ├── DynamicPterodactyl.php              # Main extension class
-├── composer.json                        # Dependencies (if any)
 │
 ├── database/
 │   └── migrations/
@@ -18,20 +17,13 @@ extension/Others/DynamicPterodactyl/
 │       ├── 2025_01_01_000003_create_ptero_audit_logs_table.php
 │       └── 2025_01_01_000004_create_ptero_alert_configs_table.php
 │
-├── Filament/
+├── Admin/
 │   ├── Pages/
 │   │   ├── Dashboard.php
-│   │   ├── Analytics.php
 │   │   ├── NodeMonitoring.php
 │   │   ├── AuditLogPage.php
-│   │   └── Settings.php
+│   │   └── SetupWizard.php
 │   └── Resources/
-│       ├── PricingConfigResource.php
-│       ├── PricingConfigResource/
-│       │   └── Pages/
-│       │       ├── CreatePricingConfig.php
-│       │       ├── EditPricingConfig.php
-│       │       └── ListPricingConfigs.php
 │       ├── ReservationResource.php
 │       └── AlertConfigResource.php
 │
@@ -43,30 +35,21 @@ extension/Others/DynamicPterodactyl/
 │       │   └── ReservationController.php
 │       └── AdminController.php
 │
-├── Jobs/
-│   ├── CleanupExpiredReservations.php
-│   └── CheckCapacityAlerts.php
-│
 ├── Models/
-│   ├── PricingConfig.php
 │   ├── ResourceReservation.php
 │   ├── AuditLog.php
 │   └── AlertConfig.php
 │
 ├── resources/
 │   └── views/
-│       ├── head-scripts.blade.php       # Frontend JS/CSS injection
 │       └── admin/
 │           ├── dashboard.blade.php
-│           ├── analytics.blade.php
 │           ├── node-monitoring.blade.php
 │           ├── audit-log.blade.php
-│           ├── audit-detail.blade.php
-│           └── settings.blade.php
+│           └── setup-wizard.blade.php
 │
 ├── routes/
-│   ├── api.php
-│   └── web.php
+│   └── api.php
 │
 └── Services/
     ├── ResourceCalculationService.php
@@ -74,7 +57,8 @@ extension/Others/DynamicPterodactyl/
     ├── ReservationService.php
     ├── PricingCalculatorService.php
     ├── AuditLogService.php
-    └── AlertService.php
+    ├── AlertService.php
+    └── ConfigOptionSetupService.php
 ```
 
 ---
@@ -154,7 +138,7 @@ extension/Others/DynamicPterodactyl/
 
 | Task | Est. Hours | Deliverable |
 |------|------------|-------------|
-| JavaScript slider component | 8h | noUiSlider integration |
+| Native slider component | 8h | Alpine.js + HTML range implementation |
 | Real-time price updates | 4h | Debounced API calls |
 | Availability limits | 4h | Dynamic max values |
 | CSS styling | 4h | Responsive, dark mode |
@@ -248,7 +232,7 @@ class PricingCalculatorServiceTest extends TestCase
         // ...
     }
     
-    public function test_base_plus_addon_with_no_overage()
+    public function test_base_addon_with_no_overage()
     {
         // ...
     }
@@ -257,77 +241,37 @@ class PricingCalculatorServiceTest extends TestCase
 
 ### Integration Tests
 
-Test component interactions with real database.
+Integration tests against a real or mocked Pterodactyl API are not yet implemented. The suite is unit-level with limited feature coverage.
 
-```php
-class ReservationFlowTest extends TestCase
-{
-    use RefreshDatabase;
-    
-    public function test_concurrent_reservations_dont_oversell()
-    {
-        // Seed a node with 16GB available
-        // Attempt two 10GB reservations concurrently
-        // Verify only one succeeds
-    }
-    
-    public function test_expired_reservations_release_capacity()
-    {
-        // Create reservation
-        // Fast-forward time past TTL
-        // Run cleanup job
-        // Verify capacity is available again
-    }
-}
-```
+Current test coverage under `tests/Unit/` is mostly mocked service/listener validation. `tests/Feature/` currently covers admin API authorization/response behavior plus the skipped SetupWizard placeholder.
 
 ### Feature Tests
 
 Test full HTTP request/response cycles.
 
 ```php
-class AvailabilityApiTest extends TestCase
+class AdminApiTest extends TestCase
 {
-    public function test_availability_endpoint_returns_correct_structure()
+    public function test_admin_capacity_endpoint_returns_structure()
     {
-        $response = $this->actingAs($this->user)
-            ->getJson('/api/dynamic-pterodactyl/availability/1');
+        $response = $this->actingAs($this->admin)
+            ->getJson('/api/dynamic-pterodactyl/admin/capacity');
         
         $response->assertOk()
             ->assertJsonStructure([
                 'success',
                 'data' => [
-                    'location_id',
-                    'max_memory',
-                    'max_cpu',
-                    'max_disk',
-                    'node_count',
-                    'has_capacity',
+                    'locations',
+                    'generated_at',
                 ],
             ]);
     }
 }
 ```
 
-### Browser Tests (Dusk)
+### Browser Tests
 
-Test frontend slider behavior.
-
-```php
-class SliderInteractionTest extends DuskTestCase
-{
-    public function test_slider_updates_price_display()
-    {
-        $this->browse(function (Browser $browser) {
-            $browser->visit('/product/minecraft-server')
-                ->waitFor('.dynamic-ptero-slider')
-                ->drag('.noUi-handle', 100, 0)  // Drag memory slider
-                ->waitFor('.dynamic-ptero-price-display.updated')
-                ->assertSeeIn('.dynamic-ptero-price-total', '$');
-        });
-    }
-}
-```
+No browser/E2E suite is implemented in this extension yet. Frontend slider verification is currently manual.
 
 ---
 
@@ -400,7 +344,7 @@ class SliderInteractionTest extends DuskTestCase
 1. Enable maintenance mode
 2. Run migrations: `php artisan migrate`
 3. Clear caches: `php artisan cache:clear`
-4. Register scheduled jobs (cleanup, alerts)
+4. Register scheduled jobs (cleanup is wired; alerts are not yet scheduled)
 5. Disable maintenance mode
 6. Verify dashboard loads
 7. Test one product with sliders
@@ -427,6 +371,10 @@ If critical issues discovered:
 3. **Emergency**: Remove extension folder entirely
 
 Data in `ptero_resource_reservations` is ephemeral and can be safely dropped.
+
+## Scheduler wiring status
+
+Expired-reservation cleanup is scheduled in `DynamicPterodactyl.php::boot()`. `AlertService` threshold checks are not scheduled in `DynamicPterodactyl.php::boot()`, so alert configs are currently inert. Fix tracked in dp-13.
 
 ---
 

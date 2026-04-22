@@ -30,8 +30,8 @@ Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using slid
 │  DynamicPterodactyl (Companion Extension):                          │
 │  ├── Real-time availability API                                     │
 │  ├── Resource reservation system (15-min TTL)                       │
-│  ├── Pricing calculator (linear/tiered/base+addon)                  │
-│  ├── Slider UI enhancement (JavaScript injection)                   │
+│  ├── Interim pricing scaffolding pending dp-core-01                 │
+│  ├── No custom frontend assets; native core slider UI               │
 │  ├── Admin dashboard & configuration UI                             │
 │  └── Event hooks for cart/invoice/service lifecycle                 │
 └─────────────────────────────────────────────────────────────────────┘
@@ -59,7 +59,7 @@ Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using slid
 | [03-API.md](03-API.md) | REST endpoints, controllers | Building API layer |
 | [04-EVENTS.md](04-EVENTS.md) | Cart/invoice event handlers | Integrating with Paymenter lifecycle |
 | [05-ADMIN-UI.md](05-ADMIN-UI.md) | Filament dashboard & resources | Building admin interface |
-| [06-FRONTEND.md](06-FRONTEND.md) | JavaScript sliders, CSS | Implementing customer-facing UI |
+| [06-FRONTEND.md](06-FRONTEND.md) | Native slider architecture, Alpine.js | Implementing customer-facing UI |
 | [07-PRICING-MODELS.md](07-PRICING-MODELS.md) | Pricing logic & JSON configs | Understanding/implementing pricing |
 | [08-ALGORITHMS.md](08-ALGORITHMS.md) | Node selection, concurrency | Implementing allocation logic |
 | [09-IMPLEMENTATION.md](09-IMPLEMENTATION.md) | Roadmap, testing, risks | Planning & project management |
@@ -82,6 +82,13 @@ Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using slid
 1. **Linear** - Simple per-unit (e.g., $0.50/GB RAM)
 2. **Tiered** - Volume discounts at breakpoints
 3. **Base + Addon** - Included resources + overage charges
+
+Paymenter core is the intended pricing authority for `dynamic_slider` options. Until the fork-only core patches in `dp-core-01` land, this extension keeps `PricingCalculatorService` as interim pricing scaffolding to compensate for known core defects.
+
+### Frontend Slider
+- Customer-facing sliders use Paymenter core's native `dynamic_slider` component
+- Rendering is a native HTML range input managed by Alpine.js in the core theme
+- Price updates happen client-side, with Livewire entanglement keeping cart state in sync
 
 ---
 
