@@ -5,6 +5,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Feature;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
@@ -47,7 +48,7 @@ class ReservationApiTest extends LaravelTestCase
         /** @var User $user */
         $user = User::factory()->create();
         /** @var Product $product */
-        $product = Product::factory()->create();
+        $product = $this->createConfiguredProduct();
 
         $response = $this->actingAs($user)->withHeaders([
             'Idempotency-Key' => 'idem-12345',
@@ -87,7 +88,7 @@ class ReservationApiTest extends LaravelTestCase
         /** @var User $user */
         $user = User::factory()->create();
         /** @var Product $product */
-        $product = Product::factory()->create();
+        $product = $this->createConfiguredProduct();
 
         $first = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
             'product_id' => $product->id,
@@ -117,7 +118,7 @@ class ReservationApiTest extends LaravelTestCase
         /** @var User $user */
         $user = User::factory()->create();
         /** @var Product $product */
-        $product = Product::factory()->create();
+        $product = $this->createConfiguredProduct();
 
         $response = $this->actingAs($user)->withHeaders([
             'Idempotency-Key' => 'bad key',
@@ -131,5 +132,83 @@ class ReservationApiTest extends LaravelTestCase
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('idempotency_key');
+    }
+
+    public function test_store_rejects_unconfigured_product(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        /** @var Product $product */
+        $product = Product::factory()->create();
+
+        $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
+            'product_id' => $product->id,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('product_id');
+    }
+
+    public function test_store_rejects_out_of_bounds_memory(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        /** @var Product $product */
+        $product = $this->createConfiguredProduct();
+
+        $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
+            'product_id' => $product->id,
+            'location_id' => 1,
+            'memory' => 99999,
+            'cpu' => 200,
+            'disk' => 51200,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('memory');
+    }
+
+    private function createConfiguredProduct(): Product
+    {
+        /** @var Product $product */
+        $product = Product::factory()->create();
+
+        foreach ([
+            'memory' => ['name' => 'Memory', 'min' => 1024, 'max' => 8192, 'step' => 1024, 'unit' => 'MB'],
+            'cpu' => ['name' => 'CPU', 'min' => 100, 'max' => 400, 'step' => 100, 'unit' => '%'],
+            'disk' => ['name' => 'Disk', 'min' => 10240, 'max' => 102400, 'step' => 10240, 'unit' => 'MB'],
+        ] as $resourceType => $slider) {
+            $optionId = DB::table('config_options')->insertGetId([
+                'name' => $slider['name'],
+                'type' => 'dynamic_slider',
+                'sort' => 0,
+                'hidden' => false,
+                'upgradable' => true,
+                'metadata' => json_encode([
+                    'resource_type' => $resourceType,
+                    'min' => $slider['min'],
+                    'max' => $slider['max'],
+                    'step' => $slider['step'],
+                    'default' => $slider['min'],
+                    'unit' => $slider['unit'],
+                    'display_unit' => $slider['unit'],
+                    'display_divisor' => 1,
+                    'pricing' => ['model' => 'linear', 'rate_per_unit' => 1],
+                ]),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            DB::table('config_option_products')->insert([
+                'product_id' => $product->id,
+                'config_option_id' => $optionId,
+            ]);
+        }
+
+        return $product;
     }
 }

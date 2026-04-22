@@ -5,6 +5,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Requests\StoreReservationRequest;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
 class ReservationController
@@ -16,22 +17,10 @@ class ReservationController
         $this->reservationService = $reservationService;
     }
 
-    public function create(Request $request): JsonResponse
+    public function create(StoreReservationRequest $request): JsonResponse
     {
         $user = $request->user();
-
-        $validated = validator([
-            ...$request->all(),
-            'idempotency_key' => $request->header('Idempotency-Key', $request->input('idempotency_key')),
-        ], [
-            'product_id' => 'required|integer|exists:products,id',
-            'location_id' => 'required|integer',
-            'memory' => 'required|integer|min:1',
-            'cpu' => 'required|integer|min:1',
-            'disk' => 'required|integer|min:1',
-            'cart_item_id' => 'nullable|integer|exists:cart_items,id',
-            'idempotency_key' => ['nullable', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
-        ])->validate();
+        $validated = $request->validated();
 
         try {
             $reservation = $this->reservationService->create(
