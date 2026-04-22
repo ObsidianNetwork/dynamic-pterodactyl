@@ -59,6 +59,7 @@ class InvoicePaidListener
                 $available = $resourceService->verifyAvailability(
                     $reservation->node_id,
                     $snapshot,
+                    $reservationToken,
                 );
 
                 if (!$available) {

@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-07 doc consolidation complete — backlog dp-08..dp-13 + dp-core-01 queued
+**Phase**: dp-08 reservation verification in flight
 **Last Updated**: 2026-04-22
-**Last Session**: dp-07 shipped (PR #6, `2b5ed12`). Locked 5 design decisions. Rewrote 9 stale docs. Retired `released` enum, `base_plus_addon` alias, admin-gated `/nodes` route. Next: dp-core-01 (Paymenter fork pricing patches) or dp-08 (reservation verification).
+**Last Session**: dp-08 branch active. Fix 1-4 implemented on `dp-08-reservation-verification`: self-exclusion at payment verification, reservation create idempotency keys, slider-bound FormRequest validation, and strict availability `has_capacity` semantics. Next: docs/push/PR review loop.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*Phase 6 complete - all core implementation done!*
+*dp-08 actively shipping on `dp-08-reservation-verification`.*
 
 ---
 
@@ -54,11 +54,11 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2025-11-29
-**Working on**: PricingConfig to Setup Wizard conversion
-**Status**: COMPLETE - Wizard and all related files updated
-**Current file**: N/A (implementation complete)
-**Next action**: Run `php artisan migrate` to drop ptero_pricing_configs table, then test Setup Wizard flow
+**Last checkpoint**: 2026-04-22
+**Working on**: dp-08 reservation verification
+**Status**: Fixes 1-4 implemented and green in extension phpunit
+**Current file**: 03-API.md / CHANGELOG.md / PROGRESS.md
+**Next action**: Commit docs, push branch, open PR, then enter CodeRabbit wait/fix loop
 **Blockers**: None
 
 ### This Session's Changes:

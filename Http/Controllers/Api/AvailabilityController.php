@@ -24,6 +24,11 @@ class AvailabilityController
         try {
             $maxAvailable = $this->nodeService->getMaxAvailable($locationId);
             $locationData = $this->resourceService->getLocationAvailability($locationId);
+            $resourceCapacity = [
+                'memory' => $maxAvailable['memory'] > 0,
+                'cpu' => $maxAvailable['cpu'] > 0,
+                'disk' => $maxAvailable['disk'] > 0,
+            ];
 
             return response()->json([
                 'success' => true,
@@ -33,7 +38,8 @@ class AvailabilityController
                     'max_cpu' => $maxAvailable['cpu'],
                     'max_disk' => $maxAvailable['disk'],
                     'node_count' => count($locationData['nodes']),
-                    'has_capacity' => $maxAvailable['memory'] > 0,
+                    'has_capacity' => $resourceCapacity['memory'] && $resourceCapacity['cpu'] && $resourceCapacity['disk'],
+                    'resource_capacity' => $resourceCapacity,
                 ],
             ]);
         } catch (\Exception $e) {

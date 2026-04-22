@@ -3,8 +3,11 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\Extension;
+use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 
@@ -55,75 +58,120 @@ class ReservationService
         int $locationId,
         array $resources,
         ?int $cartItemId = null,
-        ?int $userId = null
+        ?int $userId = null,
+        ?string $idempotencyKey = null
     ): array {
-        return DB::transaction(function () use ($productId, $locationId, $resources, $cartItemId, $userId) {
-            // Lock pending reservations for this location
-            DB::table('ptero_resource_reservations')
-                ->where('location_id', $locationId)
-                ->where('status', 'pending')
-                ->lockForUpdate()
-                ->get();
+        try {
+            return DB::transaction(function () use ($productId, $locationId, $resources, $cartItemId, $userId, $idempotencyKey) {
+                // Lock pending reservations for this location
+                DB::table('ptero_resource_reservations')
+                    ->where('location_id', $locationId)
+                    ->where('status', 'pending')
+                    ->lockForUpdate()
+                    ->get();
 
-            // Find best node
-            $node = $this->nodeService->selectBestNode($locationId, $resources);
+                if ($idempotencyKey !== null && $userId !== null) {
+                    $this->expireStaleIdempotencyReservations($userId, $idempotencyKey);
 
-            if (!$node) {
-                throw new \RuntimeException('No node with sufficient resources available');
+                    $existingReservation = $this->getActiveByIdempotencyKey($userId, $idempotencyKey);
+                    if ($existingReservation) {
+                        Log::info('Returning existing reservation for idempotent create request', [
+                            'reservation_id' => $existingReservation->id,
+                            'user_id' => $userId,
+                            'idempotency_key' => $idempotencyKey,
+                        ]);
+
+                        return $this->presentReservation($existingReservation);
+                    }
+                }
+
+                $node = $this->nodeService->selectBestNode($locationId, $resources);
+
+                if (!$node) {
+                    throw new \RuntimeException('No node with sufficient resources available');
+                }
+
+                $pricing = $this->pricingService->calculate($productId, $resources);
+                if (isset($pricing['error'])) {
+                    throw new \RuntimeException('Invalid pricing configuration: ' . $pricing['error']);
+                }
+
+                $token = Str::random(64);
+                $expiresAt = now()->addMinutes($this->ttlMinutes);
+
+                $id = DB::table('ptero_resource_reservations')->insertGetId([
+                    'token' => $token,
+                    'idempotency_key' => $idempotencyKey,
+                    'cart_item_id' => $cartItemId,
+                    'user_id' => $userId,
+                    'node_id' => $node['node_id'],
+                    'location_id' => $locationId,
+                    'memory' => $resources['memory'],
+                    'cpu' => $resources['cpu'],
+                    'disk' => $resources['disk'],
+                    'calculated_price' => $pricing['total'],
+                    'pricing_breakdown' => json_encode($pricing['breakdown']),
+                    'status' => 'pending',
+                    'expires_at' => $expiresAt,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+                $this->safeAudit('created', 'reservation', $id, [
+                    'token_prefix' => substr($token, 0, 8) . '...',
+                    'product_id' => $productId,
+                    'location_id' => $locationId,
+                    'node_id' => $node['node_id'],
+                    'memory' => $resources['memory'],
+                    'cpu' => $resources['cpu'],
+                    'disk' => $resources['disk'],
+                    'price' => $pricing['total'],
+                    'cart_item_id' => $cartItemId,
+                ]);
+
+                return $this->presentReservation((object) [
+                    'id' => $id,
+                    'token' => $token,
+                    'node_id' => $node['node_id'],
+                    'node_name' => $node['name'] ?? null,
+                    'expires_at' => $expiresAt,
+                    'calculated_price' => $pricing['total'],
+                    'pricing_breakdown' => $pricing['breakdown'],
+                    'status' => 'pending',
+                ]);
+            }, 5); // 5 retry attempts for deadlock
+        } catch (QueryException $exception) {
+            if ($this->isActiveIdempotencyDuplicate($exception, $userId, $idempotencyKey)) {
+                $existingReservation = $this->getActiveByIdempotencyKey($userId, $idempotencyKey);
+                if ($existingReservation) {
+                    Log::info('Returning existing reservation after duplicate idempotency insert race', [
+                        'reservation_id' => $existingReservation->id,
+                        'user_id' => $userId,
+                        'idempotency_key' => $idempotencyKey,
+                    ]);
+
+                    return $this->presentReservation($existingReservation);
+                }
             }
 
-            // Calculate pricing — refuse to persist a reservation against an invalid config.
-            // PricingCalculatorService returns an explicit `error` key (see Services/PricingCalculatorService.php)
-            // when validation fails so the API layer can surface structured errors; for the reservation path
-            // the correct behaviour is to abort the transaction rather than write a $0 reservation.
-            $pricing = $this->pricingService->calculate($productId, $resources);
-            if (isset($pricing['error'])) {
-                throw new \RuntimeException('Invalid pricing configuration: ' . $pricing['error']);
-            }
+            throw $exception;
+        }
+    }
 
-            // Create reservation
-            $token = Str::random(64);
-            $expiresAt = now()->addMinutes($this->ttlMinutes);
-
-            $id = DB::table('ptero_resource_reservations')->insertGetId([
-                'token' => $token,
-                'cart_item_id' => $cartItemId,
-                'user_id' => $userId,
-                'node_id' => $node['node_id'],
-                'location_id' => $locationId,
-                'memory' => $resources['memory'],
-                'cpu' => $resources['cpu'],
-                'disk' => $resources['disk'],
-                'calculated_price' => $pricing['total'],
-                'pricing_breakdown' => json_encode($pricing['breakdown']),
-                'status' => 'pending',
-                'expires_at' => $expiresAt,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            $this->safeAudit('created', 'reservation', $id, [
-                'token_prefix' => substr($token, 0, 8) . '...',
-                'product_id' => $productId,
-                'location_id' => $locationId,
-                'node_id' => $node['node_id'],
-                'memory' => $resources['memory'],
-                'cpu' => $resources['cpu'],
-                'disk' => $resources['disk'],
-                'price' => $pricing['total'],
-                'cart_item_id' => $cartItemId,
-            ]);
-
-            return [
-                'id' => $id,
-                'token' => $token,
-                'node_id' => $node['node_id'],
-                'node_name' => $node['name'],
-                'expires_at' => $expiresAt->toIso8601String(),
-                'ttl_minutes' => $this->ttlMinutes,
-                'pricing' => $pricing,
-            ];
-        }, 5); // 5 retry attempts for deadlock
+    public function getActiveByIdempotencyKey(int $userId, string $idempotencyKey): ?object
+    {
+        return DB::table('ptero_resource_reservations')
+            ->where('user_id', $userId)
+            ->where('idempotency_key', $idempotencyKey)
+            ->where(function ($query) {
+                $query->where('status', 'confirmed')
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('status', 'pending')
+                            ->where('expires_at', '>', now());
+                    });
+            })
+            ->orderByDesc('id')
+            ->first();
     }
 
     /**
@@ -365,5 +413,52 @@ class ReservationService
         }
 
         return $count;
+    }
+
+    public function presentReservation(object $reservation): array
+    {
+        $expiresAt = $reservation->expires_at ? Carbon::parse($reservation->expires_at) : null;
+
+        return [
+            'id' => $reservation->id,
+            'token' => $reservation->token,
+            'node_id' => $reservation->node_id,
+            'node_name' => $reservation->node_name ?? null,
+            'expires_at' => $expiresAt?->toIso8601String(),
+            'ttl_minutes' => $expiresAt && $reservation->status === 'pending'
+                ? max(0, now()->diffInMinutes($expiresAt, false))
+                : 0,
+            'pricing' => [
+                'total' => (float) $reservation->calculated_price,
+                'breakdown' => is_array($reservation->pricing_breakdown)
+                    ? $reservation->pricing_breakdown
+                    : json_decode($reservation->pricing_breakdown ?? '[]', true) ?? [],
+                'model' => 'stored',
+            ],
+            'status' => $reservation->status,
+        ];
+    }
+
+    private function expireStaleIdempotencyReservations(int $userId, string $idempotencyKey): void
+    {
+        DB::table('ptero_resource_reservations')
+            ->where('user_id', $userId)
+            ->where('idempotency_key', $idempotencyKey)
+            ->where('status', 'pending')
+            ->where('expires_at', '<=', now())
+            ->update([
+                'status' => 'expired',
+                'updated_at' => now(),
+            ]);
+    }
+
+    private function isActiveIdempotencyDuplicate(QueryException $exception, ?int $userId, ?string $idempotencyKey): bool
+    {
+        if ($userId === null || $idempotencyKey === null) {
+            return false;
+        }
+
+        return str_contains($exception->getMessage(), 'ptero_reservations_active_idempotency_unique')
+            || ($exception->getCode() === '23000' && str_contains($exception->getMessage(), 'Duplicate entry'));
     }
 }

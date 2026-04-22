@@ -42,7 +42,7 @@ class InvoicePaidListenerTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
-        ])->andReturn(false);
+        ], $token)->andReturn(false);
         $this->app->instance(ResourceCalculationService::class, $resourceService);
 
         $alertService = Mockery::mock(AlertService::class);
@@ -83,7 +83,7 @@ class InvoicePaidListenerTest extends LaravelTestCase
             'memory' => 2048,
             'cpu' => 150,
             'disk' => 25600,
-        ])->andReturn(true);
+        ], $token)->andReturn(true);
         $this->app->instance(ResourceCalculationService::class, $resourceService);
 
         $alertService = Mockery::mock(AlertService::class);

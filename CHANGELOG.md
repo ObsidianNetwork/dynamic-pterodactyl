@@ -6,6 +6,14 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 
 ## [Unreleased]
 
+### Fixed
+- Payment-time reservation confirmation now excludes the reservation itself from pending-capacity math, so exact-fit purchases can confirm successfully.
+- Reservation create requests now enforce product slider bounds and reject unconfigured products instead of persisting arbitrary resource selections.
+- Availability `has_capacity` now requires memory, CPU, and disk to all be positive, with per-resource booleans exposed in the API response.
+
+### Added
+- Reservation create endpoint now supports `Idempotency-Key` / `idempotency_key` dedupe with active-reservation reuse semantics.
+
 ### Changed
 - `released` reservation status removed from schema and PHP enum. Lifecycle: `pending → confirmed | expired | cancelled`.
 - `base_plus_addon` pricing model alias removed from `PricingConfigValidator`. Use `base_addon`.

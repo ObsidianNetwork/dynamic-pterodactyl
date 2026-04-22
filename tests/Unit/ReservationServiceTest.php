@@ -2,9 +2,12 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
@@ -13,6 +16,8 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ReservationServiceTest extends LaravelTestCase
 {
+    use DatabaseTransactions;
+
     private $mockNodeService;
 
     private $mockPricingService;
@@ -458,6 +463,78 @@ class ReservationServiceTest extends LaravelTestCase
         $service = $this->createService();
 
         $this->assertTrue($service->confirm($token, 42));
+    }
+
+    public function test_create_with_idempotency_key_returns_existing_on_duplicate(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $service = $this->createService();
+
+        $this->mockNodeService->shouldReceive('selectBestNode')
+            ->once()
+            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
+        $this->mockPricingService->shouldReceive('calculate')
+            ->once()
+            ->andReturn(['total' => 9.99, 'breakdown' => [], 'model' => 'linear']);
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
+
+        $first = $service->create(1, 1, $this->standardResources(), null, $user->id, 'dup-key-123');
+        $second = $service->create(1, 1, $this->standardResources(), null, $user->id, 'dup-key-123');
+
+        $this->assertSame($first['id'], $second['id']);
+        $this->assertSame($first['token'], $second['token']);
+        $this->assertSame(1, ResourceReservation::count());
+    }
+
+    public function test_create_with_idempotency_key_creates_new_after_original_cancelled(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $service = $this->createService();
+
+        $this->mockNodeService->shouldReceive('selectBestNode')
+            ->twice()
+            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
+        $this->mockPricingService->shouldReceive('calculate')
+            ->twice()
+            ->andReturn(['total' => 9.99, 'breakdown' => [], 'model' => 'linear']);
+        $this->mockAuditService->shouldReceive('log')
+            ->twice()
+            ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
+
+        $first = $service->create(1, 1, $this->standardResources(), null, $user->id, 'cancelled-key-123');
+        ResourceReservation::query()->findOrFail($first['id'])->update(['status' => 'cancelled']);
+
+        $second = $service->create(1, 1, $this->standardResources(), null, $user->id, 'cancelled-key-123');
+
+        $this->assertNotSame($first['id'], $second['id']);
+        $this->assertSame(2, ResourceReservation::count());
+    }
+
+    public function test_create_without_idempotency_key_always_creates_new(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+        $service = $this->createService();
+
+        $this->mockNodeService->shouldReceive('selectBestNode')
+            ->twice()
+            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
+        $this->mockPricingService->shouldReceive('calculate')
+            ->twice()
+            ->andReturn(['total' => 9.99, 'breakdown' => [], 'model' => 'linear']);
+        $this->mockAuditService->shouldReceive('log')
+            ->twice()
+            ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
+
+        $first = $service->create(1, 1, $this->standardResources(), null, $user->id);
+        $second = $service->create(1, 1, $this->standardResources(), null, $user->id);
+
+        $this->assertNotSame($first['id'], $second['id']);
+        $this->assertSame(2, ResourceReservation::count());
     }
 
 }

@@ -92,10 +92,17 @@ Get maximum available resources for a location.
         "max_cpu": 800,
         "max_disk": 204800,
         "node_count": 3,
-        "has_capacity": true
+        "has_capacity": true,
+        "resource_capacity": {
+            "memory": true,
+            "cpu": true,
+            "disk": true
+        }
     }
 }
 ```
+
+`has_capacity` is conservative: it is only `true` when memory, CPU, and disk are all positive. `resource_capacity` exposes the per-resource booleans the frontend can use to explain which resource is exhausted.
 
 ### POST /api/dynamic-pterodactyl/pricing/calculate
 
@@ -177,6 +184,9 @@ Get pricing configuration and slider limits for a product.
 
 Create a resource reservation.
 
+**Headers:**
+- `Idempotency-Key` *(optional, preferred)* — 8-64 characters, alphanumeric plus hyphen. When reused by the same user while an existing reservation is still `pending` or `confirmed`, the API returns the original reservation instead of creating a duplicate hold.
+
 **Request:**
 ```json
 {
@@ -185,9 +195,17 @@ Create a resource reservation.
     "memory": 8192,
     "cpu": 400,
     "disk": 102400,
-    "cart_item_id": 123
+    "cart_item_id": 123,
+    "idempotency_key": "checkout-req-123"
 }
 ```
+
+**Validation rules:**
+- Product must have `dynamic_slider` config options for dynamic reservations, otherwise the request is rejected with `422` and `This product is not configured for dynamic reservations`.
+- Each configured resource must be present in the payload.
+- Extra resource fields not configured on the product are rejected.
+- Each selected resource must stay within the slider's `min`/`max` bounds and match its configured `step` increment.
+- `Idempotency-Key` header or `idempotency_key` body field must match `^[A-Za-z0-9-]{8,64}$` when supplied.
 
 **Response:**
 ```json
@@ -327,6 +345,11 @@ class AvailabilityController
         try {
             $maxAvailable = $this->nodeService->getMaxAvailable($locationId);
             $locationData = $this->resourceService->getLocationAvailability($locationId);
+            $resourceCapacity = [
+                'memory' => $maxAvailable['memory'] > 0,
+                'cpu' => $maxAvailable['cpu'] > 0,
+                'disk' => $maxAvailable['disk'] > 0,
+            ];
             
             return response()->json([
                 'success' => true,
@@ -336,7 +359,8 @@ class AvailabilityController
                     'max_cpu' => $maxAvailable['cpu'],
                     'max_disk' => $maxAvailable['disk'],
                     'node_count' => count($locationData['nodes']),
-                    'has_capacity' => $maxAvailable['memory'] > 0,
+                    'has_capacity' => $resourceCapacity['memory'] && $resourceCapacity['cpu'] && $resourceCapacity['disk'],
+                    'resource_capacity' => $resourceCapacity,
                 ],
             ]);
         } catch (\Exception $e) {
@@ -478,7 +502,7 @@ class PricingController
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Requests\StoreReservationRequest;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
 class ReservationController
@@ -490,28 +514,23 @@ class ReservationController
         $this->reservationService = $reservationService;
     }
     
-    public function create(Request $request): JsonResponse
+    public function create(StoreReservationRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'product_id' => 'required|integer|exists:products,id',
-            'location_id' => 'required|integer',
-            'memory' => 'required|integer|min:1',
-            'cpu' => 'required|integer|min:1',
-            'disk' => 'required|integer|min:1',
-            'cart_item_id' => 'nullable|integer|exists:cart_items,id',
-        ]);
+        $validated = $request->validated();
+        $resources = [
+            'memory' => (int) ($validated['memory'] ?? 0),
+            'cpu' => (int) ($validated['cpu'] ?? 0),
+            'disk' => (int) ($validated['disk'] ?? 0),
+        ];
         
         try {
             $reservation = $this->reservationService->create(
                 productId: $validated['product_id'],
                 locationId: $validated['location_id'],
-                resources: [
-                    'memory' => $validated['memory'],
-                    'cpu' => $validated['cpu'],
-                    'disk' => $validated['disk'],
-                ],
+                resources: $resources,
                 cartItemId: $validated['cart_item_id'] ?? null,
-                userId: auth()->id()
+                userId: $request->user()?->id,
+                idempotencyKey: $validated['idempotency_key'] ?? null,
             );
             
             return response()->json([
