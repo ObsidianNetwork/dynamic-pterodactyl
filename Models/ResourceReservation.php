@@ -13,6 +13,7 @@ class ResourceReservation extends Model
 
     protected $fillable = [
         'token',
+        'idempotency_key',
         'cart_item_id',
         'service_id',
         'user_id',
