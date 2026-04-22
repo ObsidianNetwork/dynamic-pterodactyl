@@ -7,7 +7,7 @@ Active implementation tracking. **Claude: Update this as you work.**
 ## Current Status
 
 **Phase**: dp-08 reservation verification in flight
-**Last Updated**: 2026-04-23
+**Last Updated**: 2026-04-22
 **Last Session**: dp-08 branch active. Fix 1-4 implemented on `dp-08-reservation-verification`: self-exclusion at payment verification, reservation create idempotency keys, slider-bound FormRequest validation, and strict availability `has_capacity` semantics. Next: docs/push/PR review loop.
 
 ---
@@ -54,7 +54,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-23
+**Last checkpoint**: 2026-04-22
 **Working on**: dp-08 reservation verification
 **Status**: Fixes 1-4 implemented and green in extension phpunit
 **Current file**: 03-API.md / CHANGELOG.md / PROGRESS.md
