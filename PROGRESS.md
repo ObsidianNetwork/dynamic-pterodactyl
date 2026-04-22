@@ -55,10 +55,10 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > This survives compaction and helps resume quickly.
 
 **Last checkpoint**: 2026-04-23
-**Working on**: Post-merge bookkeeping
-**Status**: dp-08 merged and branch deleted; recording shipped state on `dynamic-slider`
+**Working on**: No active task
+**Status**: dp-08 fully shipped on `dynamic-slider` via squash `5a28acb`
 **Current file**: PROGRESS.md
-**Next action**: Push shipped-progress update, then move to the next backlog item
+**Next action**: Start the next orchestrated backlog item
 **Blockers**: None
 
 ### This Session's Changes:
