@@ -205,3 +205,34 @@ If you believe a decision should be reconsidered:
 2. Document what changed (new information, failed assumption)
 3. Propose alternative with trade-off analysis
 4. Update this file with "Revised" status and new rationale
+
+## Decisions locked 2026-04-22
+
+These decisions were made after the full codebase audit (sessions `ses_24c9dae2dffeSpxiEGlGCd5B4C` and `ses_24c9d4dd8ffecFFWJ2Uf4wI0Eb`) and a Paymenter-core pricing capability investigation (session `ses_24c139d79ffeXOiyEsd3b2c0xz`).
+
+### 1. Pricing ownership direction
+
+Paymenter core is the intended pricing authority for `dynamic_slider`. The Phase 1 investigation concluded that core carries four structural defects:
+
+1. **Per-slider base-price duplication.** `app/Livewire/Products/Checkout.php:102-137` and `app/Models/CartItem.php:45-116` sum `plan->price + calculateDynamicPrice()` for every slider. Because each slider's `calculateDynamicPrice()` already includes `pricing.base_price`, enabling memory+cpu+disk sliders with `base_price=5` charges `plan_price + 15` instead of `plan_price + 5`.
+2. **`base_plus_addon` falls through to linear.** `app/Models/ConfigOption.php:61-65` match statement has no `base_plus_addon` arm; it silently prices as linear.
+3. **Recalculation paths are blind to dynamic sliders.** `app/Models/Service.php:207-235` iterates `configValue` rows only; slider selections stored as service properties are invisible to renewal invoicing (`app/Console/Commands/CronJob.php:57-93`).
+4. **Upgrade flow incompatible with numeric slider values.** `app/Livewire/Services/Upgrade.php:60-127` is built around child option IDs, not numeric values.
+
+Fixes land on our Paymenter fork via **`dp-core-01-pricing-patches`** — fork-only, not upstream. Until dp-core-01 merges, the extension's `PricingCalculatorService` and `ConfigOptionSetupService::buildPricingMetadata` are **load-bearing scaffolding** compensating for these core gaps. Do not delete either until dp-core-01 is merged and verified.
+
+### 2. Canonical addon pricing model name
+
+`base_addon` is the single canonical name. `base_plus_addon` is retired. All docs, the SetupWizard, the validator, and runtime code use `base_addon`. The `base_plus_addon` alias was removed from `PricingConfigValidator` in the dp-07 Phase 4 cleanup.
+
+### 3. `released` reservation state
+
+Deleted. The observable lifecycle is: `pending` → `{confirmed, expired, cancelled}`. The `released` enum member was present in the schema and docs but no service method ever set it. If a post-confirm provisioning-failure state is needed in the future, introduce `provision_failed` (a concrete meaning) rather than re-adding `released`.
+
+### 4. Per-node capacity exposure
+
+Admin-only. Customers never see raw node-level data (node names, FQDNs, maintenance flags, per-node capacity). The customer signal for "this location is near capacity" is the slider clamping to the real allocatable maximum. The `/availability/{locationId}/nodes` route was moved to the admin middleware group in dp-07 Phase 4. The customer-facing availability endpoint returns only aggregate per-location maxima.
+
+### 5. SetupWizard feature-test shipped status
+
+Unit coverage accepted for dp-06. The full Filament-action lifecycle end-to-end test is deferred to **dp-13** (SetupWizard atomicity + audit-log reliability), since that plan touches `ConfigOptionSetupService` and it's the natural place to wire the E2E test. The skipped placeholder in `tests/Feature/SetupWizardValidationTest.php` carries a `// TODO dp-13:` marker tracking this.
