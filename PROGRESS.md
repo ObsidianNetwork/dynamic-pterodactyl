@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: PricingConfig Wizard Conversion (COMPLETE)
-**Last Updated**: 2025-11-29
-**Last Session**: Converted PricingConfig system to Setup Wizard. Removed ptero_pricing_configs table dependency - wizard now creates native dynamic_slider ConfigOptions directly.
+**Phase**: dp-07 doc consolidation complete — backlog dp-08..dp-13 + dp-core-01 queued
+**Last Updated**: 2026-04-22
+**Last Session**: dp-07 shipped (PR #6, `2b5ed12`). Locked 5 design decisions. Rewrote 9 stale docs. Retired `released` enum, `base_plus_addon` alias, admin-gated `/nodes` route. Next: dp-core-01 (Paymenter fork pricing patches) or dp-08 (reservation verification).
 
 ---
 
@@ -277,7 +277,8 @@ When debugging, record:
 |------|---------------|
 | 2025-11-29 | **PricingConfig → Setup Wizard** - Converted redundant PricingConfig system to Setup Wizard that creates native dynamic_slider ConfigOptions. Deleted PricingConfig model, PricingConfigResource (3 pages), added drop table migration. Updated Dashboard, PricingCalculatorService, PricingController to read from ConfigOptions. Rewrote tests for new architecture. |
 | 2026-04-22 | **dp-06 shipped** - Squash commit `3b1f1da`, merged 2026-04-22. |
-| 2026-04-22 | **dp-07 in progress** - Doc consolidation + decision narrowing. |
+| 2026-04-22 | **dp-07 shipped** - PR #6, squash commit `2b5ed12`. Locked 5 decisions in DECISIONS.md. Rewrote README, 01-DATABASE, 03-API, 05-ADMIN-UI, 06-FRONTEND, 07-PRICING-MODELS, 09-IMPLEMENTATION, PROGRESS, CHANGELOG. Retired `released` enum via migration, dropped `base_plus_addon` from validator + ConfigOptionSetupService, moved `/nodes` route to admin group. 93 tests pass. |
+| 2026-04-22 | **Backlog confirmed** - dp-08: reservation verification + idempotency. dp-09: extension pricing scaffolding cleanup (after dp-core-01). dp-10: slider UX + a11y. dp-11: authorization + surface reduction. dp-12: capacity alerts + observability. dp-13: SetupWizard atomicity + audit-log reliability + E2E test. dp-core-01: Paymenter fork pricing patches (prerequisite for dp-09). |
 | 2026-04-22 | **dp-core-01 drafted** - Pricing patches for the Paymenter fork, queued post-dp-07. |
 | 2025-11-29 | **Extended Pricing + Extension Simplification** - Added tiered/base_addon pricing models to native `dynamic_slider`. Simplified DynamicPterodactyl: removed custom frontend sliders (head-scripts.blade.php), updated all event listeners to read from native config_options with `metadata.resource_type`, fixed property access to use morphMany relationship. Extension now focuses only on reservations and availability. |
 | 2025-11-29 | **Paymenter Core - dynamic_slider Type** - Implemented native `dynamic_slider` config option type in Paymenter core. Adds continuous value selection (e.g., memory 1GB-64GB) with price calculated as `value × rate`. Changes to 7 files: migration, model, admin UI, blade component, Checkout.php, CartItem.php, Cart.php. |
