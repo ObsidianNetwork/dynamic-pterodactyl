@@ -240,6 +240,21 @@ class PricingCalculatorServiceTest extends LaravelTestCase
         $this->assertEmpty($result['breakdown']);
     }
 
+    public function test_calculate_returns_zero_and_error_on_invalid_config(): void
+    {
+        $this->mockConfigOptions([
+            $this->createConfigOption('memory', 'linear', []),
+        ]);
+
+        $result = $this->service->calculate(1, [
+            'memory' => 4096,
+        ]);
+
+        $this->assertSame(0.0, $result['total']);
+        $this->assertSame('invalid_pricing_config', $result['error']);
+        $this->assertSame([], $result['breakdown']);
+    }
+
     /**
      * Test getConfig returns proper slider configuration.
      */

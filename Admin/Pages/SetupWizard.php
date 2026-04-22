@@ -11,16 +11,18 @@ use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
+use Filament\Schemas\Schema;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ConfigOptionSetupService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\InvalidPricingConfigException;
 
 class SetupWizard extends Page implements HasForms
 {
@@ -76,10 +78,11 @@ class SetupWizard extends Page implements HasForms
         ]);
     }
 
-    public function form(Form $form): Form
+    public function form(Schema $schema): Schema
     {
-        return $form
-            ->schema([
+        return $schema
+            ->components([
+                Form::make([
                 Tabs::make('Wizard')->tabs([
 
                     // TAB 1: Product Selection
@@ -400,8 +403,8 @@ class SetupWizard extends Page implements HasForms
                                         ->helperText('Select locations to create a location selector. Leave empty to skip location config option.'),
                                 ]),
                         ]),
-
                 ])->columnSpanFull(),
+                ]),
             ])
             ->statePath('data');
     }
@@ -466,6 +469,16 @@ class SetupWizard extends Page implements HasForms
             $this->existingOptions = null;
             $this->showOverwriteWarning = false;
 
+        } catch (InvalidPricingConfigException $e) {
+            Notification::make()
+                ->title('Pricing config rejected')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+
+            $this->halt();
+
+            return;
         } catch (\Exception $e) {
             Notification::make()
                 ->title('Failed to Create Config Options')
