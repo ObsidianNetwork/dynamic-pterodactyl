@@ -92,10 +92,17 @@ Get maximum available resources for a location.
         "max_cpu": 800,
         "max_disk": 204800,
         "node_count": 3,
-        "has_capacity": true
+        "has_capacity": true,
+        "resource_capacity": {
+            "memory": true,
+            "cpu": true,
+            "disk": true
+        }
     }
 }
 ```
+
+`has_capacity` is conservative: it is only `true` when memory, CPU, and disk are all positive. `resource_capacity` exposes the per-resource booleans the frontend can use to explain which resource is exhausted.
 
 ### POST /api/dynamic-pterodactyl/pricing/calculate
 
@@ -177,6 +184,9 @@ Get pricing configuration and slider limits for a product.
 
 Create a resource reservation.
 
+**Headers:**
+- `Idempotency-Key` *(optional, preferred)* — 8-64 characters, alphanumeric plus hyphen. When reused by the same user while an existing reservation is still `pending` or `confirmed`, the API returns the original reservation instead of creating a duplicate hold.
+
 **Request:**
 ```json
 {
@@ -185,9 +195,17 @@ Create a resource reservation.
     "memory": 8192,
     "cpu": 400,
     "disk": 102400,
-    "cart_item_id": 123
+    "cart_item_id": 123,
+    "idempotency_key": "checkout-req-123"
 }
 ```
+
+**Validation rules:**
+- Product must have `dynamic_slider` config options for dynamic reservations, otherwise the request is rejected with `422` and `This product is not configured for dynamic reservations`.
+- Each configured resource must be present in the payload.
+- Extra resource fields not configured on the product are rejected.
+- Each selected resource must stay within the slider's `min`/`max` bounds and match its configured `step` increment.
+- `Idempotency-Key` header or `idempotency_key` body field must match `^[A-Za-z0-9-]{8,64}$` when supplied.
 
 **Response:**
 ```json
