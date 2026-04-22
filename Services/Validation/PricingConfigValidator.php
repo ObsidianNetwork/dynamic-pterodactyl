@@ -12,7 +12,7 @@ class PricingConfigValidator
         match ($model) {
             'linear' => $this->validateLinear($config),
             'tiered' => $this->validateTiered($config),
-            'base_addon', 'base_plus_addon' => $this->validateBaseAddon($config),
+            'base_addon' => $this->validateBaseAddon($config),
             default => throw new InvalidPricingConfigException(
                 'Unknown pricing model: ' . var_export($model, true)
             ),

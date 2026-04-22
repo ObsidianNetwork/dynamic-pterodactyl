@@ -53,11 +53,6 @@ class PricingConfigValidatorTest extends TestCase
                 'included_units' => 4,
                 'overage_rate' => 1.25,
             ]],
-            'valid base plus addon alias' => [[
-                'model' => 'base_plus_addon',
-                'included_units' => 2,
-                'overage_rate' => 3.50,
-            ]],
         ];
     }
 
@@ -71,6 +66,10 @@ class PricingConfigValidatorTest extends TestCase
             'unknown model string' => [
                 ['model' => 'mystery'],
                 "Unknown pricing model: 'mystery'",
+            ],
+            'unknown model base_plus_addon' => [
+                ['model' => 'base_plus_addon'],
+                "Unknown pricing model: 'base_plus_addon'",
             ],
             'missing linear rate' => [
                 ['model' => 'linear'],
