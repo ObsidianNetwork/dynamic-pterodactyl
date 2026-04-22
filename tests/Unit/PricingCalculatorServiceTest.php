@@ -252,7 +252,8 @@ class PricingCalculatorServiceTest extends LaravelTestCase
 
         $this->assertSame(0.0, $result['total']);
         $this->assertSame('invalid_pricing_config', $result['error']);
-        $this->assertSame([], $result['breakdown']);
+        $this->assertSame('invalid_pricing_config', $result['error']);
+        $this->assertSame('invalid', $result['model']);
     }
 
     /**

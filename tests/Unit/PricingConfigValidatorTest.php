@@ -12,11 +12,11 @@ class PricingConfigValidatorTest extends TestCase
     #[DataProvider('validConfigProvider')]
     public function test_validate_accepts_valid_configs(array $config): void
     {
+        $this->expectNotToPerformAssertions();
+
         $validator = new PricingConfigValidator();
 
         $validator->validate($config);
-
-        $this->assertTrue(true);
     }
 
     #[DataProvider('invalidConfigProvider')]
