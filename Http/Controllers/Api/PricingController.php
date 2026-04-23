@@ -23,16 +23,36 @@ class PricingController
      */
     public function calculate(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'product_id' => 'required|integer|exists:products,id',
-            'plan_id' => 'nullable|integer|exists:plans,id',
-            'memory' => 'required|integer|min:1',
-            'cpu' => 'required|integer|min:1',
-            'disk' => 'required|integer|min:1',
-        ]);
+        // Phase 1: validate product_id (static)
+        $request->validate(['product_id' => 'required|integer|exists:products,id']);
+
+        $product = Product::query()->with(['configOptions', 'plans'])->findOrFail($request->integer('product_id'));
+
+        // Determine which sliders are configured for this product
+        $sliderOptions = $product->configOptions
+            ->where('type', 'dynamic_slider')
+            ->whereNull('parent_id');
+
+        if ($sliderOptions->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This product is not configured for dynamic pricing',
+            ], 404);
+        }
+
+        // Phase 2: validate plan + only the configured slider fields
+        $rules = ['plan_id' => 'nullable|integer|exists:plans,id'];
+        foreach ($sliderOptions as $option) {
+            $resourceType = $option->getMetadata('resource_type', strtolower($option->name));
+            $rules[$resourceType] = 'required|integer|min:1';
+        }
+
+        $validated = array_merge(
+            ['product_id' => $product->id],
+            $request->validate($rules)
+        );
 
         try {
-            $product = Product::query()->with(['configOptions', 'plans'])->findOrFail($validated['product_id']);
             try {
                 $plan = $this->resolvePlan($product, $validated['plan_id'] ?? null);
             } catch (\InvalidArgumentException $e) {
@@ -41,79 +61,63 @@ class PricingController
                     'message' => $e->getMessage(),
                 ], 422);
             }
-            $resources = [
-                'memory' => $validated['memory'],
-                'cpu' => $validated['cpu'],
-                'disk' => $validated['disk'],
-            ];
 
-            $sliderOptions = $product->configOptions
-                ->where('type', 'dynamic_slider')
-                ->whereNull('parent_id');
+            $breakdown = [];
+            $total = 0.0;
+            $hasSliderInScope = false;
 
-            if ($sliderOptions->isEmpty()) {
-                $pricing = [
-                    'total' => 0,
-                    'breakdown' => [],
-                    'model' => 'none',
-                    'message' => 'No dynamic slider config options found for this product',
-                ];
-            } else {
-                $breakdown = [];
-                $total = 0.0;
-                $hasSliderInScope = false;
+            foreach ($sliderOptions as $option) {
+                $resourceType = $option->getMetadata('resource_type', strtolower($option->name));
+                $value = (float) ($validated[$resourceType] ?? 0);
 
-                foreach ($sliderOptions as $option) {
-                    $resourceType = $option->getMetadata('resource_type', strtolower($option->name));
-                    $value = (float) ($resources[$resourceType] ?? 0);
-
-                    if ($value <= 0) {
-                        continue;
-                    }
-
-                    $hasSliderInScope = true;
-                    $price = $option->calculateDynamicPriceDelta($value, $plan->billing_period, $plan->billing_unit);
-
-                    $breakdown[] = [
-                        'resource_type' => $resourceType,
-                        'label' => $option->name,
-                        'value' => $value,
-                        'display_value' => $option->formatValueForDisplay($value),
-                        'price' => round($price, 2),
-                        'pricing_model' => $option->getMetadata('pricing.model', 'linear'),
-                    ];
-
-                    $total += $price;
+                if ($value <= 0) {
+                    continue;
                 }
 
-                if ($hasSliderInScope) {
-                    $total += $plan->dynamicSliderBasePrice();
-                }
+                $hasSliderInScope = true;
+                $price = $option->calculateDynamicPriceDelta($value, $plan->billing_period, $plan->billing_unit);
 
-                $pricing = [
-                    'total' => round($total, 2),
-                    'breakdown' => $breakdown,
-                    'model' => $sliderOptions->first()?->getMetadata('pricing.model', 'linear') ?? 'linear',
+                $breakdown[] = [
+                    'resource_type' => $resourceType,
+                    'label' => $option->name,
+                    'value' => $value,
+                    'display_value' => $option->formatValueForDisplay($value),
+                    'price' => round($price, 2),
+                    'pricing_model' => $option->getMetadata('pricing.model', 'linear'),
                 ];
+
+                $total += $price;
+            }
+
+            if ($hasSliderInScope) {
+                $total += $plan->dynamicSliderBasePrice();
             }
 
             return response()->json([
                 'success' => true,
-                'data' => $pricing,
+                'data' => [
+                    'total' => round($total, 2),
+                    'breakdown' => $breakdown,
+                    'model' => $sliderOptions->first()?->getMetadata('pricing.model', 'linear') ?? 'linear',
+                ],
             ]);
         } catch (\Exception $e) {
             Log::error('DynamicPterodactyl price calculation failed', [
                 'product_id' => $validated['product_id'],
-                'resources' => $validated,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return response()->json([
+            $payload = [
                 'success' => false,
                 'message' => 'Price calculation failed',
-                'error' => $e->getMessage(),
-            ], 500);
+            ];
+
+            if (config('app.debug')) {
+                $payload['error'] = $e->getMessage();
+            }
+
+            return response()->json($payload, 500);
         }
     }
 
@@ -148,7 +152,7 @@ class PricingController
         return response()->json([
             'success' => false,
             'errors' => ['Pricing validation endpoint has been retired'],
-        ]);
+        ], 410);
     }
 
     private function resolvePlan(Product $product, ?int $planId): Plan

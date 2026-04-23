@@ -112,15 +112,18 @@ Calculate price for a resource configuration by delegating to Paymenter core pri
 ```json
 {
     "product_id": 5,
+    "plan_id": 12,
     "memory": 8192,
     "cpu": 400,
     "disk": 102400
 }
 ```
 
-`PricingController::calculate()` now resolves the selected plan, adds `Plan::dynamicSliderBasePrice()` once, and sums each slider's `ConfigOption::calculateDynamicPriceDelta(...)` result into the response payload.
+`plan_id` is optional; when omitted, the first plan (sorted by `sort`) for the product is used. Only the slider resource types configured on the product are required — requests missing a configured slider return `422`. Requests with a `plan_id` belonging to a different product also return `422`. Products with no `dynamic_slider` config options return `404`.
 
-**Response:**
+`PricingController::calculate()` resolves the selected plan, adds `Plan::dynamicSliderBasePrice()` once when at least one slider is in scope, and sums each slider's `ConfigOption::calculateDynamicPriceDelta(...)` result into the response payload.
+
+**Response (200 OK):**
 ```json
 {
     "success": true,
@@ -137,6 +140,14 @@ Calculate price for a resource configuration by delegating to Paymenter core pri
 ```
 
 The shared base price is included in `total` but not duplicated in each breakdown row.
+
+**Response (422 — foreign `plan_id`):**
+```json
+{
+    "success": false,
+    "message": "Selected plan does not belong to this product"
+}
+```
 
 ### GET /api/dynamic-pterodactyl/pricing/config/{productId}
 
