@@ -2,14 +2,18 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api;
 
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Routing\Controller;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Requests\StoreReservationRequest;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
-class ReservationController
+class ReservationController extends Controller
 {
+    use AuthorizesRequests;
+
     private ReservationService $reservationService;
 
     public function __construct(ReservationService $reservationService)
@@ -56,8 +60,7 @@ class ReservationController
 
     public function get(string $token): JsonResponse
     {
-        $user = Auth::user();
-        $reservation = $this->reservationService->getByToken($token);
+        $reservation = ResourceReservation::query()->where('token', $token)->first();
 
         if (! $reservation) {
             return response()->json([
@@ -66,13 +69,7 @@ class ReservationController
             ], 404);
         }
 
-        // Only allow owner or admin to view
-        if ($reservation->user_id !== $user?->id && ! ($user?->is_admin ?? false)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized',
-            ], 403);
-        }
+        $this->authorize('view', $reservation);
 
         return response()->json([
             'success' => true,
@@ -82,8 +79,7 @@ class ReservationController
 
     public function cancel(string $token): JsonResponse
     {
-        $user = Auth::user();
-        $reservation = $this->reservationService->getByToken($token);
+        $reservation = ResourceReservation::query()->where('token', $token)->first();
 
         if (! $reservation) {
             return response()->json([
@@ -92,12 +88,7 @@ class ReservationController
             ], 404);
         }
 
-        if ($reservation->user_id !== $user?->id && ! ($user?->is_admin ?? false)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized',
-            ], 403);
-        }
+        $this->authorize('cancel', $reservation);
 
         $result = $this->reservationService->cancel($token, null, 'customer');
 
@@ -109,12 +100,11 @@ class ReservationController
 
     public function extend(Request $request, string $token): JsonResponse
     {
-        $user = Auth::user();
         $validated = $request->validate([
             'minutes' => 'integer|min:1|max:60',
         ]);
 
-        $reservation = $this->reservationService->getByToken($token);
+        $reservation = ResourceReservation::query()->where('token', $token)->first();
 
         if (! $reservation) {
             return response()->json([
@@ -123,12 +113,7 @@ class ReservationController
             ], 404);
         }
 
-        if ($reservation->user_id !== $user?->id && ! ($user?->is_admin ?? false)) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized',
-            ], 403);
-        }
+        $this->authorize('extend', $reservation);
 
         $result = $this->reservationService->extend($token, $validated['minutes'] ?? 15);
 

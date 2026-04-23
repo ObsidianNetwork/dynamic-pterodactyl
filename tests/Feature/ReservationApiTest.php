@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Feature;
 
 use App\Models\Product;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -220,6 +221,91 @@ class ReservationApiTest extends LaravelTestCase
         ]);
     }
 
+    public function test_admin_can_view_other_users_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $admin = $this->makeAdminUser();
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($admin)
+            ->getJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token)
+            ->assertOk()
+            ->assertJson(['success' => true]);
+    }
+
+    public function test_admin_can_cancel_other_users_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $admin = $this->makeAdminUser();
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($admin)
+            ->deleteJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token)
+            ->assertOk()
+            ->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservation->id,
+            'status' => 'cancelled',
+        ]);
+    }
+
+    public function test_admin_can_extend_other_users_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $admin = $this->makeAdminUser();
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($admin)
+            ->postJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token . '/extend', ['minutes' => 20])
+            ->assertOk()
+            ->assertJson(['success' => true]);
+    }
+
+    public function test_stranger_cannot_view_other_users_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($stranger)
+            ->getJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token)
+            ->assertForbidden();
+    }
+
+    public function test_stranger_cannot_cancel_other_users_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($stranger)
+            ->deleteJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token)
+            ->assertForbidden();
+    }
+
+    public function test_stranger_cannot_extend_other_users_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($stranger)
+            ->postJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token . '/extend', ['minutes' => 20])
+            ->assertForbidden();
+    }
+
+    public function test_owner_can_view_own_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $reservation = $this->makeReservation($owner);
+
+        $this->actingAs($owner)
+            ->getJson('/api/dynamic-pterodactyl/reservation/' . $reservation->token)
+            ->assertOk()
+            ->assertJson(['success' => true]);
+    }
+
     private function createConfiguredProduct(): Product
     {
         /** @var Product $product */
@@ -258,6 +344,30 @@ class ReservationApiTest extends LaravelTestCase
         }
 
         return $product;
+    }
+
+    private function makeAdminUser(): User
+    {
+        $role = Role::firstOrCreate(['name' => 'Admin']);
+
+        return User::withoutEvents(fn () => User::factory()->create(['role_id' => $role->id]));
+    }
+
+    private function makeReservation(User $user, array $attributes = []): ResourceReservation
+    {
+        return ResourceReservation::create(array_merge([
+            'token' => (string) Str::random(64),
+            'user_id' => $user->id,
+            'node_id' => 1,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 9.99,
+            'pricing_breakdown' => [],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(15),
+        ], $attributes));
     }
 
     private function createCartItemForUser(User $user, int $productId): int
