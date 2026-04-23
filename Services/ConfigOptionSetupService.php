@@ -77,7 +77,7 @@ class ConfigOptionSetupService
         return $created;
     }
 
-    public function createResourceOption(int $productId, string $resourceType, array $config): ConfigOption
+    private function createResourceOption(int $productId, string $resourceType, array $config): ConfigOption
     {
         $defaults = $this->resourceDefaults[$resourceType] ?? [];
 
@@ -171,7 +171,7 @@ class ConfigOptionSetupService
         return $pricing;
     }
 
-    public function createLocationOption(int $productId, array $locations): ConfigOption
+    private function createLocationOption(int $productId, array $locations): ConfigOption
     {
         $existingLocation = $this->findExistingOption($productId, 'location');
 

@@ -3,7 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\User;
-use App\Models\Service;
+
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -658,13 +658,22 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_confirm_succeeds_when_actor_is_owner(): void
     {
         $owner = User::withoutEvents(fn () => User::factory()->create());
-        $service = Service::withoutEvents(fn () => Service::factory()->create(['user_id' => $owner->id]));
+        // Direct DB insert avoids App\Models\Service alias-mock contamination from CartItemDeletedListenerTest.
+        $serviceId = DB::table('services')->insertGetId([
+            'user_id'       => $owner->id,
+            'status'        => 'active',
+            'currency_code' => 'USD',
+            'quantity'      => 1,
+            'price'         => '0.00',
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
 
         $this->createReservation($owner->id, 'tok-confirm-allow');
 
         $this->mockAuditService->shouldReceive('log')->once();
 
-        $result = $this->createService()->confirm('tok-confirm-allow', $service->id, $owner);
+        $result = $this->createService()->confirm('tok-confirm-allow', $serviceId, $owner);
 
         $this->assertTrue($result);
     }
@@ -672,13 +681,21 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_confirm_succeeds_when_actor_is_null(): void
     {
         $owner = User::withoutEvents(fn () => User::factory()->create());
-        $service = Service::withoutEvents(fn () => Service::factory()->create(['user_id' => $owner->id]));
+        $serviceId = DB::table('services')->insertGetId([
+            'user_id'       => $owner->id,
+            'status'        => 'active',
+            'currency_code' => 'USD',
+            'quantity'      => 1,
+            'price'         => '0.00',
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
 
         $this->createReservation($owner->id, 'tok-confirm-null');
 
         $this->mockAuditService->shouldReceive('log')->once();
 
-        $result = $this->createService()->confirm('tok-confirm-null', $service->id, null);
+        $result = $this->createService()->confirm('tok-confirm-null', $serviceId, null);
 
         $this->assertTrue($result);
     }

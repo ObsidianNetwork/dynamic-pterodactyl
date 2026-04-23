@@ -150,7 +150,7 @@ class ReservationService
         }
     }
 
-    public function getActiveByIdempotencyKey(int $userId, string $idempotencyKey): ?object
+    private function getActiveByIdempotencyKey(int $userId, string $idempotencyKey): ?object
     {
         return DB::table('ptero_resource_reservations')
             ->where('user_id', $userId)
@@ -416,7 +416,7 @@ class ReservationService
         return $count;
     }
 
-    public function presentReservation(object $reservation): array
+    private function presentReservation(object $reservation): array
     {
         $expiresAt = $reservation->expires_at ? Carbon::parse($reservation->expires_at) : null;
 

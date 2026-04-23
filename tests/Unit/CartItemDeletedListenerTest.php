@@ -78,7 +78,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $serviceModel->shouldReceive('whereHas')->once()->andReturn($serviceQuery);
 
         $reservationService = \Mockery::mock(ReservationService::class);
-        $reservationService->shouldReceive('cancel')->once()->with($token, null, 'cart_deleted');
+        $reservationService->shouldReceive('cancel')->once()->with($token, null, 'cart_deleted', null);
         $this->app->instance(ReservationService::class, $reservationService);
 
         Log::shouldReceive('info')
@@ -107,7 +107,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
         $reservationService = \Mockery::mock(ReservationService::class);
         $reservationService->shouldReceive('cancel')
             ->once()
-            ->with($token, null, 'cart_deleted')
+            ->with($token, null, 'cart_deleted', null)
             ->andThrow(new \RuntimeException('boom'));
         $this->app->instance(ReservationService::class, $reservationService);
 
