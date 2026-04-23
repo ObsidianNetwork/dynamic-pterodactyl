@@ -44,24 +44,28 @@ class ConfigOptionSetupService
 
     public function createDynamicSliderOptions(int $productId, array $config, array $locations = []): array
     {
-        $created = [];
+        $created = DB::transaction(function () use ($productId, $config, $locations) {
+            $out = [];
 
-        foreach (['memory', 'cpu', 'disk'] as $resourceType) {
-            $enableKey = "enable_{$resourceType}_slider";
-            if (($config[$enableKey] ?? true) === false) {
-                continue;
+            foreach (['memory', 'cpu', 'disk'] as $resourceType) {
+                $enableKey = "enable_{$resourceType}_slider";
+                if (($config[$enableKey] ?? true) === false) {
+                    continue;
+                }
+
+                $out[$resourceType] = $this->createResourceOption(
+                    $productId,
+                    $resourceType,
+                    $config
+                );
             }
 
-            $created[$resourceType] = $this->createResourceOption(
-                $productId,
-                $resourceType,
-                $config
-            );
-        }
+            if (! empty($locations)) {
+                $out['location'] = $this->createLocationOption($productId, $locations);
+            }
 
-        if (! empty($locations)) {
-            $created['location'] = $this->createLocationOption($productId, $locations);
-        }
+            return $out;
+        });
 
         if (! empty($created)) {
             try {
