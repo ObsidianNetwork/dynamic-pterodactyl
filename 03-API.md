@@ -106,7 +106,7 @@ Get maximum available resources for a location.
 
 ### POST /api/dynamic-pterodactyl/pricing/calculate
 
-Calculate price for given resource configuration.
+Calculate price for a resource configuration by delegating to Paymenter core pricing primitives.
 
 **Request:**
 ```json
@@ -118,6 +118,8 @@ Calculate price for given resource configuration.
 }
 ```
 
+`PricingController::calculate()` now resolves the selected plan, adds `Plan::dynamicSliderBasePrice()` once, and sums each slider's `ConfigOption::calculateDynamicPriceDelta(...)` result into the response payload.
+
 **Response:**
 ```json
 {
@@ -125,15 +127,16 @@ Calculate price for given resource configuration.
     "data": {
         "total": 24.00,
         "breakdown": [
-            { "label": "Base Price", "amount": 5.00 },
-            { "label": "Memory (8 GB)", "amount": 4.00 },
-            { "label": "CPU (4 cores)", "amount": 8.00 },
-            { "label": "Disk (100 GB)", "amount": 7.00 }
+            { "resource_type": "memory", "label": "Memory", "value": 8192, "display_value": "8 GB", "price": 4.00, "pricing_model": "linear" },
+            { "resource_type": "cpu", "label": "CPU", "value": 400, "display_value": "4 cores", "price": 8.00, "pricing_model": "linear" },
+            { "resource_type": "disk", "label": "Disk", "value": 102400, "display_value": "100 GB", "price": 7.00, "pricing_model": "linear" }
         ],
         "model": "linear"
     }
 }
 ```
+
+The shared base price is included in `total` but not duplicated in each breakdown row.
 
 ### GET /api/dynamic-pterodactyl/pricing/config/{productId}
 

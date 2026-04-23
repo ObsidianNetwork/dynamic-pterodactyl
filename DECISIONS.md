@@ -212,14 +212,19 @@ These decisions were made after the full codebase audit (sessions `ses_24c9dae2d
 
 ### 1. Pricing ownership direction
 
-Paymenter core is the intended pricing authority for `dynamic_slider`. The Phase 1 investigation concluded that core carries four structural defects:
+Paymenter core is the intended pricing authority for `dynamic_slider`. The Phase 1 investigation concluded that core carried four structural defects:
 
 1. **Per-slider base-price duplication.** `app/Livewire/Products/Checkout.php:102-137` and `app/Models/CartItem.php:45-116` sum `plan->price + calculateDynamicPrice()` for every slider. Because each slider's `calculateDynamicPrice()` already includes `pricing.base_price`, enabling memory+cpu+disk sliders with `base_price=5` charges `plan_price + 15` instead of `plan_price + 5`.
 2. **`base_plus_addon` falls through to linear.** `app/Models/ConfigOption.php:61-65` match statement has no `base_plus_addon` arm; it silently prices as linear.
 3. **Recalculation paths are blind to dynamic sliders.** `app/Models/Service.php:207-235` iterates `configValue` rows only; slider selections stored as service properties are invisible to renewal invoicing (`app/Console/Commands/CronJob.php:57-93`).
 4. **Upgrade flow incompatible with numeric slider values.** `app/Livewire/Services/Upgrade.php:60-127` is built around child option IDs, not numeric values.
 
-Fixes land on our Paymenter fork via **`dp-core-01-pricing-patches`** — fork-only, not upstream. Until dp-core-01 merges, the extension's `PricingCalculatorService` and `ConfigOptionSetupService::buildPricingMetadata` are **load-bearing scaffolding** compensating for these core gaps. Do not delete either until dp-core-01 is merged and verified.
+Fixes landed on our Paymenter fork via **`dp-core-01-pricing-patches`** — fork-only, not upstream.
+
+**dp-09 (Apr 2026):** `dp-core-01` is now shipped. The extension scaffolding called out above has been retired:
+- `PricingCalculatorService` replaced by `SliderConfigReaderService` for config reads only.
+- `/pricing/calculate` now calls core pricing methods directly.
+- `PricingConfigValidator` removed; SetupWizard now uses core `DynamicSliderPricingRule`.
 
 ### 2. Canonical addon pricing model name
 

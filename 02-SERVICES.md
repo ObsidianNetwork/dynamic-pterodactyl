@@ -11,7 +11,7 @@
 | `ResourceCalculationService` | Real-time Pterodactyl API queries |
 | `NodeSelectionService` | Best-fit node allocation algorithm |
 | `ReservationService` | Resource holds during checkout |
-| `PricingCalculatorService` | Price calculation (3 models) |
+| `SliderConfigReaderService` | Reads dynamic-slider config payloads for API/frontend use |
 | `AuditLogService` | Track admin actions |
 | `AlertService` | Capacity notifications |
 
@@ -380,6 +380,14 @@ class NodeSelectionService
     }
 }
 ```
+
+---
+
+## SliderConfigReaderService
+
+This service is now intentionally thin: it reads `dynamic_slider` ConfigOption metadata and returns the slider/config payload used by the extension API. Pricing math no longer lives in the extension.
+
+`POST /pricing/calculate` delegates directly to Paymenter core via `Plan::dynamicSliderBasePrice()` and `ConfigOption::calculateDynamicPriceDelta()` inside `PricingController`.
 
 ---
 

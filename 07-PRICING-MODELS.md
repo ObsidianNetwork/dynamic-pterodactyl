@@ -1,12 +1,12 @@
 # Pricing Models
 
-> **Related docs**: [02-SERVICES.md](02-SERVICES.md) (PricingCalculatorService), [05-ADMIN-UI.md](05-ADMIN-UI.md) (configuration forms)
+> **Related docs**: [02-SERVICES.md](02-SERVICES.md) (SliderConfigReaderService), [05-ADMIN-UI.md](05-ADMIN-UI.md) (configuration forms)
 
 ---
 
 ## Overview
 
-Paymenter core is the intended pricing authority for `dynamic_slider` pricing. This extension keeps pricing scaffolding in place because core still has known defects that are being patched in `dp-core-01-pricing-patches`.
+Paymenter core now owns `dynamic_slider` pricing math. This extension only stores slider metadata and previews pricing through the same core methods used by checkout and recalculation flows.
 
 Three pricing models serve different business needs:
 
@@ -16,18 +16,15 @@ Three pricing models serve different business needs:
 | **Tiered** | Volume discounts | First 8GB at $0.60, next 8GB at $0.45 |
 | **Base + Addon** | Package upsells | $10 base includes 4GB, +$0.75/extra GB |
 
-## Core gaps and interim extension responsibilities
+## Pricing ownership after dp-core-01
 
-The following defects exist in Paymenter core's `dynamic_slider` pricing as of 2026-04-22. Until `dp-core-01-pricing-patches` lands, the extension's `PricingCalculatorService` compensates for these gaps. **Do not delete `PricingCalculatorService` or `ConfigOptionSetupService::buildPricingMetadata` until dp-core-01 is merged and verified on production.**
+dp-core-01 shipped the missing core fixes. The extension now relies on:
 
-| Defect | Core location | Impact |
-|---|---|---|
-| Per-slider base-price duplication | `app/Livewire/Products/Checkout.php:102-137`, `app/Models/CartItem.php:45-116` | `base_price` charged N times where N = number of sliders on the product. |
-| `base_plus_addon` falls through to linear | `app/Models/ConfigOption.php:61-65` | Any config using `base_plus_addon` is silently priced as linear. Use `base_addon`. |
-| Recalc paths blind to dynamic sliders | `app/Models/Service.php:207-235`, `app/Console/Commands/CronJob.php:57-93` | Renewal invoices ignore slider selections; customer is re-invoiced at wrong amount. |
-| Upgrade flow incompatible with numeric sliders | `app/Livewire/Services/Upgrade.php:60-127` | Admin can mark slider upgradable; upgrade attempt silently fails. |
+- `Plan::dynamicSliderBasePrice()` for the one-time shared base charge per product/plan.
+- `ConfigOption::calculateDynamicPriceDelta()` for per-slider marginal charges.
+- `App\Rules\DynamicSliderPricingRule` for SetupWizard write-time validation.
 
-Fixes tracked in `/var/www/paymenter/.sisyphus/plans/dp-core-01-pricing-patches.md`.
+The retired extension-only scaffolding (`PricingCalculatorService`, `PricingConfigValidator`) has been removed in dp-09.
 
 ---
 
@@ -249,7 +246,7 @@ Show what's included vs. what's extra:
 
 ## Database Storage
 
-Slider pricing is read from ConfigOption metadata built by `Services/ConfigOptionSetupService` and consumed by `Services/PricingCalculatorService`. It is no longer stored in `ptero_pricing_configs.pricing_config`.
+Slider pricing is read from ConfigOption metadata built by `Services/ConfigOptionSetupService` and consumed by Paymenter core pricing methods plus `Services/SliderConfigReaderService` for config reads. It is no longer stored in `ptero_pricing_configs.pricing_config`.
 
 The `pricing_model` enum determines which calculation method to use:
 - `linear` → `calculateLinear()`
@@ -323,14 +320,14 @@ The frontend uses `breakdown` to show itemized pricing.
 | Final tier `up_to = null` | Last tier handles unlimited |
 | `included.* >= 0` | Non-negative included amounts |
 
-Validation happens in Filament form rules and again in `PricingCalculatorService`.
+Validation happens in Filament form rules and again in `App\Rules\DynamicSliderPricingRule` via `ConfigOptionSetupService`.
 
 ---
 
 ## Adding a New Pricing Model
 
 1. Add enum value to `pricing_model` in migration
-2. Add calculation method in `PricingCalculatorService`
+2. Add/extend calculation support in Paymenter core pricing methods
 3. Add form section in `PricingConfigResource`
 4. Add conversion logic in `mutateFormDataBeforeSave()`
 5. Update frontend price display if needed
