@@ -10,12 +10,15 @@ use App\Events\Invoice\Paid as InvoicePaid;
 use App\Events\Service\Created as ServiceCreated;
 use App\Helpers\ExtensionHelper;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemDeletedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\InvoicePaidListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\ServiceCreatedListener;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
 #[ExtensionMeta(
@@ -91,6 +94,8 @@ class DynamicPterodactyl extends Extension
      */
     public function boot(): void
     {
+        Gate::policy(ResourceReservation::class, ResourceReservationPolicy::class);
+
         // Register routes
         require __DIR__ . '/routes/api.php';
 

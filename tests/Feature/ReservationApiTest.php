@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
@@ -21,15 +22,13 @@ class ReservationApiTest extends LaravelTestCase
         parent::setUp();
         require __DIR__ . '/../../routes/api.php';
 
-        $nodeSelectionService = Mockery::mock(NodeSelectionService::class);
+        $nodeSelectionService = $this->mock(NodeSelectionService::class);
         $nodeSelectionService->shouldReceive('selectBestNode')
             ->byDefault()
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->app->instance(NodeSelectionService::class, $nodeSelectionService);
 
-        $auditLogService = Mockery::mock(AuditLogService::class);
+        $auditLogService = $this->mock(AuditLogService::class);
         $auditLogService->shouldReceive('log')->byDefault()->andReturn(1);
-        $this->app->instance(AuditLogService::class, $auditLogService);
     }
 
     public function test_store_with_idempotency_key_returns_same_reservation_on_retry(): void
@@ -38,6 +37,7 @@ class ReservationApiTest extends LaravelTestCase
         $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
+        $cartItemId = $this->createCartItemForUser($user, $product->id);
 
         $response = $this->actingAs($user)->withHeaders([
             'Idempotency-Key' => 'idem-12345',
@@ -47,6 +47,7 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $cartItemId,
         ]);
 
         $retry = $this->actingAs($user)->withHeaders([
@@ -57,6 +58,7 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $cartItemId,
         ]);
 
         $response->assertOk()->assertJson(['success' => true]);
@@ -78,6 +80,8 @@ class ReservationApiTest extends LaravelTestCase
         $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
+        $firstCartItemId = $this->createCartItemForUser($user, $product->id);
+        $secondCartItemId = $this->createCartItemForUser($user, $product->id);
 
         $first = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
             'product_id' => $product->id,
@@ -85,6 +89,7 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $firstCartItemId,
         ]);
 
         $second = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
@@ -93,6 +98,7 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $secondCartItemId,
         ]);
 
         $first->assertOk()->assertJson(['success' => true]);
@@ -108,6 +114,7 @@ class ReservationApiTest extends LaravelTestCase
         $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
+        $cartItemId = $this->createCartItemForUser($user, $product->id);
 
         $response = $this->actingAs($user)->withHeaders([
             'Idempotency-Key' => 'bad key',
@@ -117,6 +124,7 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $cartItemId,
         ]);
 
         $response->assertStatus(422);
@@ -129,6 +137,7 @@ class ReservationApiTest extends LaravelTestCase
         $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = Product::factory()->create();
+        $cartItemId = $this->createCartItemForUser($user, $product->id);
 
         $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
             'product_id' => $product->id,
@@ -136,6 +145,7 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $cartItemId,
         ]);
 
         $response->assertStatus(422);
@@ -148,6 +158,7 @@ class ReservationApiTest extends LaravelTestCase
         $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
+        $cartItemId = $this->createCartItemForUser($user, $product->id);
 
         $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
             'product_id' => $product->id,
@@ -155,10 +166,58 @@ class ReservationApiTest extends LaravelTestCase
             'memory' => 99999,
             'cpu' => 200,
             'disk' => 51200,
+            'cart_item_id' => $cartItemId,
         ]);
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('memory');
+    }
+
+    public function test_user_cannot_create_reservation_against_anothers_cart_item(): void
+    {
+        /** @var User $owner */
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        /** @var User $stranger */
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+        /** @var Product $product */
+        $product = $this->createConfiguredProduct();
+        $cartItemId = $this->createCartItemForUser($owner, $product->id);
+
+        $response = $this->actingAs($stranger)->postJson('/api/dynamic-pterodactyl/reservation', [
+            'product_id' => $product->id,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'cart_item_id' => $cartItemId,
+        ]);
+
+        $response->assertForbidden();
+    }
+
+    public function test_user_can_create_reservation_against_own_cart_item(): void
+    {
+        /** @var User $user */
+        $user = User::withoutEvents(fn () => User::factory()->create());
+        /** @var Product $product */
+        $product = $this->createConfiguredProduct();
+        $cartItemId = $this->createCartItemForUser($user, $product->id);
+
+        $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/reservation', [
+            'product_id' => $product->id,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'cart_item_id' => $cartItemId,
+        ]);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'user_id' => $user->id,
+            'cart_item_id' => $cartItemId,
+            'status' => 'pending',
+        ]);
     }
 
     private function createConfiguredProduct(): Product
@@ -199,5 +258,24 @@ class ReservationApiTest extends LaravelTestCase
         }
 
         return $product;
+    }
+
+    private function createCartItemForUser(User $user, int $productId): int
+    {
+        $cartId = DB::table('carts')->insertGetId([
+            'ulid' => (string) Str::ulid(),
+            'user_id' => $user->id,
+            'currency_code' => 'USD',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return DB::table('cart_items')->insertGetId([
+            'cart_id' => $cartId,
+            'product_id' => $productId,
+            'quantity' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

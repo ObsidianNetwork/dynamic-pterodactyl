@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Http\Requests;
 
+use App\Models\CartItem;
 use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
@@ -10,7 +11,21 @@ class StoreReservationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $cartItemId = $this->integer('cart_item_id');
+
+        if (! $cartItemId) {
+            return false;
+        }
+
+        $cartItem = CartItem::query()
+            ->with('cart')
+            ->find($cartItemId);
+
+        if (! $cartItem || ! $cartItem->cart) {
+            return false;
+        }
+
+        return $cartItem->cart->user_id === $this->user()?->id;
     }
 
     protected function prepareForValidation(): void

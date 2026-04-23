@@ -3,10 +3,12 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Requests\StoreReservationRequest;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
@@ -25,8 +27,11 @@ class StoreReservationRequestTest extends LaravelTestCase
         string $errorField = '',
     ): void {
         $product = $this->createProductWithSliders($sliders);
+        /** @var User $user */
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $payload['product_id'] = $product->id;
         $payload['location_id'] ??= 1;
+        $payload['cart_item_id'] ??= $this->createCartItemForUser($user, $product->id);
 
         $request = StoreReservationRequest::createFromBase(Request::create(
             '/api/dynamic-pterodactyl/reservation',
@@ -36,6 +41,7 @@ class StoreReservationRequestTest extends LaravelTestCase
 
         $request->setContainer($this->app);
         $request->setRedirector($this->app->make(Redirector::class));
+        $request->setUserResolver(fn () => $user);
 
         if ($shouldPass) {
             $request->validateResolved();
@@ -145,5 +151,24 @@ class StoreReservationRequestTest extends LaravelTestCase
         }
 
         return $product;
+    }
+
+    private function createCartItemForUser(User $user, int $productId): int
+    {
+        $cartId = DB::table('carts')->insertGetId([
+            'ulid' => (string) Str::ulid(),
+            'user_id' => $user->id,
+            'currency_code' => 'USD',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return DB::table('cart_items')->insertGetId([
+            'cart_id' => $cartId,
+            'product_id' => $productId,
+            'quantity' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }
