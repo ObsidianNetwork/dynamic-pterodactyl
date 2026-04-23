@@ -3,105 +3,9 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\ConfigOption;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\InvalidPricingConfigException;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\PricingConfigValidator;
 
 class PricingCalculatorService
 {
-    public function __construct(private ?PricingConfigValidator $pricingConfigValidator = null)
-    {
-        $this->pricingConfigValidator ??= app(PricingConfigValidator::class);
-    }
-
-    /**
-     * Calculate price for given resources using native ConfigOptions
-     *
-     * @param  int  $productId  The product ID
-     * @param  array  $resources  Array with 'memory' (MB), 'cpu' (%), 'disk' (MB)
-     * @return array Pricing breakdown with total and per-resource details
-     */
-    public function calculate(int $productId, array $resources): array
-    {
-        $options = $this->getDynamicSliderOptions($productId);
-
-        if ($options->isEmpty()) {
-            return [
-                'total' => 0,
-                'breakdown' => [],
-                'model' => 'none',
-                'message' => 'No dynamic slider config options found for this product',
-            ];
-        }
-
-        $breakdown = [];
-        $total = 0;
-
-        foreach ($options as $option) {
-            $metadata = $option->metadata;
-            if (! is_array($metadata)) {
-                $metadata = json_decode($metadata, true) ?? [];
-            }
-
-            try {
-                $this->pricingConfigValidator->validate($metadata['pricing'] ?? []);
-            } catch (InvalidPricingConfigException $e) {
-                Log::warning('Pricing config invalid', [
-                    'product_id' => $productId,
-                    'config_option_id' => $option->id,
-                    'resource_type' => $metadata['resource_type'] ?? strtolower($option->name),
-                    'error' => $e->getMessage(),
-                    'config' => $metadata['pricing'] ?? [],
-                ]);
-
-                return [
-                    'total' => 0.0,
-                    'breakdown' => [],
-                    'model' => 'invalid',
-                    'error' => 'invalid_pricing_config',
-                ];
-            }
-
-            $resourceType = $metadata['resource_type'] ?? strtolower($option->name);
-            $value = $resources[$resourceType] ?? 0;
-
-            if ($value <= 0) {
-                continue;
-            }
-
-            // Calculate price using ConfigOption model method
-            $price = $option->calculateDynamicPrice($value, 1, 'month');
-
-            // Format value for display
-            $displayValue = $this->formatResourceValue($resourceType, $value, $metadata);
-
-            $breakdown[] = [
-                'resource_type' => $resourceType,
-                'label' => $option->name,
-                'value' => $value,
-                'display_value' => $displayValue,
-                'price' => round($price, 2),
-                'pricing_model' => $metadata['pricing']['model'] ?? 'linear',
-            ];
-
-            $total += $price;
-        }
-
-        // Determine the primary pricing model from the first option
-        $primaryModel = $options->first()?->metadata['pricing']['model'] ?? 'linear';
-        if (is_string($options->first()?->metadata)) {
-            $meta = json_decode($options->first()->metadata, true);
-            $primaryModel = $meta['pricing']['model'] ?? 'linear';
-        }
-
-        return [
-            'total' => round($total, 2),
-            'breakdown' => $breakdown,
-            'model' => $primaryModel,
-        ];
-    }
-
     /**
      * Get pricing configuration for a product (for API/frontend consumption)
      *
@@ -146,24 +50,6 @@ class PricingCalculatorService
             'has_config' => true,
             'sliders' => $sliders,
         ];
-    }
-
-    /**
-     * Format a resource value for display
-     */
-    private function formatResourceValue(string $resourceType, float $value, array $metadata): string
-    {
-        $divisor = $metadata['display_divisor'] ?? 1;
-        $displayUnit = $metadata['display_unit'] ?? $metadata['unit'] ?? '';
-
-        $displayValue = $value / $divisor;
-
-        // Format nicely
-        if ($displayValue == (int) $displayValue) {
-            return (int) $displayValue . ' ' . $displayUnit;
-        }
-
-        return number_format($displayValue, 1) . ' ' . $displayUnit;
     }
 
     /**
