@@ -6,6 +6,9 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 
 ## [Unreleased]
 
+### Changed
+- (dp-10) The extension-consumed `dynamic_slider` component now exposes the full WAI-ARIA APG attribute set, keyboard PageUp/Down/Home/End support, loading/error UI states, and a 44px touch target. No extension code changes required — these are fork-side core improvements.
+
 ### Fixed
 - Payment-time reservation confirmation now excludes the reservation itself from pending-capacity math, so exact-fit purchases can confirm successfully.
 - Reservation create requests now enforce product slider bounds and reject unconfigured products instead of persisting arbitrary resource selections.

@@ -238,6 +238,15 @@ Deleted. The observable lifecycle is: `pending` → `{confirmed, expired, cancel
 
 Admin-only. Customers never see raw node-level data (node names, FQDNs, maintenance flags, per-node capacity). The customer signal for "this location is near capacity" is the slider clamping to the real allocatable maximum. The `/availability/{locationId}/nodes` route was moved to the admin middleware group in dp-07 Phase 4. The customer-facing availability endpoint returns only aggregate per-location maxima.
 
+## Process: Out-of-scope finding handling (added dp-10, Apr 2026)
+
+When implementing any dp-NN plan, if the agent or CodeRabbit identifies a change that does not fit the current PR's scope:
+
+1. Identify the correct destination plan (dp-11 = auth, dp-12 = observability, dp-13 = E2E, new = create stub).
+2. Append the finding to that plan's "Deferred from <source>" section with: description, file:line, citation, date.
+3. Reply to the CodeRabbit thread: "@coderabbitai Acknowledged. Out of scope for dp-NN; deferred to dp-MM. See <plan link>." Then resolve.
+4. Do NOT silently expand the current PR scope.
+
 ### 5. SetupWizard feature-test shipped status
 
 Unit coverage accepted for dp-06. The full Filament-action lifecycle end-to-end test is deferred to **dp-13** (SetupWizard atomicity + audit-log reliability), since that plan touches `ConfigOptionSetupService` and it's the natural place to wire the E2E test. The skipped placeholder in `tests/Feature/SetupWizardValidationTest.php` carries a `// TODO dp-13:` marker tracking this.

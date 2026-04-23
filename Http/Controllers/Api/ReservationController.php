@@ -77,7 +77,7 @@ class ReservationController extends Controller
         ]);
     }
 
-    public function cancel(string $token): JsonResponse
+    public function cancel(Request $request, string $token): JsonResponse
     {
         $reservation = ResourceReservation::query()->where('token', $token)->first();
 
@@ -90,7 +90,7 @@ class ReservationController extends Controller
 
         $this->authorize('cancel', $reservation);
 
-        $result = $this->reservationService->cancel($token, null, 'customer');
+        $result = $this->reservationService->cancel($token, null, 'customer', $request->user());
 
         return response()->json([
             'success' => $result,
@@ -115,7 +115,7 @@ class ReservationController extends Controller
 
         $this->authorize('extend', $reservation);
 
-        $result = $this->reservationService->extend($token, $validated['minutes'] ?? 15);
+        $result = $this->reservationService->extend($token, $validated['minutes'] ?? 15, $request->user());
 
         if ($result) {
             $updated = $this->reservationService->getByToken($token);
