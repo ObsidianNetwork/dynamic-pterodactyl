@@ -8,7 +8,7 @@ class SetupWizardValidationTest extends LaravelTestCase
 {
     /**
      * Placeholder feature test. SetupWizard validation is covered end-to-end by unit tests
-     * against PricingConfigValidator + the write-time wiring in ConfigOptionSetupService.
+     * against DynamicSliderPricingRule + the write-time wiring in ConfigOptionSetupService.
      *
      * Unskip when this extension's test harness can boot the full Filament 4 panel/action
      * lifecycle (action invocation, notification sink, halt semantics). Tracked alongside plan
@@ -18,7 +18,7 @@ class SetupWizardValidationTest extends LaravelTestCase
     {
         // TODO dp-13: implement full Filament action lifecycle E2E test for SetupWizard pricing validation
         $this->markTestSkipped(
-            'SetupWizard validation is covered by Unit tests. Unskip once the harness boots a full Filament 4 panel/action lifecycle (tracked: .sisyphus/plans/dp-06-pricing-config-validation.md).'
+            'SetupWizard validation is covered by Unit tests asserting DynamicSliderPricingRule messages via ConfigOptionSetupService. Unskip once the harness boots a full Filament 4 panel/action lifecycle (tracked: .sisyphus/plans/dp-06-pricing-config-validation.md).'
         );
     }
 }
