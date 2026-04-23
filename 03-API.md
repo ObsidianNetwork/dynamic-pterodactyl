@@ -222,9 +222,9 @@ Create a resource reservation.
         "expires_at": "2025-11-28T12:30:00Z",
         "ttl_minutes": 15,
         "pricing": {
-            "total": 24.00,
-            "breakdown": [...],
-            "model": "linear"
+            "total": 0,
+            "breakdown": [],
+            "model": "stored"
         }
     }
 }
@@ -247,7 +247,7 @@ Get reservation details.
         "memory": 8192,
         "cpu": 400,
         "disk": 102400,
-        "calculated_price": 24.00,
+        "calculated_price": 0,
         "expires_at": "2025-11-28T12:30:00Z",
         "created_at": "2025-11-28T12:15:00Z"
     }

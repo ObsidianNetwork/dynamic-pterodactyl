@@ -107,4 +107,48 @@ class PricingPreviewParityTest extends LaravelTestCase
 
         return $option;
     }
+    public function test_pricing_calculate_with_foreign_plan_id_returns_client_error(): void
+    {
+        /** @var User $user */
+        $user = User::withoutEvents(fn () => User::factory()->create());
+
+        $product = Product::factory()->create();
+        $otherProduct = Product::factory()->create();
+
+        $this->attachSlider($product, 'Memory', 'memory', 1024, [
+            'model' => 'linear',
+            'rate_per_unit' => 1.50,
+        ]);
+
+        $foreignPlan = Plan::factory()->create([
+            'priceable_id' => $otherProduct->id,
+            'priceable_type' => Product::class,
+            'name' => 'Other Plan',
+            'billing_unit' => 'month',
+            'billing_period' => 1,
+            'type' => 'recurring',
+            'dynamic_slider_base_price' => 5.00,
+        ]);
+
+        Price::factory()->create([
+            'plan_id' => $foreignPlan->id,
+            'price' => 10.00,
+            'setup_fee' => 0.00,
+            'currency_code' => 'USD',
+        ]);
+
+        $payload = [
+            'product_id' => $product->id,
+            'plan_id'    => $foreignPlan->id,
+            'memory'     => 4096,
+            'cpu'        => 200,
+            'disk'       => 20480,
+        ];
+
+        $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/pricing/calculate', $payload);
+
+        $response->assertStatus(422);
+        $response->assertJson(['success' => false]);
+    }
+
 }

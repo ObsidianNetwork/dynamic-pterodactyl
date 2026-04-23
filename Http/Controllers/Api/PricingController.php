@@ -33,7 +33,14 @@ class PricingController
 
         try {
             $product = Product::query()->with(['configOptions', 'plans'])->findOrFail($validated['product_id']);
-            $plan = $this->resolvePlan($product, $validated['plan_id'] ?? null);
+            try {
+                $plan = $this->resolvePlan($product, $validated['plan_id'] ?? null);
+            } catch (\InvalidArgumentException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $e->getMessage(),
+                ], 422);
+            }
             $resources = [
                 'memory' => $validated['memory'],
                 'cpu' => $validated['cpu'],

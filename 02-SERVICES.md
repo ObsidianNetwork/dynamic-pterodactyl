@@ -406,17 +406,14 @@ use Illuminate\Support\Str;
 class ReservationService
 {
     private NodeSelectionService $nodeService;
-    private PricingCalculatorService $pricingService;
     private AuditLogService $auditService;
     private int $ttlMinutes;
     
     public function __construct(
         NodeSelectionService $nodeService,
-        PricingCalculatorService $pricingService,
         AuditLogService $auditService
     ) {
         $this->nodeService = $nodeService;
-        $this->pricingService = $pricingService;
         $this->auditService = $auditService;
         $this->ttlMinutes = config('dynamic-pterodactyl.reservation_ttl', 15);
     }
@@ -449,9 +446,7 @@ class ReservationService
                 throw new \RuntimeException('No node with sufficient resources available');
             }
             
-            // Calculate pricing
-            $pricing = $this->pricingService->calculate($productId, $resources);
-            
+            // Create reservation
             // Create reservation
             $token = Str::random(64);
             $expiresAt = now()->addMinutes($this->ttlMinutes);
@@ -465,8 +460,8 @@ class ReservationService
                 'memory' => $resources['memory'],
                 'cpu' => $resources['cpu'],
                 'disk' => $resources['disk'],
-                'calculated_price' => $pricing['total'],
-                'pricing_breakdown' => json_encode($pricing['breakdown']),
+                'calculated_price' => 0,
+                'pricing_breakdown' => json_encode([]),
                 'status' => 'pending',
                 'expires_at' => $expiresAt,
                 'created_at' => now(),
@@ -660,187 +655,6 @@ class ReservationService
                 'status' => 'expired',
                 'updated_at' => now(),
             ]);
-    }
-}
-```
-
----
-
-## PricingCalculatorService
-
-Implements three pricing models. See [07-PRICING-MODELS.md](07-PRICING-MODELS.md) for detailed configuration.
-
-```php
-<?php
-
-namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
-
-use Illuminate\Support\Facades\DB;
-
-class PricingCalculatorService
-{
-    /**
-     * Calculate price for given resources
-     */
-    public function calculate(int $productId, array $resources): array
-    {
-        $config = $this->getPricingConfig($productId);
-        
-        if (!$config) {
-            throw new \RuntimeException("No pricing config found for product {$productId}");
-        }
-        
-        $pricingConfig = json_decode($config->pricing_config, true);
-        
-        return match($config->pricing_model) {
-            'linear' => $this->calculateLinear($pricingConfig, $resources),
-            'tiered' => $this->calculateTiered($pricingConfig, $resources),
-            'base_plus_addon' => $this->calculateBasePlusAddon($pricingConfig, $resources),
-            default => throw new \RuntimeException("Unknown pricing model: {$config->pricing_model}"),
-        };
-    }
-    
-    /**
-     * Linear pricing: simple per-unit rates
-     */
-    private function calculateLinear(array $config, array $resources): array
-    {
-        $basePrice = $config['base_price'] ?? 0;
-        
-        // Convert MB to GB for calculation
-        $memoryGb = $resources['memory'] / 1024;
-        $diskGb = $resources['disk'] / 1024;
-        $cpuCores = $resources['cpu'] / 100;
-        
-        $memoryPrice = $memoryGb * ($config['memory_per_gb'] ?? 0);
-        $cpuPrice = $cpuCores * ($config['cpu_per_core'] ?? 0);
-        $diskPrice = $diskGb * ($config['disk_per_gb'] ?? 0);
-        
-        $total = $basePrice + $memoryPrice + $cpuPrice + $diskPrice;
-        
-        return [
-            'total' => round($total, 2),
-            'breakdown' => [
-                ['label' => 'Base Price', 'amount' => round($basePrice, 2)],
-                ['label' => "Memory ({$memoryGb} GB)", 'amount' => round($memoryPrice, 2)],
-                ['label' => "CPU ({$cpuCores} cores)", 'amount' => round($cpuPrice, 2)],
-                ['label' => "Disk ({$diskGb} GB)", 'amount' => round($diskPrice, 2)],
-            ],
-            'model' => 'linear',
-        ];
-    }
-    
-    /**
-     * Tiered pricing: volume discounts at breakpoints
-     */
-    private function calculateTiered(array $config, array $resources): array
-    {
-        $basePrice = $config['base_price'] ?? 0;
-        
-        $memoryGb = $resources['memory'] / 1024;
-        $diskGb = $resources['disk'] / 1024;
-        $cpuCores = $resources['cpu'] / 100;
-        
-        $memoryPrice = $this->calculateTieredResource($memoryGb, $config['memory_tiers'] ?? []);
-        $cpuPrice = $this->calculateTieredResource($cpuCores, $config['cpu_tiers'] ?? []);
-        $diskPrice = $this->calculateTieredResource($diskGb, $config['disk_tiers'] ?? []);
-        
-        $total = $basePrice + $memoryPrice + $cpuPrice + $diskPrice;
-        
-        return [
-            'total' => round($total, 2),
-            'breakdown' => [
-                ['label' => 'Base Price', 'amount' => round($basePrice, 2)],
-                ['label' => "Memory ({$memoryGb} GB)", 'amount' => round($memoryPrice, 2)],
-                ['label' => "CPU ({$cpuCores} cores)", 'amount' => round($cpuPrice, 2)],
-                ['label' => "Disk ({$diskGb} GB)", 'amount' => round($diskPrice, 2)],
-            ],
-            'model' => 'tiered',
-        ];
-    }
-    
-    /**
-     * Calculate cost for a resource using tiered pricing
-     */
-    private function calculateTieredResource(float $amount, array $tiers): float
-    {
-        if (empty($tiers)) return 0;
-        
-        $totalCost = 0;
-        $remaining = $amount;
-        $previousLimit = 0;
-        
-        foreach ($tiers as $tier) {
-            $tierLimit = $tier['up_to_gb'] ?? $tier['up_to'] ?? PHP_INT_MAX;
-            $tierRate = $tier['per_gb'] ?? $tier['rate'] ?? 0;
-            
-            $tierAmount = min($remaining, $tierLimit - $previousLimit);
-            
-            if ($tierAmount > 0) {
-                $totalCost += $tierAmount * $tierRate;
-                $remaining -= $tierAmount;
-            }
-            
-            $previousLimit = $tierLimit;
-            
-            if ($remaining <= 0) break;
-        }
-        
-        return $totalCost;
-    }
-    
-    /**
-     * Base + Addon pricing: included resources + overage charges
-     */
-    private function calculateBasePlusAddon(array $config, array $resources): array
-    {
-        $basePrice = $config['base_price'] ?? 0;
-        $included = $config['included'] ?? [];
-        $overage = $config['overage'] ?? [];
-        
-        $memoryGb = $resources['memory'] / 1024;
-        $diskGb = $resources['disk'] / 1024;
-        $cpuCores = $resources['cpu'] / 100;
-        
-        // Calculate overage
-        $extraMemory = max(0, $memoryGb - ($included['memory_gb'] ?? 0));
-        $extraCpu = max(0, $cpuCores - ($included['cpu_cores'] ?? 0));
-        $extraDisk = max(0, $diskGb - ($included['disk_gb'] ?? 0));
-        
-        $memoryOverage = $extraMemory * ($overage['memory_per_gb'] ?? 0);
-        $cpuOverage = $extraCpu * ($overage['cpu_per_core'] ?? 0);
-        $diskOverage = $extraDisk * ($overage['disk_per_gb'] ?? 0);
-        
-        $total = $basePrice + $memoryOverage + $cpuOverage + $diskOverage;
-        
-        $breakdown = [
-            ['label' => 'Base Package', 'amount' => round($basePrice, 2)],
-        ];
-        
-        if ($extraMemory > 0) {
-            $breakdown[] = ['label' => "Extra Memory (+{$extraMemory} GB)", 'amount' => round($memoryOverage, 2)];
-        }
-        if ($extraCpu > 0) {
-            $breakdown[] = ['label' => "Extra CPU (+{$extraCpu} cores)", 'amount' => round($cpuOverage, 2)];
-        }
-        if ($extraDisk > 0) {
-            $breakdown[] = ['label' => "Extra Disk (+{$extraDisk} GB)", 'amount' => round($diskOverage, 2)];
-        }
-        
-        return [
-            'total' => round($total, 2),
-            'breakdown' => $breakdown,
-            'model' => 'base_plus_addon',
-            'included' => $included,
-        ];
-    }
-    
-    private function getPricingConfig(int $productId): ?object
-    {
-        return DB::table('ptero_pricing_configs')
-            ->where('product_id', $productId)
-            ->where('is_active', true)
-            ->first();
     }
 }
 ```

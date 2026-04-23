@@ -89,4 +89,46 @@ class SliderConfigReaderServiceTest extends LaravelTestCase
             'config_option_id' => $option->id,
         ]);
     }
+    public function test_get_config_handles_json_encoded_metadata(): void
+    {
+        $product = Product::factory()->create();
+
+        $option = ConfigOption::create([
+            'name' => 'Memory',
+            'env_variable' => 'MEMORY',
+            'type' => 'dynamic_slider',
+            'sort' => 0,
+            'hidden' => false,
+            'upgradable' => true,
+            'metadata' => null,
+        ]);
+
+        // Force a JSON string into the metadata column (simulates rows where cast is bypassed)
+        \Illuminate\Support\Facades\DB::table('config_options')
+            ->where('id', $option->id)
+            ->update(['metadata' => json_encode([
+                'resource_type' => 'memory',
+                'min' => 1024,
+                'max' => 8192,
+                'step' => 1024,
+                'default' => 4096,
+                'unit' => 'MB',
+                'display_unit' => 'GB',
+                'display_divisor' => 1024,
+                'pricing' => ['model' => 'linear', 'rate_per_unit' => 2.00],
+            ])]);
+
+        DB::table('config_option_products')->insert([
+            'product_id' => $product->id,
+            'config_option_id' => $option->id,
+        ]);
+
+        $config = $this->service->getConfig($product->id);
+
+        $this->assertTrue($config['has_config']);
+        $this->assertArrayHasKey('memory', $config['sliders']);
+        $this->assertEquals(1024, $config['sliders']['memory']['min']);
+        $this->assertEquals('GB', $config['sliders']['memory']['display_unit']);
+    }
+
 }

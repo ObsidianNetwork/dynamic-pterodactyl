@@ -248,10 +248,7 @@ Show what's included vs. what's extra:
 
 Slider pricing is read from ConfigOption metadata built by `Services/ConfigOptionSetupService` and consumed by Paymenter core pricing methods plus `Services/SliderConfigReaderService` for config reads. It is no longer stored in `ptero_pricing_configs.pricing_config`.
 
-The `pricing_model` enum determines which calculation method to use:
-- `linear` → `calculateLinear()`
-- `tiered` → `calculateTiered()`
-- `base_addon` → `calculateBasePlusAddon()`
+Paymenter core reads the `model` key from ConfigOption metadata and performs the calculation via `ConfigOption::calculateDynamicPriceDelta()`. The extension only stores and reads configuration — no local `calculateLinear()`, `calculateTiered()`, or `calculateBasePlusAddon()` methods exist in the extension.
 ---
 
 ## Form-to-JSON Conversion
@@ -298,13 +295,12 @@ All models return the same response structure:
 {
     "total": 24.00,
     "breakdown": [
-        { "label": "Base Package", "amount": 15.00 },
-        { "label": "Extra Memory (+4 GB)", "amount": 3.00 },
-        { "label": "Extra CPU (+2 cores)", "amount": 6.00 }
+        { "resource_type": "memory", "label": "Memory", "value": 8192, "display_value": "8 GB", "price": 4.00, "pricing_model": "linear" },
+        { "resource_type": "cpu", "label": "CPU", "value": 400, "display_value": "4 cores", "price": 8.00, "pricing_model": "linear" },
+        { "resource_type": "disk", "label": "Disk", "value": 102400, "display_value": "100 GB", "price": 7.00, "pricing_model": "linear" }
     ],
-    "model": "base_addon"
+    "model": "linear"
 }
-```
 
 The frontend uses `breakdown` to show itemized pricing.
 
