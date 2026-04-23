@@ -10,7 +10,6 @@ use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ReservationApiTest extends LaravelTestCase
@@ -27,16 +26,6 @@ class ReservationApiTest extends LaravelTestCase
             ->byDefault()
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
         $this->app->instance(NodeSelectionService::class, $nodeSelectionService);
-
-        $pricingCalculatorService = Mockery::mock(PricingCalculatorService::class);
-        $pricingCalculatorService->shouldReceive('calculate')
-            ->byDefault()
-            ->andReturn([
-                'total' => 9.99,
-                'breakdown' => [['label' => 'Total', 'price' => 9.99]],
-                'model' => 'linear',
-            ]);
-        $this->app->instance(PricingCalculatorService::class, $pricingCalculatorService);
 
         $auditLogService = Mockery::mock(AuditLogService::class);
         $auditLogService->shouldReceive('log')->byDefault()->andReturn(1);

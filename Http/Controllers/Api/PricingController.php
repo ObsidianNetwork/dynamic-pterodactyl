@@ -7,15 +7,15 @@ use App\Models\Plan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\SliderConfigReaderService;
 
 class PricingController
 {
-    private PricingCalculatorService $pricingService;
+    private SliderConfigReaderService $sliderConfigReader;
 
-    public function __construct(PricingCalculatorService $pricingService)
+    public function __construct(SliderConfigReaderService $sliderConfigReader)
     {
-        $this->pricingService = $pricingService;
+        $this->sliderConfigReader = $sliderConfigReader;
     }
 
     /**
@@ -115,7 +115,7 @@ class PricingController
      */
     public function getConfig(int $productId): JsonResponse
     {
-        $config = $this->pricingService->getConfig($productId);
+        $config = $this->sliderConfigReader->getConfig($productId);
 
         if (! $config['has_config']) {
             return response()->json([
@@ -138,25 +138,9 @@ class PricingController
      */
     public function validate(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'product_id' => 'required|integer|exists:products,id',
-            'memory' => 'nullable|integer|min:0',
-            'cpu' => 'nullable|integer|min:0',
-            'disk' => 'nullable|integer|min:0',
-        ]);
-
-        $result = $this->pricingService->validateResources(
-            $validated['product_id'],
-            array_filter([
-                'memory' => $validated['memory'] ?? null,
-                'cpu' => $validated['cpu'] ?? null,
-                'disk' => $validated['disk'] ?? null,
-            ], fn ($v) => $v !== null)
-        );
-
         return response()->json([
-            'success' => $result['valid'],
-            'errors' => $result['errors'],
+            'success' => false,
+            'errors' => ['Pricing validation endpoint has been retired'],
         ]);
     }
 
