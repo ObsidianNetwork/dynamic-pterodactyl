@@ -47,6 +47,10 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 *dp-08 shipped on `dynamic-slider` (`5a28acb`).*
 
+| Plan | Summary | Status | Date |
+|---|---|---|---|
+| dp-10 | Slider UX + a11y baseline | Shipped — squash `a7fd667d` (fork PR #3) | Apr 2026 |
+
 ---
 
 ## Current Session State
@@ -56,20 +60,22 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 **Last checkpoint**: 2026-04-23
 **Working on**: No active task
-**Status**: dp-08 fully shipped on `dynamic-slider` via squash `5a28acb`
+**Status**: dp-10 fully shipped on `dynamic-slider/1.4.7` via squash `a7fd667d` (fork PR #3)
 **Current file**: PROGRESS.md
-**Next action**: Start the next orchestrated backlog item
+**Next action**: Start dp-11 (authorization + surface reduction)
 **Blockers**: None
 
 ### This Session's Changes:
 
-1. `a60e8d4` — payment-time availability verification excludes the reservation being confirmed.
-2. `f53aae3` — reservation create requests now support active idempotency-key replay.
-3. `e20f648` — `StoreReservationRequest` enforces configured slider bounds, steps, and required resources.
-4. `f050605` — availability summary exposes `resource_capacity` and requires all resources for `has_capacity=true`.
-5. `c26bfb5` — docs updated for dp-08 API and progress tracking.
-6. `5b01cae` / `5fd4134` — CodeRabbit follow-up fixes for duplicate-key race handling and doc/sample sync.
-7. `5a28acb` — final squash commit on `dynamic-slider` after PR #7 merge.
+1. `86a0613b` — ARIA baseline: role=slider, aria-valuemin/max/now/text, aria-labelledby/describedby, output aria-live region.
+2. `b93a570d` — Keyboard PageUp/Down/Home/End + WCAG 2.4.13 focus ring.
+3. `816d38b0` — Loading/error UI for pricing preview with sr-only assertive live region.
+4. `788e4e3f` — Touch target 44px via transparent-border CSS.
+5. `6e321780` — Docs: 09-IMPLEMENTATION.md, DECISIONS.md, PROGRESS/CHANGELOG cross-links.
+6. `83407107` — CodeRabbit round 1: request token, wire:ignore live regions, css scoping, aria-describedby hint id, MD058.
+7. `5d4356ff` — CodeRabbit round 2: ARIA defaults, CSS class scoping, remove redundant aria-label, AbortController timeout.
+8. `0544dc81` — CodeRabbit round 3: init() upper-bound clamp, refreshPricingPreview short-circuit for local-only sliders.
+9. `a7fd667d` — Squash merge commit on `dynamic-slider/1.4.7`.
 
 <!-- 
 Update this section:
@@ -306,20 +312,3 @@ When debugging, record:
 - Add to "Blockers / Questions" section
 - Be specific about what's needed
 
-**When debugging**:
-- Use the "Debug Context" section
-- Record what you've tried so you don't repeat it
-
-**When making decisions**:
-- Add to "Decisions Made This Session"
-- If significant, also update DECISIONS.md
-
-**When ending session**:
-- Update "Notes for Next Session"
-- Add entry to "Session Log"
-- Make sure "Current Session State" accurately reflects state
-
-**Before context compaction**:
-- Update "Current Session State" immediately
-- Flush any debug context
-- Tell the user you're about to compact
