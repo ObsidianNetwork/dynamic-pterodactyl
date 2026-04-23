@@ -51,6 +51,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 |---|---|---|---|
 | dp-10 | Slider UX + a11y baseline | Shipped — squash `a7fd667d` (fork PR #3) | Apr 2026 |
 | dp-11 | Authorization + surface reduction | Shipped — squash `b665d6d6` (fork PR #9) | Apr 2026 |
+| dp-13 | feat(setup-wizard): atomicity + audit reliability + test isolation | 8239686 | 2026-04-23 |
 
 ---
 
@@ -312,4 +313,3 @@ When debugging, record:
 **When blocked**:
 - Add to "Blockers / Questions" section
 - Be specific about what's needed
-
