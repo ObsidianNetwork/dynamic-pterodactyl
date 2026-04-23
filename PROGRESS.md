@@ -50,6 +50,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | Plan | Summary | Status | Date |
 |---|---|---|---|
 | dp-10 | Slider UX + a11y baseline | Shipped — squash `a7fd667d` (fork PR #3) | Apr 2026 |
+| dp-11 | Authorization + surface reduction | Shipped — squash `b665d6d6` (fork PR #9) | Apr 2026 |
 
 ---
 
@@ -60,9 +61,9 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 **Last checkpoint**: 2026-04-23
 **Working on**: No active task
-**Status**: dp-10 fully shipped on `dynamic-slider/1.4.7` via squash `a7fd667d` (fork PR #3)
+**Status**: dp-11 fully shipped on `dynamic-slider` via squash `b665d6d6` (fork PR #9)
 **Current file**: PROGRESS.md
-**Next action**: Start dp-11 (authorization + surface reduction)
+**Next action**: Start dp-12 (capacity alerts + observability) or dp-13 (SetupWizard atomicity + audit-log reliability + E2E test). dp-12 first is preferred since it wires `AlertService::checkCapacityAlerts()` (deferred from dp-11).
 **Blockers**: None
 
 ### This Session's Changes:
