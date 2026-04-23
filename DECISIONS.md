@@ -242,6 +242,14 @@ Admin-only. Customers never see raw node-level data (node names, FQDNs, maintena
 
 Unit coverage accepted for dp-06. The full Filament-action lifecycle end-to-end test is deferred to **dp-13** (SetupWizard atomicity + audit-log reliability), since that plan touches `ConfigOptionSetupService` and it's the natural place to wire the E2E test. The skipped placeholder in `tests/Feature/SetupWizardValidationTest.php` carries a `// TODO dp-13:` marker tracking this.
 
+### 6. Test Isolation Mandate (dp-13, Apr 2026)
+
+Extension phpunit MUST set `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array`, `BCRYPT_ROUNDS=4`, `PULSE_ENABLED=false`, `TELESCOPE_ENABLED=false` — mirroring the root `phpunit.xml`. Failure to do so risks polluting the shared Redis/file cache on a development host, corrupting the settings key read by running web workers. This caused a production outage on 2026-04-23. The `bootstrap.php` guard provides a second line of defence (aborts if `DB_DATABASE` is not a recognised test DB). See `incidents.md` for forensics.
+
+### 7. SetupWizard Atomicity Contract (dp-13, Apr 2026)
+
+`ConfigOptionSetupService::createDynamicSliderOptions()` MUST execute all DB writes (resource sliders + location option + children) inside a single `DB::transaction()`. Either all options land or none do. The audit entry is written AFTER the transaction commits; audit failure is best-effort (logged via `Log::warning` + `report()`) and does not roll back the business data.
+
 ## Process: Out-of-scope finding handling (added dp-10, Apr 2026)
 
 When implementing any dp-NN plan, if the agent or CodeRabbit identifies a change that does not fit the current PR's scope:

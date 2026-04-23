@@ -22,6 +22,9 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 - Payment-time reservation confirmation now excludes the reservation itself from pending-capacity math, so exact-fit purchases can confirm successfully.
 - Reservation create requests now enforce product slider bounds and reject unconfigured products instead of persisting arbitrary resource selections.
 - Availability `has_capacity` now requires memory, CPU, and disk to all be positive, with per-resource booleans exposed in the API response.
+- Wrapped `ConfigOptionSetupService::createDynamicSliderOptions()` in `DB::transaction()` to prevent orphaned config_option rows on mid-batch failure (dp-13).
+- Extracted `safeAudit()` into shared `AuditsExtensionActions` trait; audit failures now emit `Log::warning` in addition to `report()` (dp-13).
+- Extension `phpunit.xml` now mirrors root phpunit.xml test-isolation env overrides; `tests/bootstrap.php` guards against running against a non-test DB (dp-13).
 
 ---
 
