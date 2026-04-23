@@ -6,12 +6,21 @@ use App\Models\ConfigOption;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ConfigOptionSetupService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ConfigOptionSetupServiceTest extends LaravelTestCase
 {
     use DatabaseTransactions;
+
+    protected function tearDown(): void
+    {
+        Mockery::close();
+
+        parent::tearDown();
+    }
 
     public function test_createDynamicSliderOptions_rolls_back_on_mid_batch_failure(): void
     {
@@ -64,6 +73,36 @@ class ConfigOptionSetupServiceTest extends LaravelTestCase
         $this->assertSame(4, $this->countParentOptionsForProduct($product->id));
         $this->assertSame(2, ConfigOption::query()->where('parent_id', $created['location']->id)->count());
         $this->assertSame(4, DB::table('config_option_products')->where('product_id', $product->id)->count());
+    }
+
+    public function test_setup_run_audit_still_fires_on_successful_transaction(): void
+    {
+        $product = Product::factory()->create();
+        $audit = Mockery::mock(AuditLogService::class);
+
+        $audit->shouldReceive('log')
+            ->once()
+            ->with('setup_run', 'product_config', $product->id, Mockery::on(function (array $payload) {
+                return $payload['sliders_configured'] === ['memory', 'cpu', 'disk', 'location']
+                    && $payload['count'] === 4;
+            }));
+
+        app()->instance(AuditLogService::class, $audit);
+
+        app(ConfigOptionSetupService::class)->createDynamicSliderOptions(
+            $product->id,
+            [
+                'pricing_model' => 'linear',
+                'memory_rate' => 0.5,
+                'cpu_rate' => 2,
+                'disk_rate' => 0.02,
+            ],
+            [
+                ['id' => 1, 'short' => 'nyc', 'long' => 'New York'],
+            ]
+        );
+
+        $this->assertSame(4, $this->countParentOptionsForProduct($product->id));
     }
 
     private function countOptionsForProduct(int $productId): int

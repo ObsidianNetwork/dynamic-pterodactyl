@@ -5,12 +5,11 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 use App\Models\ConfigOption;
 use App\Rules\DynamicSliderPricingRule;
 use Illuminate\Support\Facades\DB;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
 
 class ConfigOptionSetupService
 {
-    public function __construct(
-        private AuditLogService $audit,
-    ) {}
+    use AuditsExtensionActions;
 
     private array $resourceDefaults = [
         'memory' => [
@@ -68,14 +67,10 @@ class ConfigOptionSetupService
         });
 
         if (! empty($created)) {
-            try {
-                $this->audit->log('setup_run', 'product_config', $productId, [
-                    'sliders_configured' => array_keys($created),
-                    'count' => count($created),
-                ]);
-            } catch (\Throwable $e) {
-                report($e);
-            }
+            $this->safeAudit('setup_run', 'product_config', $productId, [
+                'sliders_configured' => array_keys($created),
+                'count' => count($created),
+            ]);
         }
 
         return $created;

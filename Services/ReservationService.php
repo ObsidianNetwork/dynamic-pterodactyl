@@ -11,21 +11,20 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
 
 class ReservationService
 {
-    private NodeSelectionService $nodeService;
+    use AuditsExtensionActions;
 
-    private AuditLogService $auditService;
+    private NodeSelectionService $nodeService;
 
     private int $ttlMinutes;
 
     public function __construct(
-        NodeSelectionService $nodeService,
-        AuditLogService $auditService
+        NodeSelectionService $nodeService
     ) {
         $this->nodeService = $nodeService;
-        $this->auditService = $auditService;
 
         $config = Extension::where('extension', 'DynamicPterodactyl')
             ->first()
@@ -33,15 +32,6 @@ class ReservationService
             ->pluck('value', 'key')
             ->toArray() ?? [];
         $this->ttlMinutes = (int) ($config['reservation_ttl'] ?? 15);
-    }
-
-    private function safeAudit(string $action, string $entityType, int $entityId, ?array $newValues = null): void
-    {
-        try {
-            $this->auditService->log($action, $entityType, $entityId, $newValues);
-        } catch (\Throwable $e) {
-            report($e);
-        }
     }
 
     /**
