@@ -18,6 +18,7 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 - `released` reservation status removed from schema and PHP enum. Lifecycle: `pending → confirmed | expired | cancelled`.
 - `base_plus_addon` pricing model alias removed from `PricingConfigValidator`. Use `base_addon`.
 - `/availability/{locationId}/nodes` API route moved to admin-only middleware group.
+- Pricing preview now delegates to Paymenter core (`Plan::dynamicSliderBasePrice()` + `ConfigOption::calculateDynamicPriceDelta()`), `PricingCalculatorService` was renamed to `SliderConfigReaderService`, and `PricingConfigValidator` was retired in favor of core `DynamicSliderPricingRule`.
 
 ---
 

@@ -15,19 +15,15 @@ class ReservationService
 {
     private NodeSelectionService $nodeService;
 
-    private PricingCalculatorService $pricingService;
-
     private AuditLogService $auditService;
 
     private int $ttlMinutes;
 
     public function __construct(
         NodeSelectionService $nodeService,
-        PricingCalculatorService $pricingService,
         AuditLogService $auditService
     ) {
         $this->nodeService = $nodeService;
-        $this->pricingService = $pricingService;
         $this->auditService = $auditService;
 
         $config = Extension::where('extension', 'DynamicPterodactyl')
@@ -91,11 +87,6 @@ class ReservationService
                     throw new \RuntimeException('No node with sufficient resources available');
                 }
 
-                $pricing = $this->pricingService->calculate($productId, $resources);
-                if (isset($pricing['error'])) {
-                    throw new \RuntimeException('Invalid pricing configuration: ' . $pricing['error']);
-                }
-
                 $token = Str::random(64);
                 $expiresAt = now()->addMinutes($this->ttlMinutes);
 
@@ -109,8 +100,8 @@ class ReservationService
                     'memory' => $resources['memory'],
                     'cpu' => $resources['cpu'],
                     'disk' => $resources['disk'],
-                    'calculated_price' => $pricing['total'],
-                    'pricing_breakdown' => json_encode($pricing['breakdown']),
+                    'calculated_price' => 0,
+                    'pricing_breakdown' => json_encode([]),
                     'status' => 'pending',
                     'expires_at' => $expiresAt,
                     'created_at' => now(),
@@ -125,7 +116,7 @@ class ReservationService
                     'memory' => $resources['memory'],
                     'cpu' => $resources['cpu'],
                     'disk' => $resources['disk'],
-                    'price' => $pricing['total'],
+                    'price' => 0,
                     'cart_item_id' => $cartItemId,
                 ]);
 
@@ -135,8 +126,8 @@ class ReservationService
                     'node_id' => $node['node_id'],
                     'node_name' => $node['name'] ?? null,
                     'expires_at' => $expiresAt,
-                    'calculated_price' => $pricing['total'],
-                    'pricing_breakdown' => $pricing['breakdown'],
+                    'calculated_price' => 0,
+                    'pricing_breakdown' => [],
                     'status' => 'pending',
                 ]);
             }, 5); // 5 retry attempts for deadlock

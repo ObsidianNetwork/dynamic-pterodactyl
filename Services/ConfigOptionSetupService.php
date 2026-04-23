@@ -3,14 +3,13 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\ConfigOption;
+use App\Rules\DynamicSliderPricingRule;
 use Illuminate\Support\Facades\DB;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\PricingConfigValidator;
 
 class ConfigOptionSetupService
 {
     public function __construct(
         private AuditLogService $audit,
-        private PricingConfigValidator $pricingConfigValidator,
     ) {}
 
     private array $resourceDefaults = [
@@ -122,7 +121,15 @@ class ConfigOptionSetupService
 
         $divisor = $defaults['display_divisor'] ?? 1;
         $pricing = $this->buildPricingMetadata($resourceType, $pricingModel, $config);
-        $this->pricingConfigValidator->validate($pricing);
+
+        $errors = [];
+        (new DynamicSliderPricingRule())->validate('metadata.pricing', $pricing, function (string $message) use (&$errors) {
+            $errors[] = $message;
+        });
+
+        if ($errors !== []) {
+            throw new \InvalidArgumentException(implode('; ', $errors));
+        }
 
         $metadata = [
             'resource_type' => $resourceType,

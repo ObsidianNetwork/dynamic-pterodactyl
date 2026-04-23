@@ -10,7 +10,6 @@ use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
@@ -19,8 +18,6 @@ class ReservationServiceTest extends LaravelTestCase
     use DatabaseTransactions;
 
     private $mockNodeService;
-
-    private $mockPricingService;
 
     private $mockAuditService;
 
@@ -31,7 +28,6 @@ class ReservationServiceTest extends LaravelTestCase
         Config::set('settings.debug', false);
 
         $this->mockNodeService = Mockery::mock(NodeSelectionService::class);
-        $this->mockPricingService = Mockery::mock(PricingCalculatorService::class);
         $this->mockAuditService = Mockery::mock(AuditLogService::class);
     }
 
@@ -52,7 +48,6 @@ class ReservationServiceTest extends LaravelTestCase
 
         foreach ([
             'nodeService' => $this->mockNodeService,
-            'pricingService' => $this->mockPricingService,
             'auditService' => $this->mockAuditService,
             'ttlMinutes' => 15,
         ] as $property => $value) {
@@ -308,10 +303,6 @@ class ReservationServiceTest extends LaravelTestCase
             ->once()
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
 
-        $this->mockPricingService->shouldReceive('calculate')
-            ->once()
-            ->andReturn(['total' => 9.99, 'breakdown' => []]);
-
         DB::shouldReceive('transaction')
             ->once()
             ->andReturnUsing(fn ($callback) => $callback());
@@ -333,6 +324,9 @@ class ReservationServiceTest extends LaravelTestCase
         $result = $service->create(1, 1, ['memory' => 4096, 'cpu' => 200, 'disk' => 51200], 10, 5);
 
         $this->assertEquals(42, $result['id']);
+        $this->assertSame(0.0, $result['pricing']['total']);
+        $this->assertSame([], $result['pricing']['breakdown']);
+        $this->assertSame('stored', $result['pricing']['model']);
     }
 
     public function test_confirm_logs_audit_entry_on_success(): void
@@ -468,15 +462,12 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_create_with_idempotency_key_returns_existing_on_duplicate(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $service = $this->createService();
 
         $this->mockNodeService->shouldReceive('selectBestNode')
             ->once()
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->mockPricingService->shouldReceive('calculate')
-            ->once()
-            ->andReturn(['total' => 9.99, 'breakdown' => [], 'model' => 'linear']);
         $this->mockAuditService->shouldReceive('log')
             ->once()
             ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
@@ -492,15 +483,12 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_create_with_idempotency_key_creates_new_after_original_cancelled(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $service = $this->createService();
 
         $this->mockNodeService->shouldReceive('selectBestNode')
             ->twice()
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->mockPricingService->shouldReceive('calculate')
-            ->twice()
-            ->andReturn(['total' => 9.99, 'breakdown' => [], 'model' => 'linear']);
         $this->mockAuditService->shouldReceive('log')
             ->twice()
             ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
@@ -517,15 +505,12 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_create_without_idempotency_key_always_creates_new(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $service = $this->createService();
 
         $this->mockNodeService->shouldReceive('selectBestNode')
             ->twice()
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->mockPricingService->shouldReceive('calculate')
-            ->twice()
-            ->andReturn(['total' => 9.99, 'breakdown' => [], 'model' => 'linear']);
         $this->mockAuditService->shouldReceive('log')
             ->twice()
             ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));

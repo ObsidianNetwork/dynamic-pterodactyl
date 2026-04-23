@@ -10,7 +10,6 @@ use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PricingCalculatorService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ReservationApiTest extends LaravelTestCase
@@ -28,16 +27,6 @@ class ReservationApiTest extends LaravelTestCase
             ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
         $this->app->instance(NodeSelectionService::class, $nodeSelectionService);
 
-        $pricingCalculatorService = Mockery::mock(PricingCalculatorService::class);
-        $pricingCalculatorService->shouldReceive('calculate')
-            ->byDefault()
-            ->andReturn([
-                'total' => 9.99,
-                'breakdown' => [['label' => 'Total', 'price' => 9.99]],
-                'model' => 'linear',
-            ]);
-        $this->app->instance(PricingCalculatorService::class, $pricingCalculatorService);
-
         $auditLogService = Mockery::mock(AuditLogService::class);
         $auditLogService->shouldReceive('log')->byDefault()->andReturn(1);
         $this->app->instance(AuditLogService::class, $auditLogService);
@@ -46,7 +35,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_with_idempotency_key_returns_same_reservation_on_retry(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 
@@ -86,7 +75,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_without_idempotency_key_creates_fresh_each_time(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 
@@ -116,7 +105,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_rejects_invalid_idempotency_key(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 
@@ -137,7 +126,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_rejects_unconfigured_product(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = Product::factory()->create();
 
@@ -156,7 +145,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_rejects_out_of_bounds_memory(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 

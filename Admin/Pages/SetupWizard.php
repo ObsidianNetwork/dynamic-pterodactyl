@@ -22,7 +22,6 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ConfigOptionSetupService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Validation\InvalidPricingConfigException;
 
 class SetupWizard extends Page implements HasForms
 {
@@ -469,7 +468,7 @@ class SetupWizard extends Page implements HasForms
             $this->existingOptions = null;
             $this->showOverwriteWarning = false;
 
-        } catch (InvalidPricingConfigException $e) {
+        } catch (\InvalidArgumentException $e) {
             Notification::make()
                 ->title('Pricing config rejected')
                 ->body($e->getMessage())
