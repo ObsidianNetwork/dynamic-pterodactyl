@@ -35,7 +35,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_with_idempotency_key_returns_same_reservation_on_retry(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 
@@ -75,7 +75,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_without_idempotency_key_creates_fresh_each_time(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 
@@ -105,7 +105,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_rejects_invalid_idempotency_key(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 
@@ -126,7 +126,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_rejects_unconfigured_product(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = Product::factory()->create();
 
@@ -145,7 +145,7 @@ class ReservationApiTest extends LaravelTestCase
     public function test_store_rejects_out_of_bounds_memory(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         /** @var Product $product */
         $product = $this->createConfiguredProduct();
 

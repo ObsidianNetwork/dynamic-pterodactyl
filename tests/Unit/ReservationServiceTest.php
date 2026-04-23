@@ -324,6 +324,9 @@ class ReservationServiceTest extends LaravelTestCase
         $result = $service->create(1, 1, ['memory' => 4096, 'cpu' => 200, 'disk' => 51200], 10, 5);
 
         $this->assertEquals(42, $result['id']);
+        $this->assertSame(0.0, $result['pricing']['total']);
+        $this->assertSame([], $result['pricing']['breakdown']);
+        $this->assertSame('stored', $result['pricing']['model']);
     }
 
     public function test_confirm_logs_audit_entry_on_success(): void
@@ -459,7 +462,7 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_create_with_idempotency_key_returns_existing_on_duplicate(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $service = $this->createService();
 
         $this->mockNodeService->shouldReceive('selectBestNode')
@@ -480,7 +483,7 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_create_with_idempotency_key_creates_new_after_original_cancelled(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $service = $this->createService();
 
         $this->mockNodeService->shouldReceive('selectBestNode')
@@ -502,7 +505,7 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_create_without_idempotency_key_always_creates_new(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::withoutEvents(fn () => User::factory()->create());
         $service = $this->createService();
 
         $this->mockNodeService->shouldReceive('selectBestNode')
