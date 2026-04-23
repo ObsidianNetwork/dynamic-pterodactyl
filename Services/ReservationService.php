@@ -315,35 +315,6 @@ class ReservationService
     }
 
     /**
-     * Get all reservations with filters (for admin)
-     */
-    public function getAll(array $filters = []): Collection
-    {
-        $query = DB::table('ptero_resource_reservations')
-            ->leftJoin('users', 'ptero_resource_reservations.user_id', '=', 'users.id')
-            ->select([
-                'ptero_resource_reservations.*',
-                'users.name as user_name',
-                'users.email as user_email',
-            ]);
-
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-        if (!empty($filters['location_id'])) {
-            $query->where('location_id', $filters['location_id']);
-        }
-        if (!empty($filters['node_id'])) {
-            $query->where('node_id', $filters['node_id']);
-        }
-        if (!empty($filters['user_id'])) {
-            $query->where('ptero_resource_reservations.user_id', $filters['user_id']);
-        }
-
-        return $query->orderBy('created_at', 'desc')->get();
-    }
-
-    /**
      * Get all reservations as a paginatable Eloquent builder (for admin API).
      *
      * Does NOT modify getAll() — callers of that method are unaffected.
