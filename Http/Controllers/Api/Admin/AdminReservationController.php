@@ -55,7 +55,10 @@ class AdminReservationController
             ], 409);
         }
 
-        $result = $this->reservationService->cancel($token, $validated['reason'], 'admin');
+        $actor = $request->user();
+        abort_if($actor === null, 401);
+
+        $result = $this->reservationService->cancel($token, $validated['reason'], 'admin', $actor);
 
         if ($result) {
             return response()->json([

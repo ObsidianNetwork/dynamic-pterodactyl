@@ -3,11 +3,15 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\User;
+
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Gate;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
@@ -26,6 +30,7 @@ class ReservationServiceTest extends LaravelTestCase
         parent::setUp();
 
         Config::set('settings.debug', false);
+        Gate::policy(ResourceReservation::class, ResourceReservationPolicy::class);
 
         $this->mockNodeService = Mockery::mock(NodeSelectionService::class);
         $this->mockAuditService = Mockery::mock(AuditLogService::class);
@@ -522,4 +527,183 @@ class ReservationServiceTest extends LaravelTestCase
         $this->assertSame(2, ResourceReservation::count());
     }
 
+
+    private function createReservation(int $userId, string $token): ResourceReservation
+    {
+        return ResourceReservation::create([
+            'token' => $token,
+            'user_id' => $userId,
+            'cart_item_id' => null,
+            'node_id' => 1,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 0,
+            'pricing_breakdown' => [],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+    }
+
+    // ─── Commit-3: actor-aware authorization (cancel) ──────────────────────────
+
+    public function test_cancel_throws_when_actor_does_not_own_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-cancel-deny');
+
+        $this->mockAuditService->shouldReceive('log')->never();
+
+        try {
+            $this->createService()->cancel('tok-cancel-deny', null, 'customer', $stranger);
+            $this->fail('Expected AuthorizationException was not thrown.');
+        } catch (AuthorizationException) {
+            $this->addToAssertionCount(1);
+        }
+    }
+
+    public function test_cancel_succeeds_when_actor_is_owner(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-cancel-allow');
+
+        $this->mockAuditService->shouldReceive('log')->once();
+
+        $result = $this->createService()->cancel('tok-cancel-allow', null, 'customer', $owner);
+
+        $this->assertTrue($result);
+    }
+
+    public function test_cancel_succeeds_when_actor_is_null(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-cancel-null');
+
+        $this->mockAuditService->shouldReceive('log')->once();
+
+        $result = $this->createService()->cancel('tok-cancel-null', null, 'system', null);
+
+        $this->assertTrue($result);
+    }
+
+    // ─── Commit-3: actor-aware authorization (extend) ──────────────────────────
+
+    public function test_extend_throws_when_actor_does_not_own_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-extend-deny');
+
+        $this->mockAuditService->shouldReceive('log')->never();
+
+        try {
+            $this->createService()->extend('tok-extend-deny', 15, $stranger);
+            $this->fail('Expected AuthorizationException was not thrown.');
+        } catch (AuthorizationException) {
+            $this->addToAssertionCount(1);
+        }
+    }
+
+    public function test_extend_succeeds_when_actor_is_owner(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-extend-allow');
+
+        $this->mockAuditService->shouldReceive('log')->once();
+
+        $result = $this->createService()->extend('tok-extend-allow', 15, $owner);
+
+        $this->assertTrue($result);
+    }
+
+    public function test_extend_succeeds_when_actor_is_null(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-extend-null');
+
+        $this->mockAuditService->shouldReceive('log')->once();
+
+        $result = $this->createService()->extend('tok-extend-null', 15, null);
+
+        $this->assertTrue($result);
+    }
+
+    // ─── Commit-3: actor-aware authorization (confirm) ─────────────────────────
+
+    public function test_confirm_throws_when_actor_does_not_own_reservation(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $stranger = User::withoutEvents(fn () => User::factory()->create());
+
+        $this->createReservation($owner->id, 'tok-confirm-deny');
+
+        $this->mockAuditService->shouldReceive('log')->never();
+
+        try {
+            $this->createService()->confirm('tok-confirm-deny', 42, $stranger);
+            $this->fail('Expected AuthorizationException was not thrown.');
+        } catch (AuthorizationException) {
+            $this->addToAssertionCount(1);
+        }
+    }
+
+    public function test_confirm_succeeds_when_actor_is_owner(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        // Direct DB insert avoids App\Models\Service alias-mock contamination from CartItemDeletedListenerTest.
+        $serviceId = DB::table('services')->insertGetId([
+            'user_id'       => $owner->id,
+            'status'        => 'active',
+            'currency_code' => 'USD',
+            'quantity'      => 1,
+            'price'         => '0.00',
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        $this->createReservation($owner->id, 'tok-confirm-allow');
+
+        $this->mockAuditService->shouldReceive('log')->once();
+
+        $result = $this->createService()->confirm('tok-confirm-allow', $serviceId, $owner);
+
+        $this->assertTrue($result);
+    }
+
+    public function test_confirm_succeeds_when_actor_is_null(): void
+    {
+        $owner = User::withoutEvents(fn () => User::factory()->create());
+        $serviceId = DB::table('services')->insertGetId([
+            'user_id'       => $owner->id,
+            'status'        => 'active',
+            'currency_code' => 'USD',
+            'quantity'      => 1,
+            'price'         => '0.00',
+            'created_at'    => now(),
+            'updated_at'    => now(),
+        ]);
+
+        $this->createReservation($owner->id, 'tok-confirm-null');
+
+        $this->mockAuditService->shouldReceive('log')->once();
+
+        $result = $this->createService()->confirm('tok-confirm-null', $serviceId, null);
+
+        $this->assertTrue($result);
+    }
+
+    // ─── Commit-3: admin bypass via ResourceReservationPolicy::before() ─────────
+
+    public function test_policy_before_grants_admin_bypass(): void
+    {
+        $this->markTestSkipped('Requires full Filament panel registration');
+    }
 }

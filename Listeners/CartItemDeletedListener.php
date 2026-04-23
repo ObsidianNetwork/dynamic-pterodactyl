@@ -41,7 +41,8 @@ class CartItemDeletedListener
 
         try {
             $reservationService = app(ReservationService::class);
-            $reservationService->cancel($token, null, 'cart_deleted');
+            // System event: cart cleanup may happen outside an authenticated HTTP request.
+            $reservationService->cancel($token, null, 'cart_deleted', null);
 
             Log::info('Cancelled reservation for deleted cart item', [
                 'cart_item_id' => $cartItem->id,

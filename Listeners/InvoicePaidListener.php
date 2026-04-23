@@ -92,7 +92,8 @@ class InvoicePaidListener
                 // Confirm the reservation. Returns false if no pending row matched —
                 // meaning the reservation was already cancelled or expired between
                 // verifyAvailability() and this call (state drift).
-                $confirmed = $reservationService->confirm($reservationToken, $service->id);
+                // System event: invoice settlement runs without an authenticated actor.
+                $confirmed = $reservationService->confirm($reservationToken, $service->id, null);
 
                 if ($confirmed) {
                     Log::info('Confirmed reservation for paid service', [

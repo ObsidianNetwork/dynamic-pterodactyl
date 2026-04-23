@@ -144,17 +144,6 @@ class PricingController
         ]);
     }
 
-    /**
-     * Validate resource values against configured limits
-     */
-    public function validate(Request $request): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'errors' => ['Pricing validation endpoint has been retired'],
-        ], 410);
-    }
-
     private function resolvePlan(Product $product, ?int $planId): Plan
     {
         if ($planId !== null) {

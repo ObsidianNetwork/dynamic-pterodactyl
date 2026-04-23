@@ -68,7 +68,7 @@ class ResourceCalculationService
     /**
      * Calculate available resources for a specific node
      */
-    public function calculateNodeAvailability(array $node, ?string $excludeReservationToken = null): array
+    private function calculateNodeAvailability(array $node, ?string $excludeReservationToken = null): array
     {
         $servers = $this->fetchServersOnNode($node['id']);
 

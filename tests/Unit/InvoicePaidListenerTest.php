@@ -74,7 +74,7 @@ class InvoicePaidListenerTest extends LaravelTestCase
 
         $reservationService = Mockery::mock(ReservationService::class);
         $reservationService->shouldReceive('getByToken')->once()->with($token)->andReturn($reservation);
-        $reservationService->shouldReceive('confirm')->once()->with($token, 11)->andReturn(false);
+        $reservationService->shouldReceive('confirm')->once()->with($token, 11, null)->andReturn(false);
         $reservationService->shouldReceive('getByToken')->once()->with($token)->andReturn($current);
         $this->app->instance(ReservationService::class, $reservationService);
 

@@ -3,10 +3,11 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\Extension;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
@@ -149,7 +150,7 @@ class ReservationService
         }
     }
 
-    public function getActiveByIdempotencyKey(int $userId, string $idempotencyKey): ?object
+    private function getActiveByIdempotencyKey(int $userId, string $idempotencyKey): ?object
     {
         return DB::table('ptero_resource_reservations')
             ->where('user_id', $userId)
@@ -167,10 +168,23 @@ class ReservationService
 
     /**
      * Confirm a reservation (after successful payment)
+     *
+     * @param  User|null  $actor  Authenticated user performing the action, or null for system context.
+     *                             When provided, authorization is enforced via ResourceReservationPolicy.
+     *                             Controller callers MUST pass the actor; system callers MAY pass null.
      */
-    public function confirm(string $token, int $serviceId): bool
+    public function confirm(string $token, int $serviceId, ?User $actor = null): bool
     {
         $reservation = $this->getByToken($token);
+
+        if ($actor !== null) {
+            $reservationModel = ResourceReservation::query()->where('token', $token)->first();
+
+            if ($reservationModel !== null) {
+                Gate::forUser($actor)->authorize('confirm', $reservationModel);
+            }
+        }
+
         $reservationId = $reservation?->id ?? 0;
 
         $rows = DB::table('ptero_resource_reservations')
@@ -195,13 +209,25 @@ class ReservationService
 
     /**
      * Cancel a reservation
+     *
+     * @param  User|null  $actor  Authenticated user performing the action, or null for system context.
+     *                             When provided, authorization is enforced via ResourceReservationPolicy.
+     *                             Controller callers MUST pass the actor; system callers MAY pass null.
      */
-    public function cancel(string $token, ?string $reason = null, string $source = 'system'): bool
+    public function cancel(string $token, ?string $reason = null, string $source = 'system', ?User $actor = null): bool
     {
         $reservation = $this->getByToken($token);
 
         if (!$reservation) {
             return false;
+        }
+
+        if ($actor !== null) {
+            $reservationModel = ResourceReservation::query()->where('token', $token)->first();
+
+            if ($reservationModel !== null) {
+                Gate::forUser($actor)->authorize('cancel', $reservationModel);
+            }
         }
 
         $result = DB::table('ptero_resource_reservations')
@@ -230,10 +256,23 @@ class ReservationService
 
     /**
      * Extend reservation TTL
+     *
+     * @param  User|null  $actor  Authenticated user performing the action, or null for system context.
+     *                             When provided, authorization is enforced via ResourceReservationPolicy.
+     *                             Controller callers MUST pass the actor; system callers MAY pass null.
      */
-    public function extend(string $token, int $additionalMinutes = 15): bool
+    public function extend(string $token, int $additionalMinutes = 15, ?User $actor = null): bool
     {
         $reservation = $this->getByToken($token);
+
+        if ($actor !== null) {
+            $reservationModel = ResourceReservation::query()->where('token', $token)->first();
+
+            if ($reservationModel !== null) {
+                Gate::forUser($actor)->authorize('extend', $reservationModel);
+            }
+        }
+
         $reservationId = $reservation?->id ?? 0;
 
         $rows = DB::table('ptero_resource_reservations')
@@ -273,35 +312,6 @@ class ReservationService
             ->where('cart_item_id', $cartItemId)
             ->where('status', 'pending')
             ->first();
-    }
-
-    /**
-     * Get all reservations with filters (for admin)
-     */
-    public function getAll(array $filters = []): Collection
-    {
-        $query = DB::table('ptero_resource_reservations')
-            ->leftJoin('users', 'ptero_resource_reservations.user_id', '=', 'users.id')
-            ->select([
-                'ptero_resource_reservations.*',
-                'users.name as user_name',
-                'users.email as user_email',
-            ]);
-
-        if (!empty($filters['status'])) {
-            $query->where('status', $filters['status']);
-        }
-        if (!empty($filters['location_id'])) {
-            $query->where('location_id', $filters['location_id']);
-        }
-        if (!empty($filters['node_id'])) {
-            $query->where('node_id', $filters['node_id']);
-        }
-        if (!empty($filters['user_id'])) {
-            $query->where('ptero_resource_reservations.user_id', $filters['user_id']);
-        }
-
-        return $query->orderBy('created_at', 'desc')->get();
     }
 
     /**
@@ -406,7 +416,7 @@ class ReservationService
         return $count;
     }
 
-    public function presentReservation(object $reservation): array
+    private function presentReservation(object $reservation): array
     {
         $expiresAt = $reservation->expires_at ? Carbon::parse($reservation->expires_at) : null;
 
