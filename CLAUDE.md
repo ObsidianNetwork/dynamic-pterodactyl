@@ -150,3 +150,6 @@ Copy this to PROGRESS.md "Current Session State" when checkpointing:
 **Blockers**: [any issues]
 **Notes**: [anything else important]
 ```
+
+## Test Isolation Mandate (dp-13)
+Extension phpunit MUST run with `DB_DATABASE=paymenter_test`. The phpunit.xml `<php>` block enforces this; tests/bootstrap.php aborts if violated. See DECISIONS.md for rationale.
