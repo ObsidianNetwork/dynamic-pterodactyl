@@ -7,6 +7,8 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 ## [Unreleased]
 
 ### Changed
+- (dp-11) Authorization hardened for reservations: `StoreReservationRequest::authorize()` now verifies cart-item ownership; `ReservationController::get|cancel|extend` now use `ResourceReservationPolicy` (Filament panel access via `User::canAccessPanel()`) instead of the broken `is_admin` check; `ReservationService::cancel|extend|confirm` accept an optional `?User $actor` and authorize via the policy when supplied (defence-in-depth).
+- (dp-11) Surface reduced: deleted retired `PricingController::validate` (410 stub from dp-09) and `ReservationService::getAll()` (no callers — `queryAll()` is the live path); narrowed five internal helpers (`presentReservation`, `getActiveByIdempotencyKey`, `calculateNodeAvailability`, `createResourceOption`, `createLocationOption`) to `private`.
 - (dp-10) The extension-consumed `dynamic_slider` component now exposes the full WAI-ARIA APG attribute set, keyboard PageUp/Down/Home/End support, loading/error UI states, and a 44px touch target. No extension code changes required — these are fork-side core improvements.
 
 ### Fixed

@@ -48,6 +48,16 @@ class ResourceReservationPolicy
     }
 
     /**
+     * Determine whether the user can confirm the reservation.
+     * Used by the service layer when payment-confirmation is invoked with an actor
+     * (e.g., from controller paths). System callers (queue jobs, listeners) pass null.
+     */
+    public function confirm(User $user, ResourceReservation $reservation): bool
+    {
+        return $reservation->user_id === $user->id;
+    }
+
+    /**
      * Determine whether the user can view any reservations (admin list endpoints).
      */
     public function viewAny(User $user): bool

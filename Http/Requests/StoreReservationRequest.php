@@ -43,7 +43,7 @@ class StoreReservationRequest extends FormRequest
             'memory' => 'sometimes|integer|min:0',
             'cpu' => 'sometimes|integer|min:0',
             'disk' => 'sometimes|integer|min:0',
-            'cart_item_id' => 'nullable|integer|exists:cart_items,id',
+            'cart_item_id' => 'required|integer|exists:cart_items,id',
             'idempotency_key' => ['nullable', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ];
     }

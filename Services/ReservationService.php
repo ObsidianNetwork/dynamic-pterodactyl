@@ -181,7 +181,7 @@ class ReservationService
             $reservationModel = ResourceReservation::query()->where('token', $token)->first();
 
             if ($reservationModel !== null) {
-                Gate::forUser($actor)->authorize('extend', $reservationModel);
+                Gate::forUser($actor)->authorize('confirm', $reservationModel);
             }
         }
 

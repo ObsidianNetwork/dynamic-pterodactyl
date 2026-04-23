@@ -97,7 +97,10 @@ class ReservationResource extends Resource
                             ->required(),
                     ])
                     ->action(function ($record, array $data) {
-                        app(ReservationService::class)->extend($record->token, (int) $data['minutes'], auth()->user());
+                        $actor = auth()->user();
+                        abort_if($actor === null, 401);
+
+                        app(ReservationService::class)->extend($record->token, (int) $data['minutes'], $actor);
                     }),
                 TableAction::make('cancel')
                     ->label('Cancel')
@@ -106,7 +109,10 @@ class ReservationResource extends Resource
                     ->visible(fn ($record) => $record->status === 'pending')
                     ->requiresConfirmation()
                     ->action(function ($record) {
-                        app(ReservationService::class)->cancel($record->token, 'Admin cancelled', 'admin', auth()->user());
+                        $actor = auth()->user();
+                        abort_if($actor === null, 401);
+
+                        app(ReservationService::class)->cancel($record->token, 'Admin cancelled', 'admin', $actor);
                     }),
             ])
             ->headerActions([
