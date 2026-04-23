@@ -273,6 +273,12 @@ class AdminApiTest extends TestCase
 
 No browser/E2E suite is implemented in this extension yet. Frontend slider verification is currently manual.
 
+## SetupWizard Atomicity + Audit Reliability (dp-13)
+
+`createDynamicSliderOptions()` is wrapped in `DB::transaction()`. Mid-batch failures (pricing rule throw, FK violation, transient DB error) roll back all writes atomically. The audit entry is written post-commit; failure is structured-logged and reported but does not affect the transaction outcome.
+
+`safeAudit()` lives in `Services/Concerns/AuditsExtensionActions.php` and is used by both `ReservationService` and `ConfigOptionSetupService`. Audit failures emit `Log::warning('extension audit write failed', [...])` so they appear in normal application logs even without a configured exception reporter.
+
 ---
 
 ## Risk Mitigation

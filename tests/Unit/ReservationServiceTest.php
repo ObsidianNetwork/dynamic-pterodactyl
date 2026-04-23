@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
@@ -34,6 +35,8 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockNodeService = Mockery::mock(NodeSelectionService::class);
         $this->mockAuditService = Mockery::mock(AuditLogService::class);
+
+        $this->app->instance(AuditLogService::class, $this->mockAuditService);
     }
 
     protected function tearDown(): void
@@ -53,7 +56,6 @@ class ReservationServiceTest extends LaravelTestCase
 
         foreach ([
             'nodeService' => $this->mockNodeService,
-            'auditService' => $this->mockAuditService,
             'ttlMinutes' => 15,
         ] as $property => $value) {
             $instanceProperty = $reflection->getProperty($property);
@@ -62,6 +64,38 @@ class ReservationServiceTest extends LaravelTestCase
         }
 
         return $service;
+    }
+
+    public function test_safeAudit_logs_warning_on_failure(): void
+    {
+        $this->mockAuditService->shouldReceive('log')
+            ->once()
+            ->with('created', 'reservation', 99, ['token_prefix' => 'deadbeef...'])
+            ->andThrow(new \RuntimeException('audit backend unavailable'));
+
+        Log::shouldReceive('warning')
+            ->once()
+            ->with('extension audit write failed', Mockery::on(function (array $context) {
+                return $context['action'] === 'created'
+                    && $context['entity_type'] === 'reservation'
+                    && $context['entity_id'] === 99
+                    && $context['error'] === 'audit backend unavailable';
+            }));
+        Log::shouldReceive('error')->zeroOrMoreTimes();
+
+        $service = new class
+        {
+            use \Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
+
+            public function writeAudit(): void
+            {
+                $this->safeAudit('created', 'reservation', 99, ['token_prefix' => 'deadbeef...']);
+            }
+        };
+
+        $service->writeAudit();
+
+        $this->addToAssertionCount(1);
     }
 
     /**
