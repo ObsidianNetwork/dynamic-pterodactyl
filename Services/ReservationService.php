@@ -188,9 +188,10 @@ class ReservationService
             ]);
 
         if ($rows > 0) {
-            $this->safeAudit('confirmed', 'reservation', $reservationId, [
-                'token_prefix' => substr($token, 0, 8) . '...',
+            $this->safeAudit('reservation_confirmed', 'resource_reservation', $reservationId, [
+                'token_prefix' => substr($token, 0, 8),
                 'service_id' => $serviceId,
+                'node_id' => $reservation->node_id ?? null,
             ]);
         }
 
@@ -230,14 +231,9 @@ class ReservationService
             ]) > 0;
 
         if ($result) {
-            $this->safeAudit('cancelled', 'reservation', $reservation->id, [
-                'reason' => $reason,
-                'source' => $source,
-                'resources' => [
-                    'memory' => $reservation->memory,
-                    'cpu' => $reservation->cpu,
-                    'disk' => $reservation->disk,
-                ],
+            $this->safeAudit('reservation_cancelled', 'resource_reservation', $reservation->id, [
+                'token_prefix' => substr($token, 0, 8),
+                'node_id' => $reservation->node_id ?? null,
             ]);
         }
 
@@ -398,8 +394,9 @@ class ReservationService
             ]);
 
         if ($count > 0) {
-            $this->safeAudit('batch_expired', 'reservation', 0, [
+            $this->safeAudit('reservations_expired_batch', 'resource_reservation', 0, [
                 'count' => $count,
+                'run_at' => now()->toIso8601String(),
             ]);
         }
 
