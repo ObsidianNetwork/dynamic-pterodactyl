@@ -145,7 +145,6 @@ class AlertService
                         $admin->notify(new CapacityAlertNotification(
                             $alertConfig,
                             $alerts,
-                            $availability,
                         ));
                         $emailDelivered = true;
                     } catch (\Throwable $e) {

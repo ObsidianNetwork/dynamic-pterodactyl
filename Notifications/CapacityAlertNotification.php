@@ -14,7 +14,6 @@ class CapacityAlertNotification extends Notification
     public function __construct(
         public AlertConfig $alertConfig,
         public array $breachedThresholds,
-        public array $utilizationSnapshot,
     ) {}
 
     public function via(object $notifiable): array
