@@ -416,7 +416,10 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('extended', 'reservation', 42, Mockery::on(fn ($ctx) => $ctx['additional_minutes'] === 15))
+            ->with('reservation_extended', 'resource_reservation', 42, Mockery::on(fn ($ctx) => $ctx['additional_minutes'] === 15
+                && $ctx['token_prefix'] === substr('test_token', 0, 8)
+                && array_key_exists('node_id', $ctx)
+                && $ctx['node_id'] === null))
             ->andReturn(1);
 
         $service = $this->createService();

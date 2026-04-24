@@ -270,9 +270,10 @@ class ReservationService
             ]);
 
         if ($rows > 0) {
-            $this->safeAudit('extended', 'reservation', $reservationId, [
-                'token_prefix' => substr($token, 0, 8) . '...',
+            $this->safeAudit('reservation_extended', 'resource_reservation', $reservationId, [
+                'token_prefix' => substr($token, 0, 8),
                 'additional_minutes' => $additionalMinutes,
+                'node_id' => $reservation->node_id ?? null,
             ]);
         }
 
