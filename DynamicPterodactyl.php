@@ -19,6 +19,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\InvoicePaidListener
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\ServiceCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 
 #[ExtensionMeta(
@@ -117,6 +118,11 @@ class DynamicPterodactyl extends Extension
         Schedule::call(fn () => app(ReservationService::class)->cleanupExpired())
             ->everyMinute()
             ->name('dynamic-pterodactyl:cleanup-expired-reservations')
+            ->withoutOverlapping();
+
+        Schedule::call(fn () => app(AlertService::class)->checkCapacityAlerts())
+            ->everyFiveMinutes()
+            ->name('dynamic-pterodactyl:check-capacity-alerts')
             ->withoutOverlapping();
     }
 
