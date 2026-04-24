@@ -250,6 +250,18 @@ Extension phpunit MUST set `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_C
 
 `ConfigOptionSetupService::createDynamicSliderOptions()` MUST execute all DB writes (resource sliders + location option + children) inside a single `DB::transaction()`. Either all options land or none do. The audit entry is written AFTER the transaction commits; audit failure is best-effort (logged via `Log::warning` + `report()`) and does not roll back the business data.
 
+### 8. Capacity-Alert Delivery Contract (dp-12, Apr 2026)
+
+`AlertService::checkCapacityAlerts()` is the single entry point for capacity threshold scanning. It is scheduled by `DynamicPterodactyl.php::boot()` every 5 minutes with `withoutOverlapping()`. Delivery channels: `mail` (if `email_notifications` is true) and `webhook` (if `webhook_url` is set and `webhook_notifications` is enabled). Email fan-out uses `User::whereNotNull('role_id')->get()` — same recipient rule as `notifyShortfall()` (dp-04). Failures on one recipient do not abort the loop; they emit `Log::warning` + `report()` semantics.
+
+### 9. Capacity-Alert Scheduler Cadence (dp-12, Apr 2026)
+
+Cadence: `everyFiveMinutes()`. Rationale: `ptero_alert_configs.cooldown_minutes` defaults to 60; a 5-minute scan catches threshold crossings within one cooldown window without API hammering. Cadence is code-only (no runtime toggle) — change requires a code edit + deploy.
+
+### 10. Reservation Funnel Observability Schema (dp-12, Apr 2026)
+
+Reservation state transitions write rows to `ptero_audit_logs` via the shared `AuditsExtensionActions` trait (dp-13). Per-transition rows for `confirm` / `cancel` use `action` values `reservation_confirmed` and `reservation_cancelled` with `entity_type = resource_reservation` and `entity_id = reservation id`. Batch rows for `cleanupExpired` use `action = reservations_expired_batch` with `entity_id = 0` and `count` in `new_values`. Token values are logged as `token_prefix` (first 8 chars) only — full tokens must never land in audit JSON.
+
 ## Process: Out-of-scope finding handling (added dp-10, Apr 2026)
 
 When implementing any dp-NN plan, if the agent or CodeRabbit identifies a change that does not fit the current PR's scope:

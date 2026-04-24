@@ -12,13 +12,22 @@ trait AuditsExtensionActions
         try {
             app(AuditLogService::class)->log($action, $entityType, $entityId, $newValues);
         } catch (\Throwable $e) {
-            Log::warning('extension audit write failed', [
-                'action' => $action,
-                'entity_type' => $entityType,
-                'entity_id' => $entityId,
-                'error' => $e->getMessage(),
-            ]);
-            report($e);
+            try {
+                Log::warning('extension audit write failed', [
+                    'action' => $action,
+                    'entity_type' => $entityType,
+                    'entity_id' => $entityId,
+                    'error' => $e->getMessage(),
+                ]);
+            } catch (\Throwable) {
+                // Plain unit tests may not boot Laravel's facade root.
+            }
+
+            try {
+                report($e);
+            } catch (\Throwable) {
+                // Plain unit tests may not boot Laravel's exception handler.
+            }
         }
     }
 }
