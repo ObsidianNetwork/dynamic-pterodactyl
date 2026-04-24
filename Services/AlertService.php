@@ -124,9 +124,8 @@ class AlertService
 
     private function sendNotifications(object $config, array $availability, array $alerts): bool
     {
-        $locationScope = $availability['location_id'] ?? $alerts[0]['location_id'] ?? $config->location_id ?? null;
+        $locationScope = $availability['location_id'] ?? $config->location_id ?? null;
         $locationName = $availability['location_name']
-            ?? $alerts[0]['location_name']
             ?? $config->location_name
             ?? ($locationScope !== null ? 'Location #' . $locationScope : 'All Locations');
         $alertConfig = $this->hydrateAlertConfig((object) array_merge((array) $config, [
