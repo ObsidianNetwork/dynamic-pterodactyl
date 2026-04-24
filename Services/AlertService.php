@@ -193,7 +193,7 @@ class AlertService
                 ]);
 
                 $deliveredChannels[] = 'webhook';
-            } catch (\Exception $e) {
+            } catch (\Throwable $e) {
                 Log::error('Webhook notification failed', [
                     'url' => $config->webhook_url,
                     'error' => $e->getMessage(),

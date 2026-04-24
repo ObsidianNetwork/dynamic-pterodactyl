@@ -210,7 +210,12 @@ class AlertServiceTest extends TestCase
                 'webhook_notifications' => false,
                 'webhook_url' => null,
             ],
-            [],
+            [
+                'location_id' => 99,
+                'location_name' => 'Test Scope',
+                'total_capacity' => ['memory' => 100, 'disk' => 100],
+                'total_allocated' => ['memory' => 80, 'disk' => 80],
+            ],
             [['type' => 'warning', 'resource' => 'disk', 'utilization' => 80.0, 'usage_percent' => 80.0, 'threshold' => 80]],
         );
 
