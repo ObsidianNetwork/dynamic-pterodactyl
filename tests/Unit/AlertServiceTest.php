@@ -5,6 +5,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
@@ -21,6 +22,13 @@ class AlertServiceTest extends TestCase
         $mockResource = Mockery::mock(ResourceCalculationService::class);
 
         return new AlertService($mockResource);
+    }
+
+    private function invokeSendNotifications(AlertService $service, object $config, array $availability, array $alerts): void
+    {
+        $method = new \ReflectionMethod($service, 'sendNotifications');
+        $method->setAccessible(true);
+        $method->invoke($service, $config, $availability, $alerts);
     }
 
     public function test_notify_shortfall_emails_all_admins(): void
@@ -111,6 +119,155 @@ class AlertServiceTest extends TestCase
         Log::shouldHaveReceived('warning')->once()->with(
             'No admin recipients configured for shortfall alert',
             Mockery::on(fn (array $context) => $context['service_id'] === 1 && $context['reason'] === 'insufficient_resources')
+        );
+    }
+
+    public function test_capacity_alert_email_fans_out_to_all_admins(): void
+    {
+        $recipientA = new class
+        {
+            public int $id = 101;
+
+            public array $notifications = [];
+
+            public function notify($notification): void
+            {
+                $this->notifications[] = $notification;
+            }
+        };
+
+        $recipientB = new class
+        {
+            public int $id = 202;
+
+            public array $notifications = [];
+
+            public function notify($notification): void
+            {
+                $this->notifications[] = $notification;
+            }
+        };
+
+        $query = Mockery::mock();
+        $query->shouldReceive('get')->once()->andReturn(new Collection([$recipientA, $recipientB]));
+
+        $user = Mockery::mock('alias:App\\Models\\User');
+        $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
+
+        $service = $this->makeService();
+        $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 55,
+                'location_id' => 9,
+                'location_name' => 'AMS-1',
+                'email_notifications' => true,
+                'notification_emails' => json_encode(['ops@example.com']),
+                'webhook_notifications' => false,
+                'webhook_url' => null,
+            ],
+            [
+                'total_capacity' => ['memory' => 65536, 'disk' => 512000],
+                'total_allocated' => ['memory' => 60000, 'disk' => 500000],
+            ],
+            [
+                ['type' => 'critical', 'resource' => 'memory', 'utilization' => 91.5, 'usage_percent' => 91.5, 'threshold' => 90],
+            ],
+        );
+
+        $this->assertCount(1, $recipientA->notifications);
+        $this->assertCount(1, $recipientB->notifications);
+        $this->assertInstanceOf(CapacityAlertNotification::class, $recipientA->notifications[0]);
+        $this->assertSame('AMS-1', $recipientA->notifications[0]->alertConfig->location_name);
+    }
+
+    public function test_capacity_alert_email_logs_warning_when_no_admins(): void
+    {
+        Log::spy();
+
+        $query = Mockery::mock();
+        $query->shouldReceive('get')->once()->andReturn(new Collection());
+
+        $user = Mockery::mock('alias:App\\Models\\User');
+        $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
+
+        $service = $this->makeService();
+        $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 99,
+                'location_id' => null,
+                'location_name' => null,
+                'email_notifications' => true,
+                'notification_emails' => json_encode(['ops@example.com']),
+                'webhook_notifications' => false,
+                'webhook_url' => null,
+            ],
+            [],
+            [['type' => 'warning', 'resource' => 'disk', 'utilization' => 80.0, 'usage_percent' => 80.0, 'threshold' => 80]],
+        );
+
+        Log::shouldHaveReceived('warning')->once()->with(
+            'No admin recipients configured for capacity alert',
+            Mockery::on(fn (array $context) => $context['alert_config_id'] === 99)
+        );
+    }
+
+    public function test_capacity_alert_email_logged_on_dispatch_failure(): void
+    {
+        Log::spy();
+
+        $failingRecipient = new class
+        {
+            public int $id = 7;
+
+            public function notify($notification): void
+            {
+                throw new \RuntimeException('smtp down');
+            }
+        };
+
+        $healthyRecipient = new class
+        {
+            public int $id = 8;
+
+            public array $notifications = [];
+
+            public function notify($notification): void
+            {
+                $this->notifications[] = $notification;
+            }
+        };
+
+        $query = Mockery::mock();
+        $query->shouldReceive('get')->once()->andReturn(new Collection([$failingRecipient, $healthyRecipient]));
+
+        $user = Mockery::mock('alias:App\\Models\\User');
+        $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
+
+        $service = $this->makeService();
+        $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 77,
+                'location_id' => 1,
+                'location_name' => 'DFW-1',
+                'email_notifications' => true,
+                'notification_emails' => json_encode(['ops@example.com']),
+                'webhook_notifications' => false,
+                'webhook_url' => null,
+            ],
+            [],
+            [['type' => 'critical', 'resource' => 'memory', 'utilization' => 97.2, 'usage_percent' => 97.2, 'threshold' => 95]],
+        );
+
+        $this->assertCount(1, $healthyRecipient->notifications);
+        $this->assertInstanceOf(CapacityAlertNotification::class, $healthyRecipient->notifications[0]);
+        Log::shouldHaveReceived('warning')->once()->with(
+            'Failed to send capacity alert email',
+            Mockery::on(fn (array $context) => $context['alert_config_id'] === 77
+                && $context['recipient_id'] === 7
+                && $context['error'] === 'smtp down')
         );
     }
 }
