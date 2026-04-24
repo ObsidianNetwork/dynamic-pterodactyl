@@ -190,12 +190,13 @@ class AlertService
                         ],
                         'timestamp' => now()->toIso8601String(),
                     ]],
-                ]);
+                ])->throw();
 
                 $deliveredChannels[] = 'webhook';
             } catch (\Throwable $e) {
                 Log::error('Webhook notification failed', [
-                    'url' => $config->webhook_url,
+                    'alert_config_id' => $config->id,
+                    'webhook_host' => parse_url($config->webhook_url, PHP_URL_HOST),
                     'error' => $e->getMessage(),
                 ]);
             }

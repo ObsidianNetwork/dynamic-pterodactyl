@@ -5,6 +5,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
@@ -330,6 +331,7 @@ class AlertServiceTest extends TestCase
                 && $context['error'] === 'smtp down')
         );
     }
+
 }
 
 class AlertServiceAuditTest extends LaravelTestCase
@@ -478,5 +480,51 @@ class AlertServiceAuditTest extends LaravelTestCase
         $newValues = json_decode($log->new_values, true);
 
         $this->assertSame(44, $newValues['location_scope']);
+    }
+
+    public function test_capacity_alert_does_not_audit_failed_webhook_delivery(): void
+    {
+        Notification::fake();
+        Http::fake([
+            '*' => Http::response(['message' => 'forbidden'], 403),
+        ]);
+        Log::spy();
+
+        $alertConfig = AlertConfig::create([
+            'location_id' => 23,
+            'location_name' => 'MAD-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => false,
+            'notification_emails' => [],
+            'webhook_notifications' => true,
+            'webhook_url' => 'https://discord.com/api/webhooks/SECRET_TOKEN',
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(23)->andReturn([
+            'location_id' => 23,
+            'location_name' => 'MAD-1',
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 95, 'disk' => 50],
+        ]);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        $this->assertDatabaseMissing('ptero_audit_logs', [
+            'action' => 'capacity_alert_sent',
+            'entity_type' => 'alert_config',
+            'entity_id' => $alertConfig->id,
+        ]);
+        Log::shouldHaveReceived('error')->with(
+            'Webhook notification failed',
+            Mockery::on(fn (array $context) => $context['alert_config_id'] === $alertConfig->id
+                && $context['webhook_host'] === 'discord.com')
+        );
     }
 }
