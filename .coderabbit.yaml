@@ -1,0 +1,30 @@
+# CodeRabbit config — applies to ALL PRs in this repo.
+# Ralph-loop contract (dp-process-01) depends on these values.
+# See .sisyphus/templates/ralph-loop-contract.md in the Paymenter fork.
+
+language: en-US
+
+reviews:
+  profile: assertive
+  commit_status: true
+  fail_commit_status: true
+  request_changes_workflow: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    auto_pause_after_reviewed_commits: 0
+    drafts: false
+    base_branches:
+      - "dynamic-slider.*"
+      - "dp-.*"
+
+  pre_merge_checks:
+    title:
+      mode: "warning"
+      requirements: |
+        Use Conventional Commits. Include dp-NN scope when applicable.
+    description:
+      mode: "warning"
+    issue_assessment:
+      mode: "off"
