@@ -153,3 +153,47 @@ Copy this to PROGRESS.md "Current Session State" when checkpointing:
 
 ## Test Isolation Mandate (dp-13)
 Extension phpunit MUST run with `DB_DATABASE=paymenter_test`. The phpunit.xml `<php>` block enforces this; tests/bootstrap.php aborts if violated. See DECISIONS.md for rationale.
+
+
+## CodeRabbit Review Mandate (dp-process-audit, 2026-04-24)
+
+Every PR against `dynamic-slider` (and any parent-repo branch) MUST follow `.sisyphus/templates/ralph-loop-contract.md`. This is non-negotiable after the 2026-04-24 incident where two consecutive PRs (#10, #11) merged within minutes of opening, zero CodeRabbit reviews submitted.
+
+**Pre-merge gate** (mechanical, run immediately before `gh pr merge`):
+
+```bash
+/var/www/paymenter/.sisyphus/templates/ralph-loop-verify.sh <PR_NUMBER>
+```
+
+Exit 0 = safe to merge. Non-zero = DO NOT merge. Do not bypass the script.
+
+**PR author identity** (what CodeRabbit actually checks for entitlement):
+
+CodeRabbit evaluates the GitHub login on the PR itself (whoever ran `gh pr create` / clicked "Open pull request"). The fork is Pro-entitled under `Jordanmuss99`. The 2026-04-24 incident root cause: PRs #10 and #11 were opened while `gh` was active as `ImStillBlue` (a different account logged in on this host), so CodeRabbit saw them as Free-tier and skipped review. PR #9 opened as `Jordanmuss99` received 3 reviews with the exact same commit authors.
+
+Before `gh pr create` you MUST:
+
+```bash
+gh auth switch -u Jordanmuss99
+login=$(gh api /user --jq .login)
+[ "$login" = "Jordanmuss99" ] || { echo "ABORT: active gh user is $login"; exit 1; }
+```
+
+PR author on GitHub is immutable. If you open as the wrong user, close the PR and reopen — there is no way to reassign.
+
+**Commit author email** (secondary — belt-and-braces):
+
+```bash
+git config user.name "Jordanmuss99"
+git config user.email "164892154+Jordanmuss99@users.noreply.github.com"
+```
+
+`164892154+Jordanmuss99@users.noreply.github.com` is the default safe form — it avoids the GH007 push-rejection that blocks `jordanmuss@hotmail.com` (hotmail is marked private on the GitHub account). Use the hotmail address only if the Jordanmuss99 GitHub account's email-privacy setting is changed to allow public email pushes.
+
+**Orchestrator rule**: when a subagent claims a PR is opened or merged, atlas MUST independently run:
+
+```bash
+gh pr view <N> --json author,createdAt,mergedAt,reviews --jq '{author: .author.login, createdAt, mergedAt, cr_review_count: ([.reviews[] | select(.author.login=="coderabbitai")] | length)}'
+```
+
+If `author != "Jordanmuss99"`, OR `mergedAt - createdAt < 3 minutes`, OR `cr_review_count < 1`, treat as a contract violation. See `.sisyphus/notepads/dp-process-audit/incident-2026-04-24.md` for remediation.

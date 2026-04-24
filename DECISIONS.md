@@ -256,5 +256,18 @@ When implementing any dp-NN plan, if the agent or CodeRabbit identifies a change
 
 1. Identify the correct destination plan (dp-11 = auth, dp-12 = observability, dp-13 = E2E, new = create stub).
 2. Append the finding to that plan's "Deferred from <source>" section with: description, file:line, citation, date.
-3. Reply to the CodeRabbit thread: "@coderabbitai Acknowledged. Out of scope for dp-NN; deferred to dp-MM. See <plan link>." Then resolve.
+3. Leave a plain GitHub comment on the thread: "Acknowledged. Out of scope for dp-NN; deferred to dp-MM. See <plan link>." Then resolve the thread via UI / `gh api`. Do NOT use `@coderabbitai` chat mentions — they are Pro-only (see Decision #11).
 4. Do NOT silently expand the current PR scope.
+
+
+### 11. CodeRabbit Review Mandate and PR-Author Identity (dp-process-audit, Apr 2026)
+
+Every PR against `dynamic-slider` (and any parent-repo branch) MUST follow `.sisyphus/templates/ralph-loop-contract.md` with the mechanical gate `.sisyphus/templates/ralph-loop-verify.sh <PR_NUMBER>` run immediately before `gh pr merge`. Triggered by the 2026-04-24 incident where PRs #10 (dp-13) and #11 (dp-12) merged within 1–3 minutes of opening, zero CodeRabbit reviews submitted.
+
+Root cause: CodeRabbit evaluates entitlements against the GitHub login on the PR itself (whoever ran `gh pr create`), NOT the commit author. PRs #10 and #11 were opened while `gh` was active as `ImStillBlue` (the host's default account), which resolves to a Free-tier identity, so CodeRabbit skipped review. PR #9 opened as `Jordanmuss99` (Pro) with the exact same commit authors received 3 reviews — proving commit author is not the determinant. PR author is immutable on GitHub; once opened under the wrong account, the PR must be closed and reopened.
+
+PR author identity rule (PRIMARY): before `gh pr create`, the orchestrator and any PR-creating subagent MUST run `gh auth switch -u Jordanmuss99` and verify with `gh api /user --jq .login` that the active login is `Jordanmuss99`. Abort the PR-create step otherwise.
+
+Commit author email (secondary): git config MUST be `user.name = Jordanmuss99` and `user.email = 164892154+Jordanmuss99@users.noreply.github.com` (noreply form — default, avoids the GH007 push rejection that blocks `jordanmuss@hotmail.com`). Use the hotmail address only if the Jordanmuss99 account email-privacy setting is changed to allow public email pushes. Historical dp-11/dp-13/dp-12 commits using the noreply form are grandfathered — those PRs are merged and PR #9 proved the noreply form doesn't break auto-review.
+
+Orchestrator verification: when a subagent claims a PR is opened or merged, the orchestrator MUST independently run `gh pr view <N> --json author,createdAt,mergedAt,reviews` and treat `author.login != "Jordanmuss99"` OR `mergedAt - createdAt < 3 minutes` OR `cr_review_count < 1` as a contract violation regardless of the subagent's text. See `.sisyphus/notepads/dp-process-audit/incident-2026-04-24.md` for the remediation protocol.
