@@ -380,7 +380,15 @@ Data in `ptero_resource_reservations` is ephemeral and can be safely dropped.
 
 ## Scheduler wiring status
 
-Expired-reservation cleanup is scheduled in `DynamicPterodactyl.php::boot()`. `AlertService` threshold checks are not scheduled in `DynamicPterodactyl.php::boot()`, so alert configs are currently inert. Fix tracked in dp-13.
+Expired-reservation cleanup and `AlertService::checkCapacityAlerts()` are both scheduled in `DynamicPterodactyl.php::boot()`. Cleanup runs every minute; capacity checks run every five minutes with `withoutOverlapping()`.
+
+## Capacity Alerts + Reservation Observability (dp-12)
+
+`AlertService::checkCapacityAlerts()` is scheduled every 5 minutes in `DynamicPterodactyl.php::boot()`. For each active `ptero_alert_configs` row it: (1) respects `cooldown_minutes` via `last_notification_at`, (2) reads live utilization via `ResourceCalculationService`, (3) dispatches to email (all admins with `role_id`) and/or webhook, (4) writes one `capacity_alert_sent` audit row summarising channels + severity + breached resources.
+
+`ReservationService::{confirm,cancel,cleanupExpired}` write audit rows on successful state transitions. `confirm` / `cancel` are per-reservation. `cleanupExpired` writes one batch row per run with `count`. Token values are stored as `token_prefix` only.
+
+Both services use the shared `AuditsExtensionActions` trait (dp-13) — audit failure is best-effort and does not abort business logic.
 
 ---
 

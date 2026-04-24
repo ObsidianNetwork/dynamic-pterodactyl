@@ -7,6 +7,9 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 ## [Unreleased]
 
 ### Added
+- Scheduled `AlertService::checkCapacityAlerts()` every 5 minutes via `DynamicPterodactyl.php::boot()` (dp-12).
+- `Notifications/CapacityAlertNotification` mail notification for capacity threshold breaches (dp-12).
+- Audit trail for capacity alert dispatch and reservation state transitions (`confirm`, `cancel`, `cleanupExpired`) using the shared `AuditsExtensionActions` trait (dp-12).
 - Reservation create endpoint now supports `Idempotency-Key` / `idempotency_key` dedupe with active-reservation reuse semantics.
 
 ### Changed
@@ -19,6 +22,7 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 - Pricing preview now delegates to Paymenter core (`Plan::dynamicSliderBasePrice()` + `ConfigOption::calculateDynamicPriceDelta()`), `PricingCalculatorService` was renamed to `SliderConfigReaderService`, and `PricingConfigValidator` was retired in favor of core `DynamicSliderPricingRule`.
 
 ### Fixed
+- Capacity-alert email delivery: replaced `Log::info('email would be sent')` stub in `AlertService::sendNotifications()` with real admin-user fan-out (dp-12).
 - Payment-time reservation confirmation now excludes the reservation itself from pending-capacity math, so exact-fit purchases can confirm successfully.
 - Reservation create requests now enforce product slider bounds and reject unconfigured products instead of persisting arbitrary resource selections.
 - Availability `has_capacity` now requires memory, CPU, and disk to all be positive, with per-resource booleans exposed in the API response.
