@@ -128,7 +128,10 @@ class ReservationServiceTest extends LaravelTestCase
             ->andReturn(1);
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('confirmed', 'reservation', 99, Mockery::type('array'))
+            ->with('reservation_confirmed', 'resource_reservation', 99, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)
+                && $ctx['service_id'] === $serviceId
+                && array_key_exists('node_id', $ctx)
+                && $ctx['node_id'] === null))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -222,7 +225,9 @@ class ReservationServiceTest extends LaravelTestCase
             ->andReturn(1);
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('cancelled', 'reservation', 1, Mockery::type('array'))
+            ->with('reservation_cancelled', 'resource_reservation', 1, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)
+                && array_key_exists('node_id', $ctx)
+                && $ctx['node_id'] === null))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -270,7 +275,7 @@ class ReservationServiceTest extends LaravelTestCase
             ->andReturn(5);
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('batch_expired', 'reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5))
+            ->with('reservations_expired_batch', 'resource_reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5 && isset($ctx['run_at'])))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -377,7 +382,7 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('confirmed', 'reservation', 42, Mockery::type('array'))
+            ->with('reservation_confirmed', 'resource_reservation', 42, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === 'test_tok' && $ctx['service_id'] === 42))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -411,7 +416,10 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('extended', 'reservation', 42, Mockery::on(fn ($ctx) => $ctx['additional_minutes'] === 15))
+            ->with('reservation_extended', 'resource_reservation', 42, Mockery::on(fn ($ctx) => $ctx['additional_minutes'] === 15
+                && $ctx['token_prefix'] === substr('test_token', 0, 8)
+                && array_key_exists('node_id', $ctx)
+                && $ctx['node_id'] === null))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -428,7 +436,7 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('batch_expired', 'reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5))
+            ->with('reservations_expired_batch', 'resource_reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5 && isset($ctx['run_at'])))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -450,7 +458,7 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('cancelled', 'reservation', 5, Mockery::on(fn ($ctx) => $ctx['source'] === 'admin'))
+            ->with('reservation_cancelled', 'resource_reservation', 5, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -472,7 +480,7 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->mockAuditService->shouldReceive('log')
             ->once()
-            ->with('cancelled', 'reservation', 6, Mockery::on(fn ($ctx) => $ctx['source'] === 'customer'))
+            ->with('reservation_cancelled', 'resource_reservation', 6, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)))
             ->andReturn(1);
 
         $service = $this->createService();
@@ -539,6 +547,140 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->assertNotSame($first['id'], $second['id']);
         $this->assertSame(2, ResourceReservation::count());
+    }
+
+    public function test_confirm_writes_audit_row(): void
+    {
+        $this->app->instance(AuditLogService::class, new AuditLogService);
+        $actor = User::withoutEvents(fn () => User::factory()->create());
+        $this->actingAs($actor);
+
+        $serviceId = DB::table('services')->insertGetId([
+            'user_id' => $actor->id,
+            'status' => 'active',
+            'currency_code' => 'USD',
+            'quantity' => 1,
+            'price' => '0.00',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $reservation = ResourceReservation::create([
+            'token' => 'confirm_token_12345678',
+            'user_id' => null,
+            'cart_item_id' => null,
+            'node_id' => 11,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 0,
+            'pricing_breakdown' => [],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $this->assertTrue($this->createService()->confirm($reservation->token, $serviceId));
+
+        $this->assertDatabaseHas('ptero_audit_logs', [
+            'action' => 'reservation_confirmed',
+            'entity_type' => 'resource_reservation',
+            'entity_id' => $reservation->id,
+        ]);
+
+        $log = DB::table('ptero_audit_logs')->where('action', 'reservation_confirmed')->latest('id')->first();
+        $newValues = json_decode($log->new_values, true);
+
+        $this->assertSame(substr($reservation->token, 0, 8), $newValues['token_prefix']);
+        $this->assertSame($serviceId, $newValues['service_id']);
+        $this->assertSame(11, $newValues['node_id']);
+    }
+
+    public function test_cancel_writes_audit_row(): void
+    {
+        $this->app->instance(AuditLogService::class, new AuditLogService);
+        $actor = User::withoutEvents(fn () => User::factory()->create());
+        $this->actingAs($actor);
+
+        $reservation = ResourceReservation::create([
+            'token' => 'cancel_token_12345678',
+            'user_id' => null,
+            'cart_item_id' => null,
+            'node_id' => 12,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 0,
+            'pricing_breakdown' => [],
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(15),
+        ]);
+
+        $this->assertTrue($this->createService()->cancel($reservation->token));
+
+        $this->assertDatabaseHas('ptero_audit_logs', [
+            'action' => 'reservation_cancelled',
+            'entity_type' => 'resource_reservation',
+            'entity_id' => $reservation->id,
+        ]);
+
+        $log = DB::table('ptero_audit_logs')->where('action', 'reservation_cancelled')->latest('id')->first();
+        $newValues = json_decode($log->new_values, true);
+
+        $this->assertSame(substr($reservation->token, 0, 8), $newValues['token_prefix']);
+        $this->assertSame(12, $newValues['node_id']);
+    }
+
+    public function test_cleanup_expired_writes_batch_audit_row_with_count(): void
+    {
+        $this->app->instance(AuditLogService::class, new AuditLogService);
+        $actor = User::withoutEvents(fn () => User::factory()->create());
+        $this->actingAs($actor);
+
+        ResourceReservation::create([
+            'token' => 'expired_a_token_1234',
+            'user_id' => null,
+            'cart_item_id' => null,
+            'node_id' => 21,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 0,
+            'pricing_breakdown' => [],
+            'status' => 'pending',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        ResourceReservation::create([
+            'token' => 'expired_b_token_1234',
+            'user_id' => null,
+            'cart_item_id' => null,
+            'node_id' => 22,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 0,
+            'pricing_breakdown' => [],
+            'status' => 'pending',
+            'expires_at' => now()->subMinute(),
+        ]);
+
+        $this->assertSame(2, $this->createService()->cleanupExpired());
+
+        $this->assertDatabaseHas('ptero_audit_logs', [
+            'action' => 'reservations_expired_batch',
+            'entity_type' => 'resource_reservation',
+            'entity_id' => 0,
+        ]);
+
+        $log = DB::table('ptero_audit_logs')->where('action', 'reservations_expired_batch')->latest('id')->first();
+        $newValues = json_decode($log->new_values, true);
+
+        $this->assertSame(2, $newValues['count']);
+        $this->assertArrayHasKey('run_at', $newValues);
     }
 
     public function test_create_without_idempotency_key_always_creates_new(): void

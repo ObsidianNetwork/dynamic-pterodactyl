@@ -3,14 +3,20 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use App\Models\User;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
 
 class AlertService
 {
+    use AuditsExtensionActions;
+
     private ResourceCalculationService $resourceService;
 
     public function __construct(ResourceCalculationService $resourceService)
@@ -51,9 +57,7 @@ class AlertService
                 $availability = $this->resourceService->getLocationAvailability($locationId);
                 $alerts = $this->checkThresholds($availability, $config);
 
-                if (! empty($alerts)) {
-                    $this->sendNotifications($config, $availability, $alerts);
-
+                if (! empty($alerts) && $this->sendNotifications($config, $availability, $alerts)) {
                     DB::table('ptero_alert_configs')
                         ->where('id', $config->id)
                         ->update(['last_notification_at' => now()]);
@@ -80,33 +84,87 @@ class AlertService
             : 0;
 
         if ($memoryUtilization >= $config->memory_critical_threshold) {
-            $alerts[] = ['type' => 'critical', 'resource' => 'memory', 'utilization' => $memoryUtilization];
+            $alerts[] = [
+                'type' => 'critical',
+                'resource' => 'memory',
+                'utilization' => $memoryUtilization,
+                'usage_percent' => round($memoryUtilization, 1),
+                'threshold' => (int) $config->memory_critical_threshold,
+            ];
         } elseif ($memoryUtilization >= $config->memory_warning_threshold) {
-            $alerts[] = ['type' => 'warning', 'resource' => 'memory', 'utilization' => $memoryUtilization];
+            $alerts[] = [
+                'type' => 'warning',
+                'resource' => 'memory',
+                'utilization' => $memoryUtilization,
+                'usage_percent' => round($memoryUtilization, 1),
+                'threshold' => (int) $config->memory_warning_threshold,
+            ];
         }
 
         if ($diskUtilization >= $config->disk_critical_threshold) {
-            $alerts[] = ['type' => 'critical', 'resource' => 'disk', 'utilization' => $diskUtilization];
+            $alerts[] = [
+                'type' => 'critical',
+                'resource' => 'disk',
+                'utilization' => $diskUtilization,
+                'usage_percent' => round($diskUtilization, 1),
+                'threshold' => (int) $config->disk_critical_threshold,
+            ];
         } elseif ($diskUtilization >= $config->disk_warning_threshold) {
-            $alerts[] = ['type' => 'warning', 'resource' => 'disk', 'utilization' => $diskUtilization];
+            $alerts[] = [
+                'type' => 'warning',
+                'resource' => 'disk',
+                'utilization' => $diskUtilization,
+                'usage_percent' => round($diskUtilization, 1),
+                'threshold' => (int) $config->disk_warning_threshold,
+            ];
         }
 
         return $alerts;
     }
 
-    private function sendNotifications(object $config, array $availability, array $alerts): void
+    private function sendNotifications(object $config, array $availability, array $alerts): bool
     {
-        $locationName = $config->location_name ?? 'All Locations';
+        $locationScope = $availability['location_id'] ?? $config->location_id ?? null;
+        $locationName = $availability['location_name']
+            ?? $config->location_name
+            ?? ($locationScope !== null ? 'Location #' . $locationScope : 'All Locations');
+        $alertConfig = $this->hydrateAlertConfig((object) array_merge((array) $config, [
+            'location_id' => $locationScope,
+            'location_name' => $locationName,
+        ]));
+        $deliveredChannels = [];
 
-        if ($config->email_notifications && ! empty($config->notification_emails)) {
-            $emails = json_decode($config->notification_emails, true);
-            // TODO: Send email notification
-            // Implementation depends on mail setup
-            Log::info('Capacity alert email would be sent', [
-                'emails' => $emails,
-                'location' => $locationName,
-                'alerts' => $alerts,
-            ]);
+        if ($config->email_notifications) {
+            $recipients = $this->getAdminRecipients();
+
+            if ($recipients->isEmpty()) {
+                Log::warning('No admin recipients configured for capacity alert', [
+                    'alert_config_id' => $config->id,
+                ]);
+            } else {
+                $emailDelivered = false;
+
+                foreach ($recipients as $admin) {
+                    try {
+                        $admin->notify(new CapacityAlertNotification(
+                            $alertConfig,
+                            $alerts,
+                        ));
+                        $emailDelivered = true;
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to send capacity alert email', [
+                            'alert_config_id' => $config->id,
+                            'recipient_id' => $admin->id ?? null,
+                            'error' => $e->getMessage(),
+                        ]);
+                        $this->reportThrowable($e);
+                    }
+                }
+
+                if ($emailDelivered) {
+                    $deliveredChannels[] = 'email';
+                }
+            }
         }
 
         if ($config->webhook_notifications && $config->webhook_url) {
@@ -129,14 +187,28 @@ class AlertService
                         ],
                         'timestamp' => now()->toIso8601String(),
                     ]],
-                ]);
-            } catch (\Exception $e) {
+                ])->throw();
+
+                $deliveredChannels[] = 'webhook';
+            } catch (\Throwable $e) {
                 Log::error('Webhook notification failed', [
-                    'url' => $config->webhook_url,
+                    'alert_config_id' => $config->id,
+                    'webhook_host' => parse_url($config->webhook_url, PHP_URL_HOST),
                     'error' => $e->getMessage(),
                 ]);
             }
         }
+
+        if ($deliveredChannels !== []) {
+            $this->safeAudit('capacity_alert_sent', 'alert_config', (int) $config->id, [
+                'channels' => $deliveredChannels,
+                'severity' => collect($alerts)->contains('type', 'critical') ? 'critical' : 'warning',
+                'breached' => array_column($alerts, 'resource'),
+                'location_scope' => $locationScope,
+            ]);
+        }
+
+        return $deliveredChannels !== [];
     }
 
     /**
@@ -145,7 +217,13 @@ class AlertService
     public function sendTestNotification(object $config): void
     {
         $testAlerts = [
-            ['type' => 'test', 'resource' => 'memory', 'utilization' => 85],
+            [
+                'type' => 'test',
+                'resource' => 'memory',
+                'utilization' => 85,
+                'usage_percent' => 85.0,
+                'threshold' => (int) ($config->memory_warning_threshold ?? 80),
+            ],
         ];
 
         $testAvailability = [
@@ -201,5 +279,27 @@ class AlertService
     private function getAdminRecipients(): Collection
     {
         return User::whereNotNull('role_id')->get();
+    }
+
+    private function hydrateAlertConfig(object $config): AlertConfig
+    {
+        if ($config instanceof AlertConfig) {
+            return $config;
+        }
+
+        $alertConfig = new AlertConfig;
+        $alertConfig->forceFill((array) $config);
+        $alertConfig->exists = isset($config->id);
+
+        return $alertConfig;
+    }
+
+    private function reportThrowable(\Throwable $throwable): void
+    {
+        try {
+            app(ExceptionHandler::class)->report($throwable);
+        } catch (\Throwable) {
+            // Plain unit tests do not boot the Laravel exception handler.
+        }
     }
 }
