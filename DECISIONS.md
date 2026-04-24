@@ -256,7 +256,7 @@ When implementing any dp-NN plan, if the agent or CodeRabbit identifies a change
 
 1. Identify the correct destination plan (dp-11 = auth, dp-12 = observability, dp-13 = E2E, new = create stub).
 2. Append the finding to that plan's "Deferred from <source>" section with: description, file:line, citation, date.
-3. Leave a plain GitHub comment on the thread: "Acknowledged. Out of scope for dp-NN; deferred to dp-MM. See <plan link>." Then resolve the thread via UI / `gh api`. Do NOT use `@coderabbitai` chat mentions — they are Pro-only (see Decision #11).
+3. Post reasoning on the thread — either a plain GitHub comment or an `@coderabbitai` reply (both work on Pro). Include the three-part rationale (what CR claimed → why wrong/out-of-scope → intended design). Then resolve the thread via UI / `gh api`. `@coderabbitai` mentions are a first-class tool, not forbidden.
 4. Do NOT silently expand the current PR scope.
 
 
