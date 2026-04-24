@@ -392,6 +392,7 @@ class AlertServiceAuditTest extends LaravelTestCase
         $this->assertSame(['email'], $newValues['channels']);
         $this->assertSame('critical', $newValues['severity']);
         $this->assertSame(['memory'], $newValues['breached']);
+        $this->assertNotNull($alertConfig->fresh()->last_notification_at);
     }
 
     public function test_capacity_alert_audit_is_best_effort(): void
@@ -521,6 +522,7 @@ class AlertServiceAuditTest extends LaravelTestCase
             'entity_type' => 'alert_config',
             'entity_id' => $alertConfig->id,
         ]);
+        $this->assertNull($alertConfig->fresh()->last_notification_at);
         Log::shouldHaveReceived('error')->with(
             'Webhook notification failed',
             Mockery::on(fn (array $context) => $context['alert_config_id'] === $alertConfig->id

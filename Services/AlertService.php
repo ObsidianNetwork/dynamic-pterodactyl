@@ -57,9 +57,7 @@ class AlertService
                 $availability = $this->resourceService->getLocationAvailability($locationId);
                 $alerts = $this->checkThresholds($availability, $config);
 
-                if (! empty($alerts)) {
-                    $this->sendNotifications($config, $availability, $alerts);
-
+                if (! empty($alerts) && $this->sendNotifications($config, $availability, $alerts)) {
                     DB::table('ptero_alert_configs')
                         ->where('id', $config->id)
                         ->update(['last_notification_at' => now()]);
@@ -124,7 +122,7 @@ class AlertService
         return $alerts;
     }
 
-    private function sendNotifications(object $config, array $availability, array $alerts): void
+    private function sendNotifications(object $config, array $availability, array $alerts): bool
     {
         $locationScope = $availability['location_id'] ?? $alerts[0]['location_id'] ?? $config->location_id ?? null;
         $locationName = $availability['location_name']
@@ -210,6 +208,8 @@ class AlertService
                 'location_scope' => $locationScope,
             ]);
         }
+
+        return $deliveredChannels !== [];
     }
 
     /**
@@ -218,7 +218,13 @@ class AlertService
     public function sendTestNotification(object $config): void
     {
         $testAlerts = [
-            ['type' => 'test', 'resource' => 'memory', 'utilization' => 85],
+            [
+                'type' => 'test',
+                'resource' => 'memory',
+                'utilization' => 85,
+                'usage_percent' => 85.0,
+                'threshold' => (int) ($config->memory_warning_threshold ?? 80),
+            ],
         ];
 
         $testAvailability = [
