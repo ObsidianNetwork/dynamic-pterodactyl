@@ -2,13 +2,20 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Models\User;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestCase;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
@@ -263,11 +270,116 @@ class AlertServiceTest extends TestCase
 
         $this->assertCount(1, $healthyRecipient->notifications);
         $this->assertInstanceOf(CapacityAlertNotification::class, $healthyRecipient->notifications[0]);
-        Log::shouldHaveReceived('warning')->once()->with(
+        Log::shouldHaveReceived('warning')->with(
             'Failed to send capacity alert email',
             Mockery::on(fn (array $context) => $context['alert_config_id'] === 77
                 && $context['recipient_id'] === 7
                 && $context['error'] === 'smtp down')
+        );
+    }
+}
+
+class AlertServiceAuditTest extends LaravelTestCase
+{
+    use DatabaseTransactions;
+
+    private function makeService(ResourceCalculationService $resourceService): AlertService
+    {
+        return new AlertService($resourceService);
+    }
+
+    private function runCheck(AlertService $service, AlertConfig $alertConfig): void
+    {
+        $method = new \ReflectionMethod($service, 'checkAlertConfig');
+        $method->setAccessible(true);
+        $method->invoke($service, $alertConfig);
+    }
+
+    public function test_capacity_alert_writes_audit_row_on_successful_send(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->create(['role_id' => 1]);
+        $alertConfig = AlertConfig::create([
+            'location_id' => 12,
+            'location_name' => 'HEL-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => true,
+            'notification_emails' => ['ops@example.com'],
+            'webhook_notifications' => false,
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(12)->andReturn([
+            'location_id' => 12,
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 95, 'disk' => 50],
+        ]);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        Notification::assertSentTo($admin, CapacityAlertNotification::class);
+        $this->assertDatabaseHas('ptero_audit_logs', [
+            'action' => 'capacity_alert_sent',
+            'entity_type' => 'alert_config',
+            'entity_id' => $alertConfig->id,
+        ]);
+
+        $log = DB::table('ptero_audit_logs')->where('action', 'capacity_alert_sent')->latest('id')->first();
+        $newValues = json_decode($log->new_values, true);
+
+        $this->assertSame(['email'], $newValues['channels']);
+        $this->assertSame('critical', $newValues['severity']);
+        $this->assertSame(['memory'], $newValues['breached']);
+    }
+
+    public function test_capacity_alert_audit_is_best_effort(): void
+    {
+        Notification::fake();
+        Log::spy();
+
+        $admin = User::factory()->create(['role_id' => 1]);
+        $alertConfig = AlertConfig::create([
+            'location_id' => 18,
+            'location_name' => 'IAD-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => true,
+            'notification_emails' => ['ops@example.com'],
+            'webhook_notifications' => false,
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(18)->andReturn([
+            'location_id' => 18,
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 91, 'disk' => 50],
+        ]);
+
+        $auditLogService = Mockery::mock(AuditLogService::class);
+        $auditLogService->shouldReceive('log')->once()->andThrow(new \RuntimeException('audit unavailable'));
+        $this->app->instance(AuditLogService::class, $auditLogService);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        Notification::assertSentTo($admin, CapacityAlertNotification::class);
+        Log::shouldHaveReceived('warning')->with(
+            'extension audit write failed',
+            Mockery::on(fn (array $context) => $context['action'] === 'capacity_alert_sent'
+                && $context['entity_type'] === 'alert_config'
+                && $context['entity_id'] === $alertConfig->id
+                && $context['error'] === 'audit unavailable')
         );
     }
 }

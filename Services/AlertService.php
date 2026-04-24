@@ -11,9 +11,12 @@ use Illuminate\Support\Facades\Log;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
 
 class AlertService
 {
+    use AuditsExtensionActions;
+
     private ResourceCalculationService $resourceService;
 
     public function __construct(ResourceCalculationService $resourceService)
@@ -124,6 +127,7 @@ class AlertService
     private function sendNotifications(object $config, array $availability, array $alerts): void
     {
         $locationName = $config->location_name ?? 'All Locations';
+        $deliveredChannels = [];
 
         if ($config->email_notifications) {
             $recipients = $this->getAdminRecipients();
@@ -134,6 +138,7 @@ class AlertService
                 ]);
             } else {
                 $alertConfig = $this->hydrateAlertConfig($config);
+                $emailDelivered = false;
 
                 foreach ($recipients as $admin) {
                     try {
@@ -142,6 +147,7 @@ class AlertService
                             $alerts,
                             $availability,
                         ));
+                        $emailDelivered = true;
                     } catch (\Throwable $e) {
                         Log::warning('Failed to send capacity alert email', [
                             'alert_config_id' => $config->id,
@@ -150,6 +156,10 @@ class AlertService
                         ]);
                         $this->reportThrowable($e);
                     }
+                }
+
+                if ($emailDelivered) {
+                    $deliveredChannels[] = 'email';
                 }
             }
         }
@@ -175,12 +185,23 @@ class AlertService
                         'timestamp' => now()->toIso8601String(),
                     ]],
                 ]);
+
+                $deliveredChannels[] = 'webhook';
             } catch (\Exception $e) {
                 Log::error('Webhook notification failed', [
                     'url' => $config->webhook_url,
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+
+        if ($deliveredChannels !== []) {
+            $this->safeAudit('capacity_alert_sent', 'alert_config', (int) $config->id, [
+                'channels' => $deliveredChannels,
+                'severity' => collect($alerts)->contains('type', 'critical') ? 'critical' : 'warning',
+                'breached' => array_column($alerts, 'resource'),
+                'location_scope' => $config->location_id,
+            ]);
         }
     }
 
