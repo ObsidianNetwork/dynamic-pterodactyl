@@ -220,6 +220,54 @@ class AlertServiceTest extends TestCase
         );
     }
 
+    public function test_capacity_alert_email_uses_evaluated_location_for_global_scope(): void
+    {
+        $recipient = new class
+        {
+            public int $id = 303;
+
+            public array $notifications = [];
+
+            public function notify($notification): void
+            {
+                $this->notifications[] = $notification;
+            }
+        };
+
+        $query = Mockery::mock();
+        $query->shouldReceive('get')->once()->andReturn(new Collection([$recipient]));
+
+        $user = Mockery::mock('alias:App\\Models\\User');
+        $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
+
+        $service = $this->makeService();
+        $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 100,
+                'location_id' => null,
+                'location_name' => null,
+                'email_notifications' => true,
+                'notification_emails' => json_encode(['ops@example.com']),
+                'webhook_notifications' => false,
+                'webhook_url' => null,
+            ],
+            [
+                'location_id' => 44,
+                'location_name' => 'FRA-1',
+                'total_capacity' => ['memory' => 65536, 'disk' => 512000],
+                'total_allocated' => ['memory' => 60000, 'disk' => 500000],
+            ],
+            [
+                ['type' => 'critical', 'resource' => 'memory', 'utilization' => 91.5, 'usage_percent' => 91.5, 'threshold' => 90],
+            ],
+        );
+
+        $this->assertCount(1, $recipient->notifications);
+        $this->assertSame(44, $recipient->notifications[0]->alertConfig->location_id);
+        $this->assertSame('FRA-1', $recipient->notifications[0]->alertConfig->location_name);
+    }
+
     public function test_capacity_alert_email_logged_on_dispatch_failure(): void
     {
         Log::spy();
@@ -381,5 +429,49 @@ class AlertServiceAuditTest extends LaravelTestCase
                 && $context['entity_id'] === $alertConfig->id
                 && $context['error'] === 'audit unavailable')
         );
+    }
+
+    public function test_capacity_alert_uses_evaluated_location_scope_in_audit_for_global_config(): void
+    {
+        Notification::fake();
+
+        $admin = User::factory()->create(['role_id' => 1]);
+        $alertConfig = AlertConfig::create([
+            'location_id' => null,
+            'location_name' => null,
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => true,
+            'notification_emails' => ['ops@example.com'],
+            'webhook_notifications' => false,
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocations')->once()->andReturn([
+            ['id' => 44, 'name' => 'FRA-1'],
+        ]);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(44)->andReturn([
+            'location_id' => 44,
+            'location_name' => 'FRA-1',
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 95, 'disk' => 50],
+        ]);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        Notification::assertSentTo($admin, CapacityAlertNotification::class, function (CapacityAlertNotification $notification) {
+            return $notification->alertConfig->location_id === 44
+                && $notification->alertConfig->location_name === 'FRA-1';
+        });
+
+        $log = DB::table('ptero_audit_logs')->where('action', 'capacity_alert_sent')->latest('id')->first();
+        $newValues = json_decode($log->new_values, true);
+
+        $this->assertSame(44, $newValues['location_scope']);
     }
 }

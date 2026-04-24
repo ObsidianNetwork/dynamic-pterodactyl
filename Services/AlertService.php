@@ -126,7 +126,15 @@ class AlertService
 
     private function sendNotifications(object $config, array $availability, array $alerts): void
     {
-        $locationName = $config->location_name ?? 'All Locations';
+        $locationScope = $availability['location_id'] ?? $alerts[0]['location_id'] ?? $config->location_id ?? null;
+        $locationName = $availability['location_name']
+            ?? $alerts[0]['location_name']
+            ?? $config->location_name
+            ?? ($locationScope !== null ? 'Location #' . $locationScope : 'All Locations');
+        $alertConfig = $this->hydrateAlertConfig((object) array_merge((array) $config, [
+            'location_id' => $locationScope,
+            'location_name' => $locationName,
+        ]));
         $deliveredChannels = [];
 
         if ($config->email_notifications) {
@@ -137,7 +145,6 @@ class AlertService
                     'alert_config_id' => $config->id,
                 ]);
             } else {
-                $alertConfig = $this->hydrateAlertConfig($config);
                 $emailDelivered = false;
 
                 foreach ($recipients as $admin) {
@@ -199,7 +206,7 @@ class AlertService
                 'channels' => $deliveredChannels,
                 'severity' => collect($alerts)->contains('type', 'critical') ? 'critical' : 'warning',
                 'breached' => array_column($alerts, 'resource'),
-                'location_scope' => $config->location_id,
+                'location_scope' => $locationScope,
             ]);
         }
     }
