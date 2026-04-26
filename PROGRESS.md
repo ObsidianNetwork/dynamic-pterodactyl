@@ -39,7 +39,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 - [x] DECISIONS.md - architectural rationale
 - [x] PROGRESS.md - this file (with session state + debug context sections)
 - [x] CHANGELOG.md - milestone tracking
-- [x] skeleton/ - directory structure with starter files
+- [x] skeleton/ — deleted (empty subdirs only; dp-01 PR #16)
 
 ---
 
@@ -52,6 +52,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-10 | Slider UX + a11y baseline | Shipped — squash `a7fd667d` (fork PR #3) | Apr 2026 |
 | dp-11 | Authorization + surface reduction | Shipped — squash `b665d6d6` (fork PR #9) | Apr 2026 |
 | dp-13 | feat(setup-wizard): atomicity + audit reliability + test isolation | 8239686 | 2026-04-23 |
+| dp-01 | doc refresh README/AGENTS/CLAUDE + delete empty skeleton/ | Shipped — squash `e2034a485` (fork PR #16) | Apr 2026 |
 
 ---
 
@@ -60,11 +61,11 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-23
+**Last checkpoint**: 2026-04-26
 **Working on**: No active task
-**Status**: dp-11 fully shipped on `dynamic-slider` via squash `b665d6d6` (fork PR #9)
+**Status**: dp-01 doc-refresh-skeleton-delete fully shipped on `dynamic-slider` via squash `e2034a485` (fork PR #16). Closes last unfinished dp-NN backlog item (dp-01-shippable-polish Change 3).
 **Current file**: PROGRESS.md
-**Next action**: Start dp-12 (capacity alerts + observability) or dp-13 (SetupWizard atomicity + audit-log reliability + E2E test). dp-12 first is preferred since it wires `AlertService::checkCapacityAlerts()` (deferred from dp-11).
+**Next action**: All dp-NN backlog items complete. Next work determined by driver.
 **Blockers**: None
 
 ### This Session's Changes:
