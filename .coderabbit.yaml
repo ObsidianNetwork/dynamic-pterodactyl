@@ -1,11 +1,15 @@
-# CodeRabbit config — applies to ALL PRs in this repo.
-# Ralph-loop contract (dp-process-01) depends on these values.
-# See .sisyphus/templates/ralph-loop-contract.md in the Paymenter fork.
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+
+# Explicit no-inheritance (default is OFF; explicit here prevents future surprise org-UI bleed).
+inheritance: false
 
 language: en-US
 
+# Reviewer-personality field (≤250 chars per schema). Cuts rejection-reasoning rounds.
+tone_instructions: "Respect PR scope boundaries. Flag out-of-scope findings as deferred and reference the matching dp-NN plan in the Paymenter fork's .sisyphus/plans/. Authors may reject findings with a 3-part rationale: claim, why wrong, intended design."
+
 reviews:
-  profile: assertive
+  profile: chill            # was: assertive. Community + Martian benchmark favor chill for default.
   commit_status: true
   fail_commit_status: true
   request_changes_workflow: true
@@ -13,18 +17,61 @@ reviews:
   auto_review:
     enabled: true
     auto_incremental_review: true
-    auto_pause_after_reviewed_commits: 0
+    auto_pause_after_reviewed_commits: 10   # was: 0 (over-correction). 10 = 2x CR default; @coderabbitai review escape if hit.
     drafts: false
     base_branches:
       - "dynamic-slider.*"
       - "dp-.*"
+    ignore_title_keywords:
+      - "WIP"
+      - "[skip review]"
+    ignore_usernames: []
+
+  # Note: skeleton/** is intentionally absent from path_filters.
+  # Filtering it out would prevent the path_instruction below from firing, defeating
+  # the scaffold-change gate. (Learned from ObsidianNetwork config review, 2026-04.)
+
+  path_instructions:
+    - path: "DynamicPterodactyl.php"
+      instructions: |
+        Extension entry point. boot() must wire routes, events, and view namespace.
+        Do not add provisioning logic here — delegate to extensions/Servers/Pterodactyl/.
+    - path: "skeleton/**"
+      instructions: |
+        Stale 2025-11-28 pre-implementation scaffold. Any change here is almost always
+        a mistake; demand justification in the commit message before approving.
+    - path: "database/migrations/**"
+      instructions: |
+        Destructive operations (drop/truncate) in up() must have a corresponding
+        restoration in down(). Flag any migration that violates this.
+        All tables must use the ptero_* prefix per convention.
+    - path: "Services/**"
+      instructions: |
+        One class per concern. Controllers must stay thin and delegate here.
+        Do not cache Pterodactyl API responses — real-time queries are a settled
+        decision (DECISIONS.md). Do not add pricing logic here; pricing moved to
+        Paymenter core (ptero_pricing_configs table dropped in migration 5).
+    - path: "Http/Controllers/**"
+      instructions: |
+        Keep thin — delegate to Services/. Do not reimplement server provisioning.
+    - path: "Admin/**"
+      instructions: |
+        Filament 4 only (v3 namespaces moved). Pages/ for dashboards; Resources/ for CRUD.
+        Do not place admin screens in app/Admin/ — they live here to travel with the plugin.
 
   pre_merge_checks:
     title:
       mode: "warning"
       requirements: |
-        Use Conventional Commits. Include dp-NN scope when applicable.
+        Title should follow Conventional Commits: type(scope)?: subject
+        where type in (feat|fix|chore|docs|refactor|test|build|ci|perf).
+        Include dp-NN identifier when applicable.
     description:
       mode: "warning"
     issue_assessment:
       mode: "off"
+
+knowledge_base:
+  # learnings.scope = auto correctly isolates public-repo learnings.
+  learnings:
+    scope: auto
