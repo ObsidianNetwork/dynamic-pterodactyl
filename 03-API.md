@@ -45,7 +45,6 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:1
 
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
 
 Route::prefix('api/dynamic-pterodactyl/admin')
