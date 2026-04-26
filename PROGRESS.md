@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-08 reservation verification shipped
-**Last Updated**: 2026-04-23
-**Last Session**: dp-08 merged via PR #7 as squash commit `5a28acb`. Shipped self-exclusion at payment verification, active-reservation idempotency keys, slider-bound reservation validation, and strict availability `has_capacity` semantics.
+**Phase**: dp-14 reservation throttle shipped
+**Last Updated**: 2026-04-27
+**Last Session**: dp-14 merged via PR #17 as squash commit `5b13f774`. Restored the documented `throttle:10,1` reservation middleware, synced 03-API.md, and replaced the broken throttle test with the unconfigured-product 422→429 pattern.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*dp-08 shipped on `dynamic-slider` (`5a28acb`).*
+*dp-14 shipped on `dynamic-slider` (`5b13f774`).*
 
 | Plan | Summary | Status | Date |
 |---|---|---|---|
@@ -53,6 +53,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-11 | Authorization + surface reduction | Shipped — squash `b665d6d6` (fork PR #9) | Apr 2026 |
 | dp-13 | feat(setup-wizard): atomicity + audit reliability + test isolation | 8239686 | 2026-04-23 |
 | dp-01 | doc refresh README/AGENTS/CLAUDE + delete empty skeleton/ | Shipped — squash `e2034a485` (fork PR #16) | Apr 2026 |
+| dp-14 | Reservation endpoint throttle restore (10/min) | Shipped — squash `5b13f774` (fork PR #17) | Apr 2026 |
 
 ---
 
@@ -61,9 +62,9 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-26
+**Last checkpoint**: 2026-04-27
 **Working on**: No active task
-**Status**: dp-01 doc-refresh-skeleton-delete fully shipped on `dynamic-slider` via squash `e2034a485` (fork PR #16). Closes last unfinished dp-NN backlog item (dp-01-shippable-polish Change 3).
+**Status**: dp-14 rate-limit-reservations fully shipped on `dynamic-slider` via squash `5b13f774` (fork PR #17). Reservation endpoints now enforce the documented 10 req/min authenticated-user throttle with matching coverage in docs and tests.
 **Current file**: PROGRESS.md
 **Next action**: All dp-NN backlog items complete. Next work determined by driver.
 **Blockers**: None
@@ -276,6 +277,7 @@ When debugging, record:
 | 2026-04-23 | **dp-core-01 shipped** - Paymenter fork PR #2, squash commit `121df289`. Five core patches: server-side `DynamicSliderPricingRule` (numeric coercion guards, last-tier-only unlimited rule, empty-string `up_to` rejection, non-string model guard, negative `up_to` rejection); strict throw on unknown dynamic_slider models in `ConfigOption::calculateDynamicPrice`; shared `plans.dynamic_slider_base_price` separated from per-slider marginals (`paymenter:migrate-slider-base-price` artisan); server-side `upgradable=false` for dynamic_slider via Page mutators (defense-in-depth alongside UI hide); slider-aware `Service::calculatePrice()` with backfill-window protection (resolves `slider_value` first, falls back to migrated property; gates base price on at least one resolved value to prevent under/overcharge during rollout) plus `paymenter:backfill-slider-config-values` artisan. CodeRabbit 6 review rounds, all threads resolved, mergeable=CLEAN. 105 tests, 330 assertions, all green. Created `FORK-NOTES.md` at repo root. |
 | 2026-04-23 | **dp-09 shipped** - Extension pricing scaffolding cleanup. PR #8, squash commit `54da97db`. Retired `PricingCalculatorService` (delegate `/pricing/calculate` to core via `Plan::dynamicSliderBasePrice()` + `ConfigOption::calculateDynamicPriceDelta()`), renamed slim reader to `SliderConfigReaderService`, dropped `ReservationService` pricing guard, deleted `PricingConfigValidator` (rewired `ConfigOptionSetupService` to use `App\Rules\DynamicSliderPricingRule` directly), updated docs (02-SERVICES, 03-API, 07-PRICING-MODELS, DECISIONS, CHANGELOG). Dynamic slider validation (only configured sliders required), 404 on unconfigured product, 410 for retired validate endpoint, no debug-info leak in prod 500. CodeRabbit 4 review rounds, all 5 threads resolved, CLEAN/MERGEABLE. |
 | 2026-04-24 | **dp-12 re-shipped under correct PR author** - PR #12, squash commit `9c028c8`, supersedes #11. CodeRabbit gate satisfied after aged `@coderabbitai review` mention; 115 tests, 1 skipped. |
+| 2026-04-27 | **dp-14 shipped** - PR #17, squash commit `5b13f774`. Restored the documented reservation route throttle (`throttle:10,1`), synced the API spec note/code snippet, and replaced the broken reservation throttle test with the unconfigured-product validation pattern so the isolated check passes without touching known test-infra failures. |
 | 2025-11-29 | **Extended Pricing + Extension Simplification** - Added tiered/base_addon pricing models to native `dynamic_slider`. Simplified DynamicPterodactyl: removed custom frontend sliders (head-scripts.blade.php), updated all event listeners to read from native config_options with `metadata.resource_type`, fixed property access to use morphMany relationship. Extension now focuses only on reservations and availability. |
 | 2025-11-29 | **Paymenter Core - dynamic_slider Type** - Implemented native `dynamic_slider` config option type in Paymenter core. Adds continuous value selection (e.g., memory 1GB-64GB) with price calculated as `value × rate`. Changes to 7 files: migration, model, admin UI, blade component, Checkout.php, CartItem.php, Cart.php. |
 | 2025-11-29 | **Round 10 Slider Fix** - Used `Livewire.hook('morph.updating')` with `skip()` to prevent DOM morphing of slider elements. Removed failing reinit/MutationObserver logic. Updated slider to use `$wire.set()` with debouncing. |
