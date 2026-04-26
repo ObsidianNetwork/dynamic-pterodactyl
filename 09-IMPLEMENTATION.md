@@ -33,7 +33,9 @@ extension/Others/DynamicPterodactyl/
 │       │   ├── AvailabilityController.php
 │       │   ├── PricingController.php
 │       │   └── ReservationController.php
-│       └── AdminController.php
+│       └── Admin/
+│           ├── AdminReservationController.php
+│           └── AdminCapacityController.php
 │
 ├── Models/
 │   ├── ResourceReservation.php
@@ -65,131 +67,25 @@ extension/Others/DynamicPterodactyl/
 
 ## Implementation Roadmap
 
-### Phase 1: Foundation (Weeks 1-2)
+| Phase | Status | Reference |
+|---|---|---|
+| Database schema | ✅ Shipped | dp-08 idempotency + drop_released migrations |
+| Service layer | ✅ Shipped | dp-09 cleanup; 8 services live |
+| API endpoints | ✅ Shipped | dp-05 admin API; dp-08 reservation hardening |
+| Filament admin UI | ✅ Shipped | dp-13 SetupWizard atomicity |
+| Pricing model | ✅ Delegated to core | core `DynamicSliderPricingRule` (dp-core-01) |
+| Frontend slider | ✅ Shipped | dp-10 a11y; dp-core-02 Blade partial |
+| Capacity alerts | ✅ Shipped | dp-12 scheduled task + email; dp-17 delivery log |
+| Authorization hardening | ✅ Shipped | dp-11 policy + cart-item ownership |
 
-**Goal**: Database and core services working
+## Current Backlog
 
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| Database migrations | 4h | 4 migration files |
-| Eloquent models | 2h | 4 model classes |
-| ResourceCalculationService | 6h | API integration, availability calc |
-| NodeSelectionService | 4h | Best-fit algorithm |
-| Unit tests for services | 4h | Test coverage |
+Improvement items from the 2026-04-26 audit pass:
 
-**Milestone**: Can query Pterodactyl and calculate node availability.
-
-### Phase 2: Reservation System (Weeks 3-4)
-
-**Goal**: Reservations with concurrency handling
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| ReservationService | 8h | Create, confirm, cancel, extend |
-| Pessimistic locking | 4h | Transaction handling |
-| Cleanup job | 2h | Scheduled task |
-| API endpoints | 4h | Controllers + routes |
-| Integration tests | 4h | End-to-end reservation flow |
-
-**Milestone**: Can create reservations that correctly track availability.
-
-### Phase 3: Pricing Engine (Weeks 5-6)
-
-**Goal**: All three pricing models working
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| PricingCalculatorService | 8h | Linear, tiered, base+addon |
-| Pricing API endpoint | 2h | Calculate endpoint |
-| Price breakdown response | 2h | Itemized output |
-| Unit tests for pricing | 4h | Edge case coverage |
-
-**Milestone**: Can calculate prices for any configuration.
-
-### Phase 4: Admin UI - Core (Weeks 7-8)
-
-**Goal**: Basic admin functionality
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| Dashboard page | 6h | Stats, connection status, capacity |
-| PricingConfigResource | 10h | 5-tab visual editor |
-| Settings page | 4h | Connection, defaults, display |
-| Form-to-JSON conversion | 4h | mutateFormDataBeforeSave |
-
-**Milestone**: Admins can configure pricing without JSON editing.
-
-### Phase 5: Admin UI - Advanced (Weeks 9-10)
-
-**Goal**: Full admin capabilities
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| ReservationResource | 6h | List, extend, cancel |
-| NodeMonitoring page | 4h | Real-time capacity display |
-| Analytics page | 6h | Revenue, conversion, trends |
-| Import/Export | 4h | Pricing config backup |
-
-**Milestone**: Complete admin dashboard.
-
-### Phase 6: Frontend (Weeks 11-12)
-
-**Goal**: Customer-facing sliders
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| Native slider component | 8h | Alpine.js + HTML range implementation |
-| Real-time price updates | 4h | Debounced API calls |
-| Availability limits | 4h | Dynamic max values |
-| CSS styling | 4h | Responsive, dark mode |
-| Cross-browser testing | 4h | Chrome, Firefox, Safari, Edge |
-
-**Milestone**: Customers can select resources and see live pricing.
-
-### Phase 7: Alerts & Audit (Week 13)
-
-**Goal**: Operational monitoring
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| AuditLogService | 4h | Logging all changes |
-| Audit log page | 4h | View/filter/export |
-| AlertService | 6h | Threshold checking, notifications |
-| AlertConfigResource | 4h | Admin configuration |
-| Webhook integration | 2h | Discord/Slack alerts |
-
-**Milestone**: Full audit trail and capacity alerts.
-
-### Phase 8: Event Integration (Week 14)
-
-**Goal**: Seamless Paymenter integration
-
-| Task | Est. Hours | Deliverable |
-|------|------------|-------------|
-| CartItem event handlers | 4h | Create/delete reservation |
-| Invoice payment handler | 4h | Confirm reservation |
-| Service creation handler | 2h | Link service to reservation |
-| End-to-end testing | 6h | Full purchase flow |
-| Documentation | 4h | README, inline comments |
-
-**Milestone**: Complete, production-ready extension.
-
----
-
-## Total Timeline
-
-| Phase | Duration | Cumulative |
-|-------|----------|------------|
-| 1. Foundation | 2 weeks | Week 2 |
-| 2. Reservations | 2 weeks | Week 4 |
-| 3. Pricing | 2 weeks | Week 6 |
-| 4. Admin Core | 2 weeks | Week 8 |
-| 5. Admin Advanced | 2 weeks | Week 10 |
-| 6. Frontend | 2 weeks | Week 12 |
-| 7. Alerts & Audit | 1 week | Week 13 |
-| 8. Event Integration | 1 week | Week 14 |
-
-**Total: 14 weeks** (assuming ~20 hours/week)
+- **dp-14**: Rate-limit reservation endpoints to 10 req/min per authenticated user — ✅ Shipped (PR #17)
+- **dp-16**: Documentation sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture — ✅ Shipped (this PR)
+- **dp-17**: Alert delivery log + `AlertDeliveryFailed` escalation event — ✅ Shipped (PR #18)
+- **dp-18**: Capacity-fanout performance: batch Pterodactyl reads in `ResourceCalculationService` to reduce O(locations × nodes) API calls in admin views — Pending
 
 ---
 
