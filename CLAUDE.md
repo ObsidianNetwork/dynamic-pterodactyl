@@ -155,17 +155,38 @@ Copy this to PROGRESS.md "Current Session State" when checkpointing:
 Extension phpunit MUST run with `DB_DATABASE=paymenter_test`. The phpunit.xml `<php>` block enforces this; tests/bootstrap.php aborts if violated. See DECISIONS.md for rationale.
 
 
-## CodeRabbit Review Mandate (dp-process-audit, 2026-04-24)
+## CodeRabbit Review Mandate (dp-process-audit, 2026-04-24; v2 2026-04-24)
 
 Every PR against `dynamic-slider` (and any parent-repo branch) MUST follow `.sisyphus/templates/ralph-loop-contract.md`. This is non-negotiable after the 2026-04-24 incident where two consecutive PRs (#10, #11) merged within minutes of opening, zero CodeRabbit reviews submitted.
+
+**`.coderabbit.yaml` deployed (v2, 2026-04-24)**
+
+Both repos now carry a `.coderabbit.yaml` on their default branch:
+- `Jordanmuss99/dynamic-pterodactyl` — auto-review on `dp-.*` and `dynamic-slider.*` branches; auto-pause disabled; `request_changes_workflow: true`; `fail_commit_status: true`
+- `ObsidianNetwork/Paymenter-Obsidian-Network` — auto-review on `dynamic-slider.*`; same settings
+
+CodeRabbit reviews automatically on push. No manual `@coderabbitai review` mention needed unless review is absent after ~2 minutes.
 
 **Pre-merge gate** (mechanical, run immediately before `gh pr merge`):
 
 ```bash
-/var/www/paymenter/.sisyphus/templates/ralph-loop-verify.sh <PR_NUMBER>
+/var/www/paymenter/.sisyphus/templates/ralph-loop-verify.sh \
+  --repo <owner/repo> \
+  --expected-base <base-branch-regex> \
+  <PR_NUMBER>
+```
+
+Example for extension PR:
+
+```bash
+/var/www/paymenter/.sisyphus/templates/ralph-loop-verify.sh \
+  --repo Jordanmuss99/dynamic-pterodactyl \
+  --expected-base '^(dynamic-slider|dp-)' \
+  <PR_NUMBER>
 ```
 
 Exit 0 = safe to merge. Non-zero = DO NOT merge. Do not bypass the script.
+Use `--allow-actionable --reason "..."` only with explicit driver approval; reason is audit-logged to `.sisyphus/notepads/ralph-loop-waivers.jsonl`.
 
 **PR author identity** (what CodeRabbit actually checks for entitlement):
 
@@ -190,10 +211,19 @@ git config user.email "164892154+Jordanmuss99@users.noreply.github.com"
 
 `164892154+Jordanmuss99@users.noreply.github.com` is the default safe form — it avoids the GH007 push-rejection that blocks `jordanmuss@hotmail.com` (hotmail is marked private on the GitHub account). Use the hotmail address only if the Jordanmuss99 GitHub account's email-privacy setting is changed to allow public email pushes.
 
-**Orchestrator rule**: when a subagent claims a PR is opened or merged, atlas MUST independently run:
+**Orchestrator rule**: when a subagent claims a PR is opened or merged, the driver MUST independently run:
 
 ```bash
-gh pr view <N> --json author,createdAt,mergedAt,reviews --jq '{author: .author.login, createdAt, mergedAt, cr_review_count: ([.reviews[] | select(.author.login=="coderabbitai")] | length)}'
+gh pr view <N> --repo <owner/repo> --json author,createdAt,mergedAt,statusCheckRollup \
+  --jq '{author: .author.login, createdAt, mergedAt, cr_status: ([.statusCheckRollup[] | select(.name=="CodeRabbit")] | first | .state)}'
 ```
 
-If `author != "Jordanmuss99"`, OR `mergedAt - createdAt < 3 minutes`, OR `cr_review_count < 1`, treat as a contract violation. See `.sisyphus/notepads/dp-process-audit/incident-2026-04-24.md` for remediation.
+If `author != "Jordanmuss99"`, OR `mergedAt - createdAt < 3 minutes`, OR `cr_status != "SUCCESS"`, treat as a contract violation. See `.sisyphus/notepads/dp-process-audit/incident-2026-04-24.md` for remediation.
+
+## Enforceable rules (CodeRabbit reads these)
+
+- FAIL when: Pterodactyl API responses are cached. Rationale: real-time queries are a settled decision (DECISIONS.md). Rate budget is ~10/min against the 240/min panel limit.
+- FAIL when: pricing logic is added to this extension's admin interface or services. Rationale: pricing moved to Paymenter core per DECISIONS.md. The `ptero_pricing_configs` table was dropped in migration `2025_01_01_000005`.
+- FAIL when: server provisioning is reimplemented here (createServer, suspendServer, terminateServer). Rationale: companion extension — delegate to `extensions/Servers/Pterodactyl/`.
+- FAIL when: files under `skeleton/` are modified. Rationale: stale scaffold; only root-level files are canonical.
+- FAIL when: changes to this extension are committed from the outer Paymenter repo working tree. Rationale: this directory has its own `.git/`. Use `cd extensions/Others/DynamicPterodactyl && git commit`.
