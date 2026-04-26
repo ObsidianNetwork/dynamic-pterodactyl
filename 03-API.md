@@ -60,7 +60,17 @@ Route::prefix('api/dynamic-pterodactyl/admin')
 
 ### Removed Endpoints
 
-The following endpoints were previously documented but either never shipped or were retired by dp-09/dp-11: `validate-config`, `import`, `export`, `extend` (admin), `cleanup`, `test-connection`, `statistics`, and `/dashboard`. Future readers who find references in old commits can ignore them.
+The following endpoints were previously documented but either never shipped or were retired by dp-09/dp-11:
+- `POST /api/dynamic-pterodactyl/pricing/validate-config`
+- `POST /api/dynamic-pterodactyl/admin/pricing/import`
+- `GET /api/dynamic-pterodactyl/admin/pricing/export`
+- `POST /api/dynamic-pterodactyl/admin/reservations/{token}/extend`
+- `POST /api/dynamic-pterodactyl/admin/reservations/cleanup`
+- `POST /api/dynamic-pterodactyl/admin/test-connection`
+- `GET /api/dynamic-pterodactyl/admin/statistics`
+- `GET /api/dynamic-pterodactyl/admin/dashboard`
+
+Future readers who find references in old commits can ignore them.
 
 ---
 

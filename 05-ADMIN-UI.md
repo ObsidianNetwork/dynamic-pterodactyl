@@ -51,6 +51,6 @@ Dynamic Pterodactyl (Admin Menu)
 
 ## Reservation Resource
 
-- **Purpose**: A read-only list of all active and historical resource reservations, with actions to manually extend or cancel pending holds.
+- **Purpose**: Lists all active and historical resource reservations; provides admin actions to manually extend or cancel pending holds.
 - **Who uses it**: Administrators managing customer reservations or performing manual cleanup.
 - **Primary data source**: `ptero_resource_reservations` table.
