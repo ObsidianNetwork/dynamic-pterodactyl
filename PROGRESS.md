@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-16 docs sync shipped
+**Phase**: dp-18 capacity-fanout performance shipped
 **Last Updated**: 2026-04-27
-**Last Session**: dp-16 merged via PR #19 as squash commit `f5f88c7`. Rewrote three stale spec files (03-API, 05-ADMIN-UI, 09-IMPLEMENTATION) to match the post-dp-13 architecture, removing phantom controllers and retired Filament resources.
+**Last Session**: dp-18 merged via PR #20 as squash commit `be4756f`. Added `buildClusterSnapshot()` batch reads for admin capacity views, replacing O(locations × nodes) Pterodactyl walks with constant-bounded snapshot fetches.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*dp-16 shipped on `dynamic-slider` (`f5f88c7`).*
+*dp-18 shipped on `dynamic-slider` (`be4756f`).*
 
 | Plan | Summary | Status | Date |
 |---|---|---|---|
@@ -55,7 +55,8 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-01 | doc refresh README/AGENTS/CLAUDE + delete empty skeleton/ | Shipped — squash `e2034a485` (fork PR #16) | Apr 2026 |
 | dp-14 | Reservation endpoint throttle restore (10/min) | Shipped — squash `5b13f774` (fork PR #17) | Apr 2026 |
 | dp-17 | Alert escalation: persistent delivery log + failure event + admin UI | Shipped — squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18) | Apr 2026 |
-|| dp-16 | Docs sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture | Shipped — squash `f5f88c7` (PR #19) | Apr 2026 |
+| dp-16 | Docs sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture | Shipped — squash `f5f88c7` (PR #19) | Apr 2026 |
+| dp-18 | Capacity-fanout Performance: batch admin-view Pterodactyl reads | Shipped — squash `be4756f` (PR #20) | Apr 2026 |
 
 ---
 
@@ -66,16 +67,26 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 **Last checkpoint**: 2026-04-27
 **Working on**: No active task
-**Status**: dp-16 docs sync fully shipped on `dynamic-slider` via squash `f5f88c7` (PR #19). Spec files now accurately describe the actual admin routes, Filament pages/resources, and implementation roadmap post-dp-13.
-**Working on**: No active task
-**Status**: dp-17 alert escalation fully shipped on `dynamic-slider` via squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18). Alert delivery attempts now persist per-channel outcomes, dispatch `AlertDeliveryFailed` when every attempted channel fails, and surface recent failures in the audit-log admin page.
+**Status**: dp-18 capacity-fanout performance fully shipped on `dynamic-slider` via squash `be4756f` (PR #20). Admin capacity views now use `ResourceCalculationService::buildClusterSnapshot()` to batch nodes+servers reads while preserving real-time accuracy and graceful degraded snapshots.
 **Current file**: PROGRESS.md
 **Next action**: All dp-NN backlog items complete. Next work determined by driver.
 **Blockers**: None
 
 ### This Session's Changes:
 
-1. `f5f88c7` — Squash merge commit on `dynamic-slider` (PR #19).
+1. `be4756f` — Squash merge commit on `dynamic-slider` (PR #20).
+
+---
+
+## dp-18 — Capacity-fanout Performance: batch admin-view Pterodactyl reads
+
+**Status**: Shipped  
+**PR**: #20  
+**Merge commit**: be4756f  
+**Branch**: `dynamic-slider`  
+**Date**: 2026-04-27
+
+Added `ResourceCalculationService::buildClusterSnapshot()` which fetches all nodes + servers in 1-2 Pterodactyl API calls (using `include=servers` pagination, with fallback to separate server index). Swapped three admin call-sites (Dashboard, NodeMonitoring, AdminCapacityController) from O(locations × nodes) per-request API walks to the batch path. Added 5 unit tests including a performance call-count assertion (≤4 calls regardless of node count). CR: directly APPROVED on first review.
 
 <!-- 
 Update this section:
@@ -264,6 +275,7 @@ When debugging, record:
 ## Session Log
 
 | Date | What Happened |
+| 2026-04-27 | **dp-18 shipped** - PR #20, squash commit `be4756f`. Added `ResourceCalculationService::buildClusterSnapshot()` with `include=servers` pagination and server-index fallback, swapped Dashboard/NodeMonitoring/AdminCapacityController to the batch path, and added 5 unit tests including the ≤4-call regression guard. |
 | 2026-04-27 | **dp-16 shipped** - PR #19, squash commit `f5f88c7`. Rewrote 03-API, 05-ADMIN-UI, and 09-IMPLEMENTATION to match post-dp-13 architecture. Removed phantom `AdminController`, documented actual admin routes, and updated Filament surface (SetupWizard, NodeMonitoring, etc.). |
 |------|---------------|
 | 2025-11-29 | **PricingConfig → Setup Wizard** - Converted redundant PricingConfig system to Setup Wizard that creates native dynamic_slider ConfigOptions. Deleted PricingConfig model, PricingConfigResource (3 pages), added drop table migration. Updated Dashboard, PricingCalculatorService, PricingController to read from ConfigOptions. Rewrote tests for new architecture. |
