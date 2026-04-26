@@ -18,15 +18,16 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\PricingC
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ReservationController;
 
 Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
-    
     // Availability
     Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
-    
+
     // Pricing
     Route::post('/pricing/calculate', [PricingController::class, 'calculate']);
     Route::get('/pricing/config/{productId}', [PricingController::class, 'getConfig']);
-    
-    // Reservations
+});
+
+// Reservation endpoints — throttled (10 req/min) for checkout-retry burst tolerance
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:10,1'])->group(function () {
     Route::post('/reservation', [ReservationController::class, 'create']);
     Route::get('/reservation/{token}', [ReservationController::class, 'get']);
     Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);
@@ -196,7 +197,7 @@ Get pricing configuration and slider limits for a product.
 
 ### POST /api/dynamic-pterodactyl/reservation
 
-Create a resource reservation.
+Create a resource reservation. **Throttled at 10 req/min per authenticated user.**
 
 **Headers:**
 - `Idempotency-Key` *(optional, preferred)* — 8-64 characters, alphanumeric plus hyphen. When reused by the same user while an existing reservation is still `pending` or `confirmed`, the API returns the original reservation instead of creating a duplicate hold.
