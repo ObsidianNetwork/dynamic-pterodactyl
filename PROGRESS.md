@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-17 alert escalation shipped
+**Phase**: dp-16 docs sync shipped
 **Last Updated**: 2026-04-27
-**Last Session**: dp-17 merged via PR #18 as squash commit `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d`. Added persistent alert-delivery logging, `AlertDeliveryFailed` escalation dispatch, and an audit-log admin surface for recent delivery failures.
+**Last Session**: dp-16 merged via PR #19 as squash commit `f5f88c7`. Rewrote three stale spec files (03-API, 05-ADMIN-UI, 09-IMPLEMENTATION) to match the post-dp-13 architecture, removing phantom controllers and retired Filament resources.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*dp-17 shipped on `dynamic-slider` (`b7cdd54ba05fad4abae26adbea22ea4ba61dec4d`).*
+*dp-16 shipped on `dynamic-slider` (`f5f88c7`).*
 
 | Plan | Summary | Status | Date |
 |---|---|---|---|
@@ -55,6 +55,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-01 | doc refresh README/AGENTS/CLAUDE + delete empty skeleton/ | Shipped — squash `e2034a485` (fork PR #16) | Apr 2026 |
 | dp-14 | Reservation endpoint throttle restore (10/min) | Shipped — squash `5b13f774` (fork PR #17) | Apr 2026 |
 | dp-17 | Alert escalation: persistent delivery log + failure event + admin UI | Shipped — squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18) | Apr 2026 |
+|| dp-16 | Docs sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture | Shipped — squash `f5f88c7` (PR #19) | Apr 2026 |
 
 ---
 
@@ -65,6 +66,8 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 **Last checkpoint**: 2026-04-27
 **Working on**: No active task
+**Status**: dp-16 docs sync fully shipped on `dynamic-slider` via squash `f5f88c7` (PR #19). Spec files now accurately describe the actual admin routes, Filament pages/resources, and implementation roadmap post-dp-13.
+**Working on**: No active task
 **Status**: dp-17 alert escalation fully shipped on `dynamic-slider` via squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18). Alert delivery attempts now persist per-channel outcomes, dispatch `AlertDeliveryFailed` when every attempted channel fails, and surface recent failures in the audit-log admin page.
 **Current file**: PROGRESS.md
 **Next action**: All dp-NN backlog items complete. Next work determined by driver.
@@ -72,11 +75,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ### This Session's Changes:
 
-1. `5ddee90` — Added alert-delivery log migration/model/relation primitives plus `AlertDeliveryFailed` event.
-2. `2d144f6` — Refactored `AlertService` to persist per-channel outcomes and escalate fully failed alert deliveries with new tests.
-3. `c6931a5` — Added recent alert-delivery failures section to the audit-log admin page.
-4. `1096ed5` — Applied CodeRabbit portability fix: switched the failure query to `whereJsonLength(...)`.
-5. `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` — Squash merge commit on `dynamic-slider`.
+1. `f5f88c7` — Squash merge commit on `dynamic-slider` (PR #19).
 
 <!-- 
 Update this section:
@@ -265,6 +264,7 @@ When debugging, record:
 ## Session Log
 
 | Date | What Happened |
+| 2026-04-27 | **dp-16 shipped** - PR #19, squash commit `f5f88c7`. Rewrote 03-API, 05-ADMIN-UI, and 09-IMPLEMENTATION to match post-dp-13 architecture. Removed phantom `AdminController`, documented actual admin routes, and updated Filament surface (SetupWizard, NodeMonitoring, etc.). |
 |------|---------------|
 | 2025-11-29 | **PricingConfig → Setup Wizard** - Converted redundant PricingConfig system to Setup Wizard that creates native dynamic_slider ConfigOptions. Deleted PricingConfig model, PricingConfigResource (3 pages), added drop table migration. Updated Dashboard, PricingCalculatorService, PricingController to read from ConfigOptions. Rewrote tests for new architecture. |
 | 2026-04-22 | **dp-06 shipped** - Squash commit `3b1f1da`, merged 2026-04-22. |
