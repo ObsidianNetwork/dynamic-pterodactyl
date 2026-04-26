@@ -6,9 +6,12 @@ use App\Models\User;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Events\AlertDeliveryFailed;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertDeliveryLog;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
@@ -132,15 +135,21 @@ class AlertService
             'location_id' => $locationScope,
             'location_name' => $locationName,
         ]));
-        $deliveredChannels = [];
+        $channelsTried = [];
+        $channelsOk = [];
+        $channelsFailed = [];
+        $lastError = null;
 
         if ($config->email_notifications) {
+            $channelsTried[] = 'email';
             $recipients = $this->getAdminRecipients();
 
             if ($recipients->isEmpty()) {
                 Log::warning('No admin recipients configured for capacity alert', [
                     'alert_config_id' => $config->id,
                 ]);
+                $channelsFailed[] = 'email';
+                $lastError = 'No admin recipients configured';
             } else {
                 $emailDelivered = false;
 
@@ -157,17 +166,22 @@ class AlertService
                             'recipient_id' => $admin->id ?? null,
                             'error' => $e->getMessage(),
                         ]);
+                        $lastError = $e->getMessage();
                         $this->reportThrowable($e);
                     }
                 }
 
                 if ($emailDelivered) {
-                    $deliveredChannels[] = 'email';
+                    $channelsOk[] = 'email';
+                } else {
+                    $channelsFailed[] = 'email';
                 }
             }
         }
 
         if ($config->webhook_notifications && $config->webhook_url) {
+            $channelsTried[] = 'webhook';
+
             try {
                 // Format for Discord webhook compatibility
                 $alertColor = collect($alerts)->contains('type', 'critical') ? 16711680 : 16776960; // Red or Yellow
@@ -189,26 +203,99 @@ class AlertService
                     ]],
                 ])->throw();
 
-                $deliveredChannels[] = 'webhook';
+                $channelsOk[] = 'webhook';
             } catch (\Throwable $e) {
                 Log::error('Webhook notification failed', [
                     'alert_config_id' => $config->id,
                     'webhook_host' => parse_url($config->webhook_url, PHP_URL_HOST),
                     'error' => $e->getMessage(),
                 ]);
+                $channelsFailed[] = 'webhook';
+                $lastError = $e->getMessage();
             }
         }
 
-        if ($deliveredChannels !== []) {
+        $deliveryLog = $this->safeWriteDeliveryLog(
+            (int) $config->id,
+            $channelsTried !== [] && $channelsOk === [] ? 'check_failure' : 'capacity_breach',
+            $channelsTried,
+            $channelsOk,
+            $channelsFailed,
+            $lastError,
+        );
+
+        if ($channelsTried !== [] && $channelsOk === []) {
+            Event::dispatch(new AlertDeliveryFailed($deliveryLog ?? $this->makeTransientDeliveryLog(
+                (int) $config->id,
+                'check_failure',
+                $channelsTried,
+                $channelsOk,
+                $channelsFailed,
+                $lastError,
+            )));
+        }
+
+        if ($channelsOk !== []) {
             $this->safeAudit('capacity_alert_sent', 'alert_config', (int) $config->id, [
-                'channels' => $deliveredChannels,
+                'channels' => $channelsOk,
                 'severity' => collect($alerts)->contains('type', 'critical') ? 'critical' : 'warning',
                 'breached' => array_column($alerts, 'resource'),
                 'location_scope' => $locationScope,
             ]);
         }
 
-        return $deliveredChannels !== [];
+        return $channelsOk !== [];
+    }
+
+    private function safeWriteDeliveryLog(
+        int $configId,
+        string $triggerType,
+        array $channelsTried,
+        array $channelsOk,
+        array $channelsFailed,
+        ?string $lastError,
+    ): ?AlertDeliveryLog {
+        try {
+            return AlertDeliveryLog::create([
+                'alert_config_id' => $configId,
+                'trigger_type' => $triggerType,
+                'attempted_at' => now(),
+                'channels_tried' => $channelsTried,
+                'channels_ok' => $channelsOk,
+                'channels_failed' => $channelsFailed,
+                'last_error' => $lastError,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('AlertService: delivery-log write failed', [
+                'alert_config_id' => $configId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function makeTransientDeliveryLog(
+        int $configId,
+        string $triggerType,
+        array $channelsTried,
+        array $channelsOk,
+        array $channelsFailed,
+        ?string $lastError,
+    ): AlertDeliveryLog {
+        $deliveryLog = new AlertDeliveryLog;
+        $deliveryLog->exists = false;
+        $deliveryLog->setRawAttributes([
+            'alert_config_id' => $configId,
+            'trigger_type' => $triggerType,
+            'attempted_at' => now()->toDateTimeString(),
+            'channels_tried' => $channelsTried,
+            'channels_ok' => $channelsOk,
+            'channels_failed' => $channelsFailed,
+            'last_error' => $lastError,
+        ], true);
+
+        return $deliveryLog;
     }
 
     /**
