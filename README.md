@@ -30,7 +30,7 @@ Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using slid
 │  DynamicPterodactyl (Companion Extension):                          │
 │  ├── Real-time availability API                                     │
 │  ├── Resource reservation system (15-min TTL)                       │
-│  ├── Interim pricing scaffolding pending dp-core-01                 │
+│  ├── Slider config reads via SliderConfigReaderService             │
 │  ├── No custom frontend assets; native core slider UI               │
 │  ├── Admin dashboard & configuration UI                             │
 │  └── Event hooks for cart/invoice/service lifecycle                 │
@@ -83,7 +83,7 @@ Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using slid
 2. **Tiered** - Volume discounts at breakpoints
 3. **Base + Addon** - Included resources + overage charges
 
-Paymenter core is the intended pricing authority for `dynamic_slider` options. Until the fork-only core patches in `dp-core-01` land, this extension keeps `PricingCalculatorService` as interim pricing scaffolding to compensate for known core defects.
+Paymenter core is the pricing authority for `dynamic_slider` options. The fork-only core patches in `dp-core-01` (merged) handle slider pricing at runtime via `Plan::dynamicSliderBasePrice()` and `ConfigOption::calculateDynamicPriceDelta()`. This extension's `SliderConfigReaderService` reads slider config metadata; `PricingConfigValidator` is retired in favour of core `DynamicSliderPricingRule`.
 
 ### Frontend Slider
 - Customer-facing sliders use Paymenter core's native `dynamic_slider` component
@@ -97,10 +97,10 @@ Paymenter core is the intended pricing authority for `dynamic_slider` options. U
 ```
 extensions/Others/DynamicPterodactyl/
 ├── DynamicPterodactyl.php          # Main extension class
-├── database/migrations/            # 4 migration files
+├── database/migrations/            # 7 migration files
 ├── Admin/
 │   ├── Pages/                      # Dashboard, Analytics, Settings, etc.
-│   └── Resources/                  # PricingConfig, Reservation, Alert
+│   └── Resources/                  # AlertConfig, Reservation
 ├── Http/Controllers/               # API and Admin controllers
 ├── Models/                         # Eloquent models
 ├── resources/views/                # Blade templates
