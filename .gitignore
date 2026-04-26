@@ -5,5 +5,3 @@ vendor/
 .env.local
 .phpunit.result.cache
 .phpunit.cache/
-
-AGENTS.md
