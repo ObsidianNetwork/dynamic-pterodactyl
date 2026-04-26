@@ -21,21 +21,32 @@ class NodeMonitoring extends Page
 
     public function getViewData(): array
     {
-        $resourceService = app(ResourceCalculationService::class);
+        $resourceService = \app(ResourceCalculationService::class);
         $locations = [];
         $error = null;
 
         try {
-            foreach ($resourceService->getLocations() as $location) {
-                $availability = $resourceService->getLocationAvailability($location['id']);
+            $snapshot = $resourceService->buildClusterSnapshot();
+            $error = $snapshot['error'] ?? null;
+
+            foreach ($snapshot['locations'] as $location) {
+                $locationSnapshot = $snapshot['by_location'][$location['id']] ?? [
+                    'nodes' => [],
+                    'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                    'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                ];
+
                 $locations[] = [
                     'id' => $location['id'],
                     'name' => $location['long'],
                     'short' => $location['short'],
-                    'nodes' => $availability['nodes'],
+                    'nodes' => array_map(
+                        fn (int $nodeId) => $snapshot['nodes'][$nodeId]['node_availability'],
+                        $locationSnapshot['nodes']
+                    ),
                     'totals' => [
-                        'capacity' => $availability['total_capacity'],
-                        'allocated' => $availability['total_allocated'],
+                        'capacity' => $locationSnapshot['totals'],
+                        'allocated' => $locationSnapshot['allocated'],
                     ],
                 ];
             }
@@ -45,7 +56,7 @@ class NodeMonitoring extends Page
 
         return [
             'locations' => $locations,
-            'lastUpdated' => now(),
+            'lastUpdated' => \now(),
             'error' => $error,
         ];
     }
