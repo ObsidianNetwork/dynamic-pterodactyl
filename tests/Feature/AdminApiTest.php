@@ -17,12 +17,13 @@ class AdminApiTest extends LaravelTestCase
     protected function setUp(): void
     {
         parent::setUp();
-        require __DIR__ . '/../../routes/api.php';
+        require __DIR__.'/../../routes/api.php';
     }
 
     private function makeAdminUser(): User
     {
         $role = Role::firstOrCreate(['name' => 'Admin']);
+
         return User::factory()->create(['role_id' => $role->id]);
     }
 
@@ -34,17 +35,17 @@ class AdminApiTest extends LaravelTestCase
     private function makeReservation(array $attrs = []): ResourceReservation
     {
         return ResourceReservation::create(array_merge([
-            'token'             => Str::random(64),
-            'user_id'           => null,
-            'node_id'           => 1,
-            'location_id'       => 1,
-            'memory'            => 4096,
-            'cpu'               => 200,
-            'disk'              => 51200,
-            'calculated_price'  => 9.99,
+            'token' => Str::random(64),
+            'user_id' => null,
+            'node_id' => 1,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 9.99,
             'pricing_breakdown' => [],
-            'status'            => 'pending',
-            'expires_at'        => now()->addMinutes(15),
+            'status' => 'pending',
+            'expires_at' => now()->addMinutes(15),
         ], $attrs));
     }
 
@@ -103,14 +104,14 @@ class AdminApiTest extends LaravelTestCase
         $reservation = $this->makeReservation(['status' => 'pending']);
 
         $response = $this->actingAs($admin)->postJson(
-            '/api/dynamic-pterodactyl/admin/reservations/' . $reservation->token . '/cancel',
+            '/api/dynamic-pterodactyl/admin/reservations/'.$reservation->token.'/cancel',
             ['reason' => 'Admin cancelled for testing']
         );
 
         $response->assertStatus(200);
         $response->assertJson(['success' => true, 'message' => 'Reservation cancelled']);
         $this->assertDatabaseHas('ptero_resource_reservations', [
-            'id'     => $reservation->id,
+            'id' => $reservation->id,
             'status' => 'cancelled',
         ]);
     }
@@ -121,7 +122,7 @@ class AdminApiTest extends LaravelTestCase
         $reservation = $this->makeReservation(['status' => 'pending']);
 
         $response = $this->actingAs($admin)->postJson(
-            '/api/dynamic-pterodactyl/admin/reservations/' . $reservation->token . '/cancel',
+            '/api/dynamic-pterodactyl/admin/reservations/'.$reservation->token.'/cancel',
             []
         );
 
@@ -133,18 +134,24 @@ class AdminApiTest extends LaravelTestCase
         $admin = $this->makeAdminUser();
 
         $mock = $this->mock(ResourceCalculationService::class);
-        $mock->shouldReceive('getLocations')
+        $mock->shouldReceive('buildClusterSnapshot')
             ->once()
-            ->andReturn([['id' => 1, 'long' => 'Data Center 1', 'short' => 'dc1']]);
-        $mock->shouldReceive('getLocationAvailability')
-            ->once()
-            ->with(1)
             ->andReturn([
-                'location_id'     => 1,
-                'nodes'           => [['node_id' => 1, 'name' => 'Node 1']],
-                'total_capacity'  => ['memory' => 65536, 'cpu' => 800, 'disk' => 512000],
-                'total_allocated' => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
-                'max_available'   => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
+                'locations' => [['id' => 1, 'long' => 'Data Center 1', 'short' => 'dc1']],
+                'nodes' => [
+                    1 => [
+                        'node_availability' => ['node_id' => 1, 'name' => 'Node 1'],
+                    ],
+                ],
+                'by_location' => [
+                    1 => [
+                        'nodes' => [1],
+                        'totals' => ['memory' => 65536, 'cpu' => 800, 'disk' => 512000],
+                        'allocated' => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
+                        'available' => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
+                    ],
+                ],
+                'generated_at' => \now()->toIso8601String(),
             ]);
 
         $response = $this->actingAs($admin)
@@ -176,11 +183,11 @@ class AdminApiTest extends LaravelTestCase
             ->once()
             ->with(1)
             ->andReturn([
-                'location_id'     => 1,
-                'nodes'           => [['node_id' => 1, 'name' => 'Node 1']],
-                'total_capacity'  => ['memory' => 65536, 'cpu' => 800, 'disk' => 512000],
+                'location_id' => 1,
+                'nodes' => [['node_id' => 1, 'name' => 'Node 1']],
+                'total_capacity' => ['memory' => 65536, 'cpu' => 800, 'disk' => 512000],
                 'total_allocated' => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
-                'max_available'   => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
+                'max_available' => ['memory' => 32768, 'cpu' => 400, 'disk' => 256000],
             ]);
 
         $response = $this->actingAs($admin)
