@@ -5,8 +5,8 @@ inheritance: false
 
 language: en-US
 
-# 250-char reviewer-personality field. Cuts rejection-reasoning rounds.
-tone_instructions: "Respect PR scope boundaries. Out-of-scope findings should be flagged as deferred (suggest the matching dp-NN plan in the Paymenter fork's .sisyphus/plans/), not demanded. The author may reject findings with a 3-part rationale (claim → why-wrong → intended-design)."
+# Reviewer-personality field (≤250 chars per schema). Cuts rejection-reasoning rounds.
+tone_instructions: "Respect PR scope boundaries. Flag out-of-scope findings as deferred and reference the matching dp-NN plan in the Paymenter fork's .sisyphus/plans/. Authors may reject findings with a 3-part rationale: claim, why wrong, intended design."
 
 reviews:
   profile: chill            # was: assertive. Community + Martian benchmark favor chill for default.
