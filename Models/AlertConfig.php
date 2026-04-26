@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class AlertConfig extends Model
 {
@@ -46,5 +47,10 @@ class AlertConfig extends Model
     public function scopeForLocation($query, int $locationId)
     {
         return $query->where('location_id', $locationId);
+    }
+
+    public function deliveryLogs(): HasMany
+    {
+        return $this->hasMany(AlertDeliveryLog::class);
     }
 }
