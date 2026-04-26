@@ -8,6 +8,8 @@ use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertDeliveryLog;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AuditLog;
 
 class AuditLogPage extends Page implements HasTable
@@ -76,5 +78,25 @@ class AuditLogPage extends Page implements HasTable
             ])
             ->recordAction(null)
             ->recordUrl(null);
+    }
+
+    public function getDeliveryFailures(): Collection
+    {
+        try {
+            return AlertDeliveryLog::query()
+                ->whereRaw('JSON_LENGTH(channels_failed) > 0')
+                ->latest()
+                ->limit(50)
+                ->get();
+        } catch (\Throwable) {
+            return collect();
+        }
+    }
+
+    protected function getViewData(): array
+    {
+        return [
+            'deliveryFailures' => $this->getDeliveryFailures(),
+        ];
     }
 }
