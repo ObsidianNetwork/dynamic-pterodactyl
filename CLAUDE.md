@@ -40,7 +40,6 @@ These were debated and decided. Don't re-litigate without checking DECISIONS.md:
 PricingConfig          (model)
 ptero_pricing_configs  (table)
 PricingConfigResource  (Filament resource)
-PricingCalculatorService (service)
 ```
 
 ## Documentation Map
@@ -225,5 +224,4 @@ If `author != "Jordanmuss99"`, OR `mergedAt - createdAt < 3 minutes`, OR `cr_sta
 - FAIL when: Pterodactyl API responses are cached. Rationale: real-time queries are a settled decision (DECISIONS.md). Rate budget is ~10/min against the 240/min panel limit.
 - FAIL when: pricing logic is added to this extension's admin interface or services. Rationale: pricing moved to Paymenter core per DECISIONS.md. The `ptero_pricing_configs` table was dropped in migration `2025_01_01_000005`.
 - FAIL when: server provisioning is reimplemented here (createServer, suspendServer, terminateServer). Rationale: companion extension — delegate to `extensions/Servers/Pterodactyl/`.
-- FAIL when: files under `skeleton/` are modified. Rationale: stale scaffold; only root-level files are canonical.
 - FAIL when: changes to this extension are committed from the outer Paymenter repo working tree. Rationale: this directory has its own `.git/`. Use `cd extensions/Others/DynamicPterodactyl && git commit`.
