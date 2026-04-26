@@ -25,6 +25,7 @@ class ReservationController extends Controller
     {
         $user = $request->user();
         $validated = $request->validated();
+        // Guests reach this endpoint before login, so user_id intentionally stays null.
         $resources = [
             'memory' => (int) ($validated['memory'] ?? 0),
             'cpu' => (int) ($validated['cpu'] ?? 0),

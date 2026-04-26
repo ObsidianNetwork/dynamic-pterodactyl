@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Mockery;
@@ -22,6 +23,7 @@ class ReservationApiTest extends LaravelTestCase
     {
         parent::setUp();
         require __DIR__ . '/../../routes/api.php';
+        $this->withoutMiddleware(VerifyCsrfToken::class);
 
         $nodeSelectionService = $this->mock(NodeSelectionService::class);
         $nodeSelectionService->shouldReceive('selectBestNode')
@@ -221,6 +223,70 @@ class ReservationApiTest extends LaravelTestCase
         ]);
     }
 
+    public function test_guest_can_create_reservation_without_cart_item_id(): void
+    {
+        /** @var Product $product */
+        $product = $this->createConfiguredProduct();
+
+        $response = $this->postJson('/api/dynamic-pterodactyl/reservation', [
+            'product_id' => $product->id,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+        ]);
+
+        $response->assertOk()->assertJson(['success' => true]);
+        $this->assertNotNull($response->json('data.token'));
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'user_id' => null,
+            'cart_item_id' => null,
+            'location_id' => 1,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_guest_reservation_throttled_by_ip(): void
+    {
+        /** @var Product $product */
+        $product = $this->createConfiguredProduct();
+
+        $payload = [
+            'product_id' => $product->id,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+        ];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
+                ->postJson('/api/dynamic-pterodactyl/reservation', $payload)
+                ->assertOk();
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.10'])
+            ->postJson('/api/dynamic-pterodactyl/reservation', $payload)
+            ->assertStatus(429);
+    }
+
+    public function test_reservation_requires_valid_location_id(): void
+    {
+        /** @var Product $product */
+        $product = $this->createConfiguredProduct();
+
+        $response = $this->postJson('/api/dynamic-pterodactyl/reservation', [
+            'product_id' => $product->id,
+            'location_id' => 999,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+        ]);
+
+        $response->assertStatus(422);
+        $response->assertJsonValidationErrors('location_id');
+    }
+
     public function test_admin_can_view_other_users_reservation(): void
     {
         $owner = User::withoutEvents(fn () => User::factory()->create());
@@ -337,6 +403,12 @@ class ReservationApiTest extends LaravelTestCase
     {
         /** @var Product $product */
         $product = Product::factory()->create();
+
+        $product->settings()->create([
+            'key' => 'location_ids',
+            'value' => json_encode([1]),
+            'type' => 'array',
+        ]);
 
         foreach ([
             'memory' => ['name' => 'Memory', 'min' => 1024, 'max' => 8192, 'step' => 1024, 'unit' => 'MB'],

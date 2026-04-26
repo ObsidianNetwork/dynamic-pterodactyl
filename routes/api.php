@@ -22,7 +22,7 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
 });
 
 // Reservation endpoints — throttled (10 req/min) for checkout-retry burst tolerance without enabling abuse
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:10,1'])->group(function () {
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'checkout', 'throttle:10,1'])->group(function () {
     Route::post('/reservation', [ReservationController::class, 'create']);
     Route::get('/reservation/{token}', [ReservationController::class, 'get']);
     Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);

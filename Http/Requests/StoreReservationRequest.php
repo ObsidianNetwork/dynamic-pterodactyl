@@ -14,7 +14,7 @@ class StoreReservationRequest extends FormRequest
         $cartItemId = $this->integer('cart_item_id');
 
         if (! $cartItemId) {
-            return false;
+            return true;
         }
 
         $cartItem = CartItem::query()
@@ -43,7 +43,7 @@ class StoreReservationRequest extends FormRequest
             'memory' => 'sometimes|integer|min:0',
             'cpu' => 'sometimes|integer|min:0',
             'disk' => 'sometimes|integer|min:0',
-            'cart_item_id' => 'required|integer|exists:cart_items,id',
+            'cart_item_id' => 'nullable|integer|exists:cart_items,id',
             'idempotency_key' => ['nullable', 'regex:/^[A-Za-z0-9-]{8,64}$/'],
         ];
     }
@@ -55,6 +55,12 @@ class StoreReservationRequest extends FormRequest
 
             if ($productId <= 0 || ! Product::query()->whereKey($productId)->exists()) {
                 return;
+            }
+
+            $allowedLocationIds = $this->getAllowedLocationIds($productId);
+            $locationId = (int) $this->input('location_id');
+            if ($allowedLocationIds !== [] && ! in_array($locationId, $allowedLocationIds, true)) {
+                $validator->errors()->add('location_id', 'The selected location is not configured for this product');
             }
 
             $sliders = $this->getDynamicSliderConfig($productId);
@@ -128,6 +134,29 @@ class StoreReservationRequest extends FormRequest
 
                 return [$resourceType => $metadata];
             })
+            ->all();
+    }
+
+    private function getAllowedLocationIds(int $productId): array
+    {
+        $product = Product::query()->find($productId);
+        $setting = $product?->settings()
+            ->where('key', 'location_ids')
+            ->value('value');
+
+        if ($setting === null || $setting === '') {
+            return [];
+        }
+
+        $locationIds = is_array($setting) ? $setting : json_decode($setting, true);
+        if (! is_array($locationIds)) {
+            return [];
+        }
+
+        return collect($locationIds)
+            ->filter(fn ($locationId) => is_numeric($locationId))
+            ->map(fn ($locationId) => (int) $locationId)
+            ->values()
             ->all();
     }
 }

@@ -6,7 +6,7 @@
 
 ## Route Definitions
 
-### Public API Routes (Authenticated Users)
+### Public API Routes (Guest-Compatible Checkout)
 
 ```php
 <?php
@@ -27,7 +27,7 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
 });
 
 // Reservation endpoints — throttled (10 req/min) for checkout-retry burst tolerance
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:10,1'])->group(function () {
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'checkout', 'throttle:10,1'])->group(function () {
     Route::post('/reservation', [ReservationController::class, 'create']);
     Route::get('/reservation/{token}', [ReservationController::class, 'get']);
     Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);
@@ -193,7 +193,7 @@ Get pricing configuration and slider limits for a product.
 
 ### POST /api/dynamic-pterodactyl/reservation
 
-Create a resource reservation. **Throttled at 10 req/min per authenticated user.**
+Create a resource reservation. Guests are allowed so the first capacity hold can be created on the product page before login. The throttle still protects the route: authenticated requests key by user and guest requests fall back to IP.
 
 **Headers:**
 - `Idempotency-Key` *(optional, preferred)* — 8-64 characters, alphanumeric plus hyphen. When reused by the same user while an existing reservation is still `pending` or `confirmed`, the API returns the original reservation instead of creating a duplicate hold.
@@ -211,12 +211,25 @@ Create a resource reservation. **Throttled at 10 req/min per authenticated user.
 }
 ```
 
+`cart_item_id` is optional. Product-page slider changes happen before a cart row exists, so the frontend can reserve capacity with only `product_id`, `location_id`, and the slider resources. When the item is later added to cart, Paymenter stores the returned token in `cart_items.checkout_config.dp_reservation_token` and confirms it during checkout.
+
 **Validation rules:**
 - Product must have `dynamic_slider` config options for dynamic reservations, otherwise the request is rejected with `422` and `This product is not configured for dynamic reservations`.
+- `location_id` must be one of the product's configured `location_ids` when that product setting is present.
 - Each configured resource must be present in the payload.
 - Extra resource fields not configured on the product are rejected.
 - Each selected resource must stay within the slider's `min`/`max` bounds and match its configured `step` increment.
 - `Idempotency-Key` header or `idempotency_key` body field must match `^[A-Za-z0-9-]{8,64}$` when supplied.
+
+### Reservation lifecycle
+
+The shipped flow is now:
+
+1. Customer changes a `dynamic_slider` value on the product page.
+2. The parent Alpine `dynamicSliderGroup` component debounces 500ms, POSTs `/api/dynamic-pterodactyl/reservation`, and stores the returned token in `sessionStorage`.
+3. Add-to-cart copies that token into `cart_items.checkout_config.dp_reservation_token`.
+4. `App\Livewire\Cart::checkout()` creates the `Service`, then calls `ReservationService::confirm($token, $service->id, Auth::user())`.
+5. If confirmation fails, checkout deletes the just-created service and surfaces a capacity-expired error instead of overselling.
 
 **Response:**
 ```json

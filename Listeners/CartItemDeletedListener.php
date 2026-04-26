@@ -15,7 +15,7 @@ class CartItemDeletedListener
 
         // Reservation token is stored in checkout_config by CartItemCreatedListener
         $checkoutConfig = $cartItem->checkout_config ?? [];
-        $token = $checkoutConfig['_reservation_token'] ?? null;
+        $token = $checkoutConfig['dp_reservation_token'] ?? $checkoutConfig['_reservation_token'] ?? null;
 
         if (!$token) {
             return;

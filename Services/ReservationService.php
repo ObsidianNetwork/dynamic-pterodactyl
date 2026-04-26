@@ -57,7 +57,7 @@ class ReservationService
                     ->lockForUpdate()
                     ->get();
 
-                if ($idempotencyKey !== null && $userId !== null) {
+                if ($idempotencyKey !== null) {
                     $this->expireStaleIdempotencyReservations($userId, $idempotencyKey);
 
                     $existingReservation = $this->getActiveByIdempotencyKey($userId, $idempotencyKey);
@@ -140,10 +140,10 @@ class ReservationService
         }
     }
 
-    private function getActiveByIdempotencyKey(int $userId, string $idempotencyKey): ?object
+    private function getActiveByIdempotencyKey(?int $userId, string $idempotencyKey): ?object
     {
         return DB::table('ptero_resource_reservations')
-            ->where('user_id', $userId)
+            ->when($userId === null, fn ($query) => $query->whereNull('user_id'), fn ($query) => $query->where('user_id', $userId))
             ->where('idempotency_key', $idempotencyKey)
             ->where(function ($query) {
                 $query->where('status', 'confirmed')
@@ -428,10 +428,10 @@ class ReservationService
         ];
     }
 
-    private function expireStaleIdempotencyReservations(int $userId, string $idempotencyKey): void
+    private function expireStaleIdempotencyReservations(?int $userId, string $idempotencyKey): void
     {
         DB::table('ptero_resource_reservations')
-            ->where('user_id', $userId)
+            ->when($userId === null, fn ($query) => $query->whereNull('user_id'), fn ($query) => $query->where('user_id', $userId))
             ->where('idempotency_key', $idempotencyKey)
             ->where('status', 'pending')
             ->where('expires_at', '<=', now())
