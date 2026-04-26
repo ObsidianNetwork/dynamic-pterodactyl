@@ -43,37 +43,24 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:1
 <?php
 // routes/api.php (continued)
 
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\AdminController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
 
 Route::prefix('api/dynamic-pterodactyl/admin')
     ->middleware(['web', 'auth', EnsureUserIsAdmin::class, 'throttle:30,1'])
     ->group(function () {
-        
-        // Availability
+        Route::get('/reservations', [AdminReservationController::class, 'index']);
+        Route::post('/reservations/{token}/cancel', [AdminReservationController::class, 'cancel']);
+        Route::get('/capacity', [AdminCapacityController::class, 'summary']);
         Route::get('/availability/{locationId}/nodes', [AvailabilityController::class, 'getNodes']);
-
-        // Dashboard
-        Route::get('/dashboard', [AdminController::class, 'dashboard']);
-        Route::get('/statistics', [AdminController::class, 'statistics']);
-        
-        // Health checks
-        Route::post('/test-connection', [AdminController::class, 'testConnection']);
-        Route::post('/validate-config/{productId}', [AdminController::class, 'validateConfig']);
-        
-        // Reservations management
-        Route::get('/reservations', [AdminController::class, 'listReservations']);
-        Route::post('/reservations/{id}/cancel', [AdminController::class, 'cancelReservation']);
-        Route::post('/reservations/{id}/extend', [AdminController::class, 'extendReservation']);
-        Route::post('/reservations/cleanup', [AdminController::class, 'cleanupReservations']);
-        
-        // Audit logs
-        Route::get('/audit-logs', [AdminController::class, 'auditLogs']);
-        
-        // Import/Export
-        Route::get('/export/pricing-configs', [AdminController::class, 'exportPricingConfigs']);
-        Route::post('/import/pricing-configs', [AdminController::class, 'importPricingConfigs']);
     });
 ```
+
+### Removed Endpoints
+
+The following endpoints were previously documented but either never shipped or were retired by dp-09/dp-11: `validate-config`, `import`, `export`, `extend` (admin), `cleanup`, `test-connection`, `statistics`, and `/dashboard`. Future readers who find references in old commits can ignore them.
 
 ---
 
