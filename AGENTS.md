@@ -11,7 +11,7 @@
 
 ## Structure
 
-```
+```text
 DynamicPterodactyl/
 ├── DynamicPterodactyl.php       # entry class
 ├── Admin/{Pages,Resources}      # Filament 4 — 4 Pages + 2 Resources
@@ -23,7 +23,7 @@ DynamicPterodactyl/
 ├── resources/views/admin/       # Blade partials for Filament Pages
 ├── routes/api.php               # /extensions/dynamic-pterodactyl/* (required from boot())
 ├── tests/{Unit,LaravelTestCase.php,TestCase.php}
-├── phpunit.xml                  # self-contained: SQLite :memory:, bootstraps ../../../vendor/autoload.php
+├── phpunit.xml                  # self-contained: DB_DATABASE=paymenter_test (Test Isolation Mandate dp-13), bootstraps ../../../vendor/autoload.php
 ├── skeleton/                    # INACTIVE scaffold (pre-implementation), see notes
 ├── CLAUDE.md                    # pre-implementation conventions (some stale, see notes)
 ├── README.md                    # v3.1 architecture spec (some stale paths)

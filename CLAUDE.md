@@ -162,7 +162,7 @@ Every PR against `dynamic-slider` (and any parent-repo branch) MUST follow `.sis
 **`.coderabbit.yaml` deployed (v2, 2026-04-24)**
 
 Both repos now carry a `.coderabbit.yaml` on their default branch:
-- `Jordanmuss99/dynamic-pterodactyl` — auto-review on `dp-.*` and `dynamic-slider.*` branches; auto-pause disabled; `request_changes_workflow: true`; `fail_commit_status: true`
+- `Jordanmuss99/dynamic-pterodactyl` — auto-review on `dp-.*` and `dynamic-slider.*` branches; auto-pause after 10 commits; `request_changes_workflow: true`; `fail_commit_status: true`
 - `ObsidianNetwork/Paymenter-Obsidian-Network` — auto-review on `dynamic-slider.*`; same settings
 
 CodeRabbit reviews automatically on push. No manual `@coderabbitai review` mention needed unless review is absent after ~2 minutes.
