@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-18 capacity-fanout performance shipped
+**Phase**: dp-19 slider→reservation-API wiring shipped
 **Last Updated**: 2026-04-27
-**Last Session**: dp-18 merged via PR #20 as squash commit `be4756f`. Added `buildClusterSnapshot()` batch reads for admin capacity views, replacing O(locations × nodes) Pterodactyl walks with constant-bounded snapshot fetches.
+**Last Session**: dp-19 shipped. Wired `dynamicSliderGroup` Alpine component to `POST /api/dynamic-pterodactyl/reservation`; swapped route middleware to `checkout` for guest support; made `cart_item_id` optional; added `Cart::checkout()` confirmation hook; 3 new guest tests green; CodeRabbit 2 findings fixed.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*dp-18 shipped on `dynamic-slider` (`be4756f`).*
+*dp-19 shipped on `dynamic-slider` (direct commits; default branch).*
 
 | Plan | Summary | Status | Date |
 |---|---|---|---|
@@ -57,6 +57,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-17 | Alert escalation: persistent delivery log + failure event + admin UI | Shipped — squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18) | Apr 2026 |
 | dp-16 | Docs sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture | Shipped — squash `f5f88c7` (PR #19) | Apr 2026 |
 | dp-18 | Capacity-fanout Performance: batch admin-view Pterodactyl reads | Shipped — squash `be4756f` (PR #20) | Apr 2026 |
+| dp-19 | Wire customer-facing slider to reservation API (guest support) | Shipped — direct commits on `dynamic-slider` | Apr 2026 |
 
 ---
 
@@ -67,16 +68,34 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 **Last checkpoint**: 2026-04-27
 **Working on**: No active task
-**Status**: dp-18 capacity-fanout performance fully shipped on `dynamic-slider` via squash `be4756f` (PR #20). Admin capacity views now use `ResourceCalculationService::buildClusterSnapshot()` to batch nodes+servers reads while preserving real-time accuracy and graceful degraded snapshots.
+**Status**: dp-19 shipped. `dynamicSliderGroup` Alpine wired to reservation API; guest support via `checkout` middleware; `Cart::checkout()` confirms reservations with extension-disabled fallback. CodeRabbit findings fixed (Alpine x-data fallback + obsidian theme sync).
 **Current file**: PROGRESS.md
 **Next action**: All dp-NN backlog items complete. Next work determined by driver.
 **Blockers**: None
 
 ### This Session's Changes:
 
-1. `be4756f` — Squash merge commit on `dynamic-slider` (PR #20).
+1. dp-19 — direct commits on `dynamic-slider` (extension) and `dynamic-slider/1.4.7` (outer Paymenter).
 
 ---
+
+## dp-19 — Wire customer-facing slider to reservation API
+
+**Status**: Shipped  
+**PR**: committed directly on `dynamic-slider` (default branch; no PR base)  
+**Date**: 2026-04-27
+
+Closed the architectural gap where `dynamicSliderGroup` Alpine component never called the reservation API. Changes:
+- `resources/js/dynamic-slider-group.js` (NEW): Alpine component that listens for `slider-change` events, debounces 500ms, POSTs to `/api/dynamic-pterodactyl/reservation`, stores token in Alpine state + sessionStorage.
+- `resources/views/components/form/dynamic-slider.blade.php`: emit `slider-change` on init and user input.
+- `themes/default/views/products/checkout.blade.php`: conditional `x-data="dynamicSliderGroup(...)"` on outer div; `@else x-data="{ error: null, status: '' }"` fallback for non-slider products.
+- `themes/obsidian/views/products/checkout.blade.php`: same integration (file updated on disk; gitignored in outer repo).
+- `app/Livewire/Products/Checkout.php`: `hasDynamicSliderOptions()` + `reservationLocationId` computed property.
+- `app/Livewire/Cart.php`: confirmation hook in `checkout()` with `class_exists()` guard.
+- Extension: `routes/api.php` — `auth` → `checkout` middleware; `StoreReservationRequest` — `cart_item_id` nullable; `ReservationController` — guest `user_id = null`.
+- 3 new extension guest tests; 7 outer feature tests.
+- CR: 2 findings fixed (Alpine fallback + obsidian sync).
+
 
 ## dp-18 — Capacity-fanout Performance: batch admin-view Pterodactyl reads
 
