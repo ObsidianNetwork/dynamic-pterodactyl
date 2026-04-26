@@ -5,11 +5,13 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Events\AlertDeliveryFailed;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
@@ -25,6 +27,48 @@ use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
 #[PreserveGlobalState(false)]
 class AlertServiceTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->setFacadeApplication();
+    }
+
+    private function setFacadeApplication(?object $dispatcher = null): void
+    {
+        $app = new \Illuminate\Container\Container;
+        $app->instance('events', $dispatcher ?? new \Illuminate\Events\Dispatcher($app));
+        $app->instance('log', new class
+        {
+            public function emergency(...$arguments): void {}
+
+            public function alert(...$arguments): void {}
+
+            public function critical(...$arguments): void {}
+
+            public function error(...$arguments): void {}
+
+            public function warning(...$arguments): void {}
+
+            public function notice(...$arguments): void {}
+
+            public function info(...$arguments): void {}
+
+            public function debug(...$arguments): void {}
+
+            public function log(...$arguments): void {}
+        });
+        $app->instance('http', new \Illuminate\Http\Client\Factory);
+        \Illuminate\Support\Facades\Facade::setFacadeApplication($app);
+    }
+
+    private function bindEventDispatcherMock(): \Mockery\MockInterface
+    {
+        $dispatcher = Mockery::spy(\Illuminate\Contracts\Events\Dispatcher::class);
+        $this->setFacadeApplication($dispatcher);
+
+        return $dispatcher;
+    }
+
     private function makeService(): AlertService
     {
         $mockResource = Mockery::mock(ResourceCalculationService::class);
@@ -32,11 +76,12 @@ class AlertServiceTest extends TestCase
         return new AlertService($mockResource);
     }
 
-    private function invokeSendNotifications(AlertService $service, object $config, array $availability, array $alerts): void
+    private function invokeSendNotifications(AlertService $service, object $config, array $availability, array $alerts): mixed
     {
         $method = new \ReflectionMethod($service, 'sendNotifications');
         $method->setAccessible(true);
-        $method->invoke($service, $config, $availability, $alerts);
+
+        return $method->invoke($service, $config, $availability, $alerts);
     }
 
     public function test_notify_shortfall_emails_all_admins(): void
@@ -220,7 +265,7 @@ class AlertServiceTest extends TestCase
             [['type' => 'warning', 'resource' => 'disk', 'utilization' => 80.0, 'usage_percent' => 80.0, 'threshold' => 80]],
         );
 
-        Log::shouldHaveReceived('warning')->once()->with(
+        Log::shouldHaveReceived('warning')->with(
             'No admin recipients configured for capacity alert',
             Mockery::on(fn (array $context) => $context['alert_config_id'] === 99)
         );
@@ -330,6 +375,92 @@ class AlertServiceTest extends TestCase
                 && $context['recipient_id'] === 7
                 && $context['error'] === 'smtp down')
         );
+    }
+
+    public function test_alert_with_both_channels_failed_dispatches_alert_delivery_failed_event(): void
+    {
+        $dispatcher = $this->bindEventDispatcherMock();
+        Http::fake(['*' => Http::response('Server Error', 500)]);
+
+        $query = Mockery::mock();
+        $query->shouldReceive('get')->once()->andReturn(new Collection());
+        $user = Mockery::mock('alias:App\Models\User');
+        $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
+
+        $service = $this->makeService();
+        $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 1,
+                'location_id' => 1,
+                'location_name' => 'Test',
+                'email_notifications' => true,
+                'notification_emails' => json_encode(['ops@example.com']),
+                'webhook_notifications' => true,
+                'webhook_url' => 'https://hooks.example.com/test',
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'memory', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
+    }
+
+    public function test_alert_with_failed_webhook_records_channels_failed(): void
+    {
+        $dispatcher = $this->bindEventDispatcherMock();
+        Http::fake(['*' => Http::response('Bad Gateway', 502)]);
+        Log::spy();
+
+        $service = $this->makeService();
+        $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 42,
+                'location_id' => 1,
+                'location_name' => 'Test',
+                'email_notifications' => false,
+                'notification_emails' => json_encode([]),
+                'webhook_notifications' => true,
+                'webhook_url' => 'https://hooks.example.com/test',
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'memory', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
+        Log::shouldHaveReceived('error')->with('Webhook notification failed', Mockery::any());
+    }
+
+    public function test_alert_with_no_recipients_does_not_deliver_email(): void
+    {
+        $dispatcher = $this->bindEventDispatcherMock();
+        Log::spy();
+
+        $query = Mockery::mock();
+        $query->shouldReceive('get')->once()->andReturn(new Collection());
+        $user = Mockery::mock('alias:App\Models\User');
+        $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
+
+        $service = $this->makeService();
+        $result = $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 99,
+                'location_id' => null,
+                'location_name' => null,
+                'email_notifications' => true,
+                'notification_emails' => json_encode(['ops@example.com']),
+                'webhook_notifications' => false,
+                'webhook_url' => null,
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'disk', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $this->assertFalse($result);
+        $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
+        Log::shouldHaveReceived('warning')->with('No admin recipients configured for capacity alert', Mockery::any());
     }
 
 }
@@ -485,6 +616,7 @@ class AlertServiceAuditTest extends LaravelTestCase
 
     public function test_capacity_alert_does_not_audit_failed_webhook_delivery(): void
     {
+        Event::fake();
         Notification::fake();
         Http::fake([
             '*' => Http::response(['message' => 'forbidden'], 403),
@@ -528,5 +660,111 @@ class AlertServiceAuditTest extends LaravelTestCase
             Mockery::on(fn (array $context) => $context['alert_config_id'] === $alertConfig->id
                 && $context['webhook_host'] === 'discord.com')
         );
+        Event::assertDispatched(AlertDeliveryFailed::class);
+    }
+
+    public function test_capacity_alert_no_admins_dispatches_delivery_failed_event(): void
+    {
+        Event::fake();
+        Notification::fake();
+
+        $alertConfig = AlertConfig::create([
+            'location_id' => 30,
+            'location_name' => 'OSL-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => true,
+            'notification_emails' => ['ops@example.com'],
+            'webhook_notifications' => false,
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(30)->andReturn([
+            'location_id' => 30,
+            'location_name' => 'OSL-1',
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 92, 'disk' => 50],
+        ]);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        Event::assertDispatched(AlertDeliveryFailed::class);
+    }
+
+    public function test_capacity_alert_success_does_not_dispatch_delivery_failed_event(): void
+    {
+        Event::fake();
+        Notification::fake();
+
+        $admin = User::factory()->create(['role_id' => 1]);
+        $alertConfig = AlertConfig::create([
+            'location_id' => 31,
+            'location_name' => 'ARN-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => true,
+            'notification_emails' => ['ops@example.com'],
+            'webhook_notifications' => false,
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(31)->andReturn([
+            'location_id' => 31,
+            'location_name' => 'ARN-1',
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 95, 'disk' => 50],
+        ]);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        Notification::assertSentTo($admin, CapacityAlertNotification::class);
+        Event::assertNotDispatched(AlertDeliveryFailed::class);
+    }
+
+    public function test_capacity_alert_webhook_failure_dispatches_delivery_failed_event(): void
+    {
+        Event::fake();
+        Notification::fake();
+        Http::fake([
+            '*' => Http::response(['message' => 'bad gateway'], 502),
+        ]);
+
+        $alertConfig = AlertConfig::create([
+            'location_id' => 32,
+            'location_name' => 'CPH-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => false,
+            'notification_emails' => [],
+            'webhook_notifications' => true,
+            'webhook_url' => 'https://hooks.example.com/test',
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(32)->andReturn([
+            'location_id' => 32,
+            'location_name' => 'CPH-1',
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 95, 'disk' => 50],
+        ]);
+
+        $service = $this->makeService($resourceService);
+        $this->runCheck($service, $alertConfig);
+
+        Event::assertDispatched(AlertDeliveryFailed::class);
     }
 }
