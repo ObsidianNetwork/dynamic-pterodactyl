@@ -84,7 +84,7 @@ class AuditLogPage extends Page implements HasTable
     {
         try {
             return AlertDeliveryLog::query()
-                ->whereRaw('JSON_LENGTH(channels_failed) > 0')
+                ->whereJsonLength('channels_failed', '>', 0)
                 ->latest()
                 ->limit(50)
                 ->get();
