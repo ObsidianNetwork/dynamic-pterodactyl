@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-14 reservation throttle shipped
+**Phase**: dp-17 alert escalation shipped
 **Last Updated**: 2026-04-27
-**Last Session**: dp-14 merged via PR #17 as squash commit `5b13f774`. Restored the documented `throttle:10,1` reservation middleware, synced 03-API.md, and replaced the broken throttle test with the unconfigured-product 422→429 pattern.
+**Last Session**: dp-17 merged via PR #18 as squash commit `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d`. Added persistent alert-delivery logging, `AlertDeliveryFailed` escalation dispatch, and an audit-log admin surface for recent delivery failures.
 
 ---
 
@@ -45,7 +45,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 ## In Progress
 
-*dp-14 shipped on `dynamic-slider` (`5b13f774`).*
+*dp-17 shipped on `dynamic-slider` (`b7cdd54ba05fad4abae26adbea22ea4ba61dec4d`).*
 
 | Plan | Summary | Status | Date |
 |---|---|---|---|
@@ -54,6 +54,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-13 | feat(setup-wizard): atomicity + audit reliability + test isolation | 8239686 | 2026-04-23 |
 | dp-01 | doc refresh README/AGENTS/CLAUDE + delete empty skeleton/ | Shipped — squash `e2034a485` (fork PR #16) | Apr 2026 |
 | dp-14 | Reservation endpoint throttle restore (10/min) | Shipped — squash `5b13f774` (fork PR #17) | Apr 2026 |
+| dp-17 | Alert escalation: persistent delivery log + failure event + admin UI | Shipped — squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18) | Apr 2026 |
 
 ---
 
@@ -64,22 +65,18 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 
 **Last checkpoint**: 2026-04-27
 **Working on**: No active task
-**Status**: dp-14 rate-limit-reservations fully shipped on `dynamic-slider` via squash `5b13f774` (fork PR #17). Reservation endpoints now enforce the documented 10 req/min authenticated-user throttle with matching coverage in docs and tests.
+**Status**: dp-17 alert escalation fully shipped on `dynamic-slider` via squash `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` (fork PR #18). Alert delivery attempts now persist per-channel outcomes, dispatch `AlertDeliveryFailed` when every attempted channel fails, and surface recent failures in the audit-log admin page.
 **Current file**: PROGRESS.md
 **Next action**: All dp-NN backlog items complete. Next work determined by driver.
 **Blockers**: None
 
 ### This Session's Changes:
 
-1. `86a0613b` — ARIA baseline: role=slider, aria-valuemin/max/now/text, aria-labelledby/describedby, output aria-live region.
-2. `b93a570d` — Keyboard PageUp/Down/Home/End + WCAG 2.4.13 focus ring.
-3. `816d38b0` — Loading/error UI for pricing preview with sr-only assertive live region.
-4. `788e4e3f` — Touch target 44px via transparent-border CSS.
-5. `6e321780` — Docs: 09-IMPLEMENTATION.md, DECISIONS.md, PROGRESS/CHANGELOG cross-links.
-6. `83407107` — CodeRabbit round 1: request token, wire:ignore live regions, css scoping, aria-describedby hint id, MD058.
-7. `5d4356ff` — CodeRabbit round 2: ARIA defaults, CSS class scoping, remove redundant aria-label, AbortController timeout.
-8. `0544dc81` — CodeRabbit round 3: init() upper-bound clamp, refreshPricingPreview short-circuit for local-only sliders.
-9. `a7fd667d` — Squash merge commit on `dynamic-slider/1.4.7`.
+1. `5ddee90` — Added alert-delivery log migration/model/relation primitives plus `AlertDeliveryFailed` event.
+2. `2d144f6` — Refactored `AlertService` to persist per-channel outcomes and escalate fully failed alert deliveries with new tests.
+3. `c6931a5` — Added recent alert-delivery failures section to the audit-log admin page.
+4. `1096ed5` — Applied CodeRabbit portability fix: switched the failure query to `whereJsonLength(...)`.
+5. `b7cdd54ba05fad4abae26adbea22ea4ba61dec4d` — Squash merge commit on `dynamic-slider`.
 
 <!-- 
 Update this section:
