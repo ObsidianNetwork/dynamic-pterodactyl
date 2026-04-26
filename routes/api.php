@@ -21,8 +21,8 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
     Route::get('/pricing/config/{productId}', [PricingController::class, 'getConfig']);
 });
 
-// Reservation endpoints — no throttle; these are cart-lifecycle-driven, not polling
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth'])->group(function () {
+// Reservation endpoints — throttled (10 req/min) for checkout-retry burst tolerance without enabling abuse
+Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:10,1'])->group(function () {
     Route::post('/reservation', [ReservationController::class, 'create']);
     Route::get('/reservation/{token}', [ReservationController::class, 'get']);
     Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);

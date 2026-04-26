@@ -306,6 +306,33 @@ class ReservationApiTest extends LaravelTestCase
             ->assertJson(['success' => true]);
     }
 
+    public function test_reservation_create_throttles_at_10_per_minute(): void
+    {
+        $user = User::withoutEvents(fn () => User::factory()->create());
+        /** @var Product $product */
+        $product = Product::factory()->create();
+        $cartItemId = $this->createCartItemForUser($user, $product->id);
+
+        $payload = [
+            'product_id'   => $product->id,
+            'location_id'  => 1,
+            'memory'       => 4096,
+            'cpu'          => 200,
+            'disk'         => 51200,
+            'cart_item_id' => $cartItemId,
+        ];
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->actingAs($user)
+                ->postJson('/api/dynamic-pterodactyl/reservation', $payload)
+                ->assertStatus(422);
+        }
+
+        $this->actingAs($user)
+            ->postJson('/api/dynamic-pterodactyl/reservation', $payload)
+            ->assertStatus(429);
+    }
+
     private function createConfiguredProduct(): Product
     {
         /** @var Product $product */
