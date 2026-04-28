@@ -155,7 +155,7 @@ CodeRabbit is a tool — it can be wrong. Every finding MUST be evaluated before
 
 1. Push a follow-up commit that addresses the finding.
 2. Reply on the CR thread with the template:
-   ```
+   ```text
    Applied in <short-sha>: <one-line summary of the change>.
    ```
    Example: `Applied in 9897b06: extracted Alpine fallback x-data so error/status are defined for non-slider products.`
@@ -188,7 +188,7 @@ This protocol replaces all prior timer-based / timestamp-comparison logic.
 
 **Required pre-PR step (see §Tooling):** run `cr review --plain --type committed --base <integration-branch>` locally before `gh pr create`. A clean result catches blockers before consuming PR-review cycles.
 
-```
+```text
 implement on feature branch (off integration branch; if the integration branch is the repo default, branch off that default and PR back to it)
   └─ run `cr review --plain --type committed --base <integration-branch>`
      │  (REQUIRED — see §Tooling. Must exit 0 OR all findings addressed/rejected with rationale.)

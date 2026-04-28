@@ -177,7 +177,7 @@ If the working branch is a `dp-*` branch that targets `dynamic-slider`, this loc
 **Pre-merge gate** (mechanical, run immediately before `gh pr merge`):
 
 ```bash
-./.sisyphus/templates/ralph-loop-verify.sh \
+bash .sisyphus/templates/ralph-loop-verify.sh \
   <PR_NUMBER> \
   --repo <owner/repo> \
   --expected-base <base-branch-regex>
@@ -186,7 +186,7 @@ If the working branch is a `dp-*` branch that targets `dynamic-slider`, this loc
 Example for extension PR:
 
 ```bash
-./.sisyphus/templates/ralph-loop-verify.sh \
+bash .sisyphus/templates/ralph-loop-verify.sh \
   <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
   --expected-base '^dynamic-slider$'
@@ -198,7 +198,7 @@ Use `--allow-actionable --reason "..."`, `--allow-direct-default --reason "..."`
 **After APPROVED**: do not rush. Wait the Rule 8 quiet period before merge. Preferred command:
 
 ```bash
-./.sisyphus/templates/ralph-loop-verify.sh \
+bash .sisyphus/templates/ralph-loop-verify.sh \
   <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
   --expected-base '^dynamic-slider$' \

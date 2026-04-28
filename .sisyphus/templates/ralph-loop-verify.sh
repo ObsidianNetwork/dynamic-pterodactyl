@@ -359,17 +359,19 @@ else
         cr_started=$(gh pr view "$pr" $repo_arg --json createdAt --jq '.createdAt' 2>/dev/null || echo "")
       fi
       age_s=0
+      parse_failed=0
+      started_epoch=""
       if [ -n "$cr_started" ]; then
         if ! started_epoch=$(iso_to_epoch "$cr_started"); then
           rule_fail 3 "CodeRabbit status startedAt '$cr_started' could not be parsed into an epoch"
-          started_epoch=""
+          parse_failed=1
         fi
       fi
-      if [ -n "${started_epoch:-}" ]; then
+      if [ "$parse_failed" -eq 0 ] && [ -n "${started_epoch:-}" ]; then
         now_epoch=$(date -u +%s)
         age_s=$((now_epoch - started_epoch))
       fi
-      if [ "$age_s" -ge 900 ] && [ "$allow_actionable" -eq 1 ]; then
+      if [ "$parse_failed" -eq 0 ] && [ "$age_s" -ge 900 ] && [ "$allow_actionable" -eq 1 ]; then
         if ! printf '%s' "$reason" | grep -qE '^CR outage [0-9]{4}-[0-9]{2}-[0-9]{2} per https://status\.coderabbit\.ai/.+'; then
           rule_fail 3 "Outage bypass requires --reason 'CR outage YYYY-MM-DD per https://status.coderabbit.ai/<incident-id>'"
         else
@@ -390,9 +392,9 @@ else
             rule_fail 3 "Outage bypass requested, but status.coderabbit.ai shows no active incident. Do not use --allow-actionable without a live incident."
           fi
         fi
-      elif [ "$age_s" -ge 900 ]; then
+      elif [ "$parse_failed" -eq 0 ] && [ "$age_s" -ge 900 ]; then
         rule_fail 3 "CR status pending for ${age_s}s. CR may be experiencing an outage. Verify at https://status.coderabbit.ai/ then re-run with --allow-actionable --reason 'CR outage YYYY-MM-DD per https://status.coderabbit.ai/<incident-id>' if confirmed."
-      else
+      elif [ "$parse_failed" -eq 0 ]; then
         rule_fail 3 "CodeRabbit status=pending (started ${cr_started}). Wait for CR to complete its review."
       fi ;;
     *)
