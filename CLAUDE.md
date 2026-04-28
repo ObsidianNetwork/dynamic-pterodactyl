@@ -189,7 +189,7 @@ Example for extension PR:
 ./.sisyphus/templates/ralph-loop-verify.sh \
   <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
-  --expected-base '^(dynamic-slider|dp-)'
+  --expected-base '^dynamic-slider$'
 ```
 
 Exit 0 = safe to merge. Non-zero = DO NOT merge. Do not bypass the script.
@@ -201,7 +201,7 @@ Use `--allow-actionable --reason "..."`, `--allow-direct-default --reason "..."`
 ./.sisyphus/templates/ralph-loop-verify.sh \
   <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
-  --expected-base '^(dynamic-slider|dp-)' \
+  --expected-base '^dynamic-slider$' \
   --wait
 ```
 

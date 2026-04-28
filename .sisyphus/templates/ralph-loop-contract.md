@@ -107,6 +107,7 @@ All nine rules are checked by `ralph-loop-verify.sh` before every merge. "Mechan
 > **Why this rule exists (do not rush)**: CR's APPROVED status is not final. CR may post additional findings within 5-10 minutes after approval, especially when our final commit triggers an incremental review. Merging inside this window has caused us to ship code that CR would have flagged. The rule says "do not rush" — even when the dashboard shows GREEN status and zero unresolved threads, wait the full quiet period before merging. The driver SHOULD use the verify.sh `--wait` flag to make the wait automatic rather than re-running manually.
 
 **Outage bypass**: `--allow-actionable --reason 'CR outage <date> per https://status.coderabbit.ai/<incident-id>'` is permitted ONLY when CR's commit-status has been `pending` for ≥ 15 min AND status.coderabbit.ai shows an active incident. The driver MUST attach the incident URL to the audit log entry (written automatically to `.sisyphus/notepads/ralph-loop-waivers.jsonl`). See zeroclaw-labs/zeroclaw#1792 (2026-02) for the failure mode this rule addresses. The script automatically escalates with the status-page URL and bypass instructions when the 15-min threshold is exceeded.
+
 ---
 
 ## Using `@coderabbitai` commands
@@ -214,7 +215,7 @@ implement on feature branch (off integration branch; if the integration branch i
 ```
 
 Step 1. Finish current plan code changes or fixes for new findings.
-Step 2. Run `cr review --plain --type committed` (CodeRabbit CLI) locally on the working branch.
+Step 2. Run `cr review --plain --type committed --base <integration-branch>` (CodeRabbit CLI) locally on the working branch.
 Step 3. CR CLI verification clean?
 Step 4. If NO: go back to Step 1 and fix. Else if YES: proceed to Step 5.
 Step 5. Create PR (`gh pr create --base <integration-branch>`).

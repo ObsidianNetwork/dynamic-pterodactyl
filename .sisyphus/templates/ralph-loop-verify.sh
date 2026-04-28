@@ -250,6 +250,30 @@ except Exception:
 PY
 }
 
+statuspage_has_active_incident() {
+  python3 - <<'PY'
+import json
+import sys
+import urllib.request
+
+url = 'https://status.coderabbit.ai/api/v2/incidents/unresolved.json'
+
+try:
+    with urllib.request.urlopen(url, timeout=10) as response:
+        payload = json.load(response)
+except Exception:
+    sys.exit(2)
+
+incidents = payload.get('incidents') or []
+
+if incidents:
+    print(incidents[0].get('shortlink') or incidents[0].get('id') or 'active-incident')
+    sys.exit(0)
+
+sys.exit(1)
+PY
+}
+
 write_waiver() {
   local kind="$1"
   local detail="$2"
@@ -323,12 +347,7 @@ fi
 # Rule 3: CodeRabbit status check
 cr_line=$(gh pr checks "$pr" $repo_arg 2>/dev/null | grep -E '^CodeRabbit\b' || true)
 if [ -z "$cr_line" ]; then
-  if [ "$allow_actionable" -eq 1 ]; then
-    write_waiver "allow-actionable" "CodeRabbit status check missing"
-    rule_pass 3 "CodeRabbit status check missing but bypassed via --allow-actionable"
-  else
-    rule_fail 3 "CodeRabbit status check 'CodeRabbit' not found on PR #$pr. CR may not have reviewed yet. Wait for 'CodeRabbit  pass  ...' in 'gh pr checks $pr $repo_arg', or check that .coderabbit.yaml is on the default branch."
-  fi
+  rule_fail 3 "CodeRabbit status check 'CodeRabbit' not found on PR #$pr. CR may not have reviewed yet. Wait for 'CodeRabbit  pass  ...' in 'gh pr checks $pr $repo_arg', or check that .coderabbit.yaml is on the default branch. Missing checks cannot be bypassed with --allow-actionable."
 else
   cr_status=$(printf '%s' "$cr_line" | awk '{print $2}')
   case "$cr_status" in
@@ -354,8 +373,22 @@ else
         if ! printf '%s' "$reason" | grep -qE '^CR outage [0-9]{4}-[0-9]{2}-[0-9]{2} per https://status\.coderabbit\.ai/.+'; then
           rule_fail 3 "Outage bypass requires --reason 'CR outage YYYY-MM-DD per https://status.coderabbit.ai/<incident-id>'"
         else
-          write_waiver "allow-actionable" "CodeRabbit status pending for ${age_s}s"
-          rule_pass 3 "CodeRabbit status=pending for ${age_s}s but bypassed via --allow-actionable"
+          incident_ref=""
+          sp_status=1
+          if incident_ref=$(statuspage_has_active_incident); then
+            sp_status=0
+          else
+            sp_status=$?
+          fi
+
+          if [ "$sp_status" -eq 0 ]; then
+            write_waiver "allow-actionable" "CodeRabbit status pending for ${age_s}s with active incident ${incident_ref}"
+            rule_pass 3 "CodeRabbit status=pending for ${age_s}s and status.coderabbit.ai reports an active incident (${incident_ref}); bypassed via --allow-actionable"
+          elif [ "$sp_status" -eq 2 ]; then
+            rule_fail 3 "Status-page validation failed while evaluating outage bypass. Confirm https://status.coderabbit.ai/ is reachable and re-run without bypass until an active incident is visible."
+          else
+            rule_fail 3 "Outage bypass requested, but status.coderabbit.ai shows no active incident. Do not use --allow-actionable without a live incident."
+          fi
         fi
       elif [ "$age_s" -ge 900 ]; then
         rule_fail 3 "CR status pending for ${age_s}s. CR may be experiencing an outage. Verify at https://status.coderabbit.ai/ then re-run with --allow-actionable --reason 'CR outage YYYY-MM-DD per https://status.coderabbit.ai/<incident-id>' if confirmed."
@@ -363,12 +396,7 @@ else
         rule_fail 3 "CodeRabbit status=pending (started ${cr_started}). Wait for CR to complete its review."
       fi ;;
     *)
-      if [ "$allow_actionable" -eq 1 ]; then
-        write_waiver "allow-actionable" "CodeRabbit status=$cr_status"
-        rule_pass 3 "CodeRabbit status=$cr_status but bypassed via --allow-actionable"
-      else
-        rule_fail 3 "CodeRabbit status=$cr_status (expected pass/success). Wait for CR to complete its review and address any findings."
-      fi ;;
+      rule_fail 3 "CodeRabbit status=$cr_status (expected pass/success). Wait for CR to complete its review and address any findings. Non-pending failures cannot be bypassed with --allow-actionable." ;;
   esac
 fi
 
