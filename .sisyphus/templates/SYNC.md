@@ -15,5 +15,5 @@ Update only via a `dp-process-NN` plan that changes both copies in lockstep.
 # Note: `ralph-loop-verify.sh` is hashed in its normalized `--check-sync` form,
 # after removing the extension-only wrapper block. Do not use the raw on-disk
 # file hash for that entry.
-- ralph-loop-contract.md: 0f126b2594fc58d9e5961ab0e024fa4fa98238e877a496b119ea5e6d6ca48028
-- ralph-loop-verify.sh: f37b6ed553def750a4743838bbcd65cdfe19b88b991da6ff7ea1caf5db05ebb9
+- ralph-loop-contract.md: 4ca8a12bf985857600ff0115fbceb3d07432448e4b2faa57a711a61167821413
+- ralph-loop-verify.sh: 95e352175e1bfccd7495f6202cbb453844305ad38fa922e547e38ced4fb56518
