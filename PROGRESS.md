@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-19 slider→reservation-API wiring shipped
-**Last Updated**: 2026-04-27
-**Last Session**: dp-19 shipped. Wired `dynamicSliderGroup` Alpine component to `POST /api/dynamic-pterodactyl/reservation`; swapped route middleware to `checkout` for guest support; made `cart_item_id` optional; added `Cart::checkout()` confirmation hook; 3 new guest tests green; CodeRabbit 2 findings fixed.
+**Phase**: dp-20 reservation lifecycle close-out (shipped as part of dp-19)
+**Last Updated**: 2026-04-28
+**Last Session**: dp-20 audit pass confirmed all 4 changes (cart-clear race fix, confirm-return logging, cleanup cron, expires_at guard) were already implemented in dp-19 commit `a861479`. All 128 tests green. Plan closed out.
 
 ---
 
@@ -58,6 +58,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-16 | Docs sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture | Shipped — squash `f5f88c7` (PR #19) | Apr 2026 |
 | dp-18 | Capacity-fanout Performance: batch admin-view Pterodactyl reads | Shipped — squash `be4756f` (PR #20) | Apr 2026 |
 | dp-19 | Wire customer-facing slider to reservation API (guest support) | Shipped — direct commits on `dynamic-slider` | Apr 2026 |
+| dp-20 | Reservation lifecycle fixes (cart-clear race, confirm-return, cleanup cron, expires_at guard) | Shipped inside dp-19 commit `a861479` (no separate PR) | Apr 2026 |
 
 ---
 
