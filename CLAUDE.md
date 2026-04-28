@@ -166,26 +166,50 @@ Both repos now carry a `.coderabbit.yaml` on their default branch:
 
 CodeRabbit reviews automatically on push. No manual `@coderabbitai review` mention needed unless review is absent after ~2 minutes.
 
+**Required pre-PR local gate**: before `gh pr create`, run:
+
+```bash
+cr review --plain --type committed --base dynamic-slider
+```
+
+If the working branch is a `dp-*` branch that targets `dynamic-slider`, this local CLI pass is mandatory.
+
 **Pre-merge gate** (mechanical, run immediately before `gh pr merge`):
 
 ```bash
-/var/www/paymenter/.sisyphus/templates/ralph-loop-verify.sh \
+bash .sisyphus/templates/ralph-loop-verify.sh \
+  <PR_NUMBER> \
   --repo <owner/repo> \
-  --expected-base <base-branch-regex> \
-  <PR_NUMBER>
+  --expected-base <base-branch-regex>
 ```
 
 Example for extension PR:
 
 ```bash
-/var/www/paymenter/.sisyphus/templates/ralph-loop-verify.sh \
+bash .sisyphus/templates/ralph-loop-verify.sh \
+  <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
-  --expected-base '^(dynamic-slider|dp-)' \
-  <PR_NUMBER>
+  --expected-base '^dynamic-slider$'
 ```
 
 Exit 0 = safe to merge. Non-zero = DO NOT merge. Do not bypass the script.
-Use `--allow-actionable --reason "..."` only with explicit driver approval; reason is audit-logged to `.sisyphus/notepads/ralph-loop-waivers.jsonl`.
+Use `--allow-actionable --reason "..."`, `--allow-direct-default --reason "..."`, or `--skip-quiet-period --reason "..."` only with explicit driver approval; reasons are audit-logged to `.sisyphus/notepads/ralph-loop-waivers.jsonl`.
+
+**After APPROVED**: do not rush. Wait the Rule 8 quiet period before merge. Preferred command:
+
+```bash
+bash .sisyphus/templates/ralph-loop-verify.sh \
+  <PR_NUMBER> \
+  --repo Jordanmuss99/dynamic-pterodactyl \
+  --expected-base '^dynamic-slider$' \
+  --wait
+```
+
+**Template drift check**: before editing local contract/verifier files, or after syncing from outer Paymenter, run:
+
+```bash
+bash .sisyphus/templates/ralph-loop-verify.sh --check-sync
+```
 
 **PR author identity** (what CodeRabbit actually checks for entitlement):
 
