@@ -127,6 +127,7 @@ PY
 }
 
 if [ "${1:-}" = "--check-sync" ]; then
+  command -v python3 >/dev/null 2>&1 || { echo "FAIL: python3 not found in PATH" >&2; exit 2; }
   shift
   run_check_sync "$@"
   exit $?

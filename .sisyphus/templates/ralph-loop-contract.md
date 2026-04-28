@@ -226,9 +226,9 @@ Step 8. If YES: merge PR to integration branch.
 
 With `.coderabbit.yaml` in place, auto-review fires on every push. You do NOT need to post `@coderabbitai review` after a push. Reserve it for:
 - Reasoning-only thread resolution (no new commit, want CR to re-scan)
-- CR status stuck `pending` > 15 minutes (potential CR hang)
+- Status-check-absent cases where CR still has not acknowledged/reviewed after the documented wait window
 
-If you do post it: observe the auto-ack, then wait. Do not post a second mention unless CR posts a non-ack substantive comment that needs a response.
+If CR stays `pending` for >15 minutes, follow the outage/escalation path instead of posting another `review` mention. If you do post `@coderabbitai review` in an allowed scenario, observe the auto-ack, then wait. Do not post a second mention unless CR posts a non-ack substantive comment that needs a response.
 
 ### After APPROVED, do not rush
 

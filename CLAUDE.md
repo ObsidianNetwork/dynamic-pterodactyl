@@ -178,18 +178,18 @@ If the working branch is a `dp-*` branch that targets `dynamic-slider`, this loc
 
 ```bash
 ./.sisyphus/templates/ralph-loop-verify.sh \
+  <PR_NUMBER> \
   --repo <owner/repo> \
-  --expected-base <base-branch-regex> \
-  <PR_NUMBER>
+  --expected-base <base-branch-regex>
 ```
 
 Example for extension PR:
 
 ```bash
 ./.sisyphus/templates/ralph-loop-verify.sh \
+  <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
-  --expected-base '^(dynamic-slider|dp-)' \
-  <PR_NUMBER>
+  --expected-base '^(dynamic-slider|dp-)'
 ```
 
 Exit 0 = safe to merge. Non-zero = DO NOT merge. Do not bypass the script.
@@ -199,10 +199,10 @@ Use `--allow-actionable --reason "..."`, `--allow-direct-default --reason "..."`
 
 ```bash
 ./.sisyphus/templates/ralph-loop-verify.sh \
+  <PR_NUMBER> \
   --repo Jordanmuss99/dynamic-pterodactyl \
   --expected-base '^(dynamic-slider|dp-)' \
-  --wait \
-  <PR_NUMBER>
+  --wait
 ```
 
 **Template drift check**: before editing local contract/verifier files, or after syncing from outer Paymenter, run:
