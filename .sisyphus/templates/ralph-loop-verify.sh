@@ -236,6 +236,20 @@ rule_fail() {
   echo "FAIL: Rule $1 — $2" >&2
 }
 
+iso_to_epoch() {
+  python3 - "$1" <<'PY'
+from datetime import datetime
+import sys
+
+value = sys.argv[1]
+
+try:
+    print(int(datetime.fromisoformat(value.replace('Z', '+00:00')).timestamp()))
+except Exception:
+    sys.exit(1)
+PY
+}
+
 write_waiver() {
   local kind="$1"
   local detail="$2"
@@ -327,7 +341,12 @@ else
       fi
       age_s=0
       if [ -n "$cr_started" ]; then
-        started_epoch=$(date -u -d "$cr_started" +%s 2>/dev/null || echo 0)
+        if ! started_epoch=$(iso_to_epoch "$cr_started"); then
+          rule_fail 3 "CodeRabbit status startedAt '$cr_started' could not be parsed into an epoch"
+          started_epoch=""
+        fi
+      fi
+      if [ -n "${started_epoch:-}" ]; then
         now_epoch=$(date -u +%s)
         age_s=$((now_epoch - started_epoch))
       fi
@@ -629,7 +648,13 @@ else
       break
     fi
 
-    age=$(( $(date +%s) - $(date -d "$last_cr_activity" +%s) ))
+    if ! last_cr_activity_epoch=$(iso_to_epoch "$last_cr_activity"); then
+      rule_fail 8 "Last CR activity timestamp '$last_cr_activity' could not be parsed into an epoch"
+      quiet_rule_satisfied=1
+      break
+    fi
+
+    age=$(( $(date -u +%s) - last_cr_activity_epoch ))
     if [ "$age" -ge "$quiet_period_seconds" ]; then
       rule_pass 8 "Last CR activity at $last_cr_activity is ${age}s old (threshold ${quiet_period_seconds}s)"
       quiet_rule_satisfied=1
