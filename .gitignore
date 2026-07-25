@@ -7,3 +7,5 @@ vendor/
 .phpunit.cache/
 /.omc/state/sessions
 /.omo/run-continuation
+/.opencode/cache
+/.opencode/cache

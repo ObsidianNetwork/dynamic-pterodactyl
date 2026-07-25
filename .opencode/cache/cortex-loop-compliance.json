@@ -1,7 +1,7 @@
 {
-  "endedAt": "2026-07-25T08:18:20.609Z",
-  "durationMs": 456434,
-  "totalToolCalls": 301,
+  "endedAt": "2026-07-25T09:03:14.804Z",
+  "durationMs": 3150617,
+  "totalToolCalls": 465,
   "cortexCalls": 0,
   "verbs": {
     "reads": 0,
@@ -13,6 +13,6 @@
     "reason": 0
   },
   "gaps": [
-    "NO-CORTEX: 301 tool calls over 456s with zero cortex_* usage - prior context never consulted, nothing captured."
+    "NO-CORTEX: 465 tool calls over 3151s with zero cortex_* usage - prior context never consulted, nothing captured."
   ]
 }

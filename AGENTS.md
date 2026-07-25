@@ -1,78 +1,118 @@
-# extensions/Others/DynamicPterodactyl — Companion Extension
+# PROJECT KNOWLEDGE BASE
 
-**Nested git repo** (branch `dynamic-slider`, fork). Paymenter `Other` extension that pairs with the built-in `extensions/Servers/Pterodactyl/` provisioner to add per-product resource sliders (RAM/CPU/disk), real-time availability, and 15-min reservations. Provisioning itself stays in the built-in extension — this one only tracks reservations, calculates pricing, and exposes admin UI.
+**Generated:** 2026-07-25 18:23 AEST
+**Commit:** `66a840a`
+**Branch:** `dynamic-slider`
 
-## Canonical entry
+## OVERVIEW
 
-- `DynamicPterodactyl.php` (class `Paymenter\Extensions\Others\DynamicPterodactyl\DynamicPterodactyl extends App\Classes\Extension\Extension`)
-  - `boot()` — requires `routes/api.php`, adds view namespace `dynamic-pterodactyl`, wires 4 event listeners.
-  - `installed()` / `uninstalled()` — run/rollback migrations via `ExtensionHelper::runMigrations(...)`.
-  - `getConfig()` — declares `pterodactyl_url`, `pterodactyl_api_key` (password), `reservation_ttl` (default 15, `integer|min:5|max:60`).
+Nested Paymenter `Other` extension that complements the built-in Pterodactyl provisioner. It owns real-time capacity reads, short-lived reservations, lifecycle hooks, and Filament administration; Paymenter core remains the slider-pricing authority and the built-in server extension remains the provisioning authority.
 
-## Structure
+## STRUCTURE
 
 ```text
 DynamicPterodactyl/
-├── DynamicPterodactyl.php       # entry class
-├── Admin/{Pages,Resources}      # Filament 4 — 4 Pages + 2 Resources
-├── Http/Controllers/Api/        # Availability, Pricing, Reservation controllers
-├── Listeners/                   # CartItemCreated/Deleted, InvoicePaid, ServiceCreated
-├── Models/                      # AlertConfig, AuditLog, ResourceReservation (3 only)
-├── Services/                    # 8 services (business logic core; pricing reads via SliderConfigReaderService)
-├── database/migrations/         # 7 migrations, all `ptero_*` tables
-├── resources/views/admin/       # Blade partials for Filament Pages
-├── routes/api.php               # /extensions/dynamic-pterodactyl/* (required from boot())
-├── tests/{Unit,LaravelTestCase.php,TestCase.php}
-├── phpunit.xml                  # self-contained: DB_DATABASE=paymenter_test (Test Isolation Mandate dp-13), bootstraps ../../../vendor/autoload.php
-├── CLAUDE.md                    # pre-implementation conventions (some stale, see notes)
-├── README.md                    # v3.1 architecture spec (some stale paths)
-├── 01-DATABASE.md .. 09-IMPLEMENTATION.md   # authoritative feature specs
-└── CHANGELOG.md, DECISIONS.md, PROGRESS.md  # operational logs
+├── DynamicPterodactyl.php       # boot, install/uninstall, policy, listeners, schedules
+├── Admin/                       # Filament 4 pages/resources; see Admin/AGENTS.md
+├── Http/                        # customer/admin API controllers, request, middleware
+├── Listeners/                   # cart, invoice, and service lifecycle adapters
+├── Services/                    # reservation, capacity, alert, setup, audit core
+├── Models/                      # 4 ptero_* models plus AlertConfig observer
+├── database/migrations/         # 8 migrations, including retired pricing-table drop
+├── resources/views/admin/       # 1:1 Blade views for standalone admin pages
+├── routes/api.php               # required from boot(); /api/dynamic-pterodactyl/*
+├── tests/                       # isolated harness; see tests/AGENTS.md
+└── 01-DATABASE.md … 09-IMPLEMENTATION.md
 ```
 
-## Where to look
+## WHERE TO LOOK
 
-| Task | Start at | Spec |
+| Task | Start at | Supporting context |
 |---|---|---|
-| Tables / model schema | `Models/*.php`, `database/migrations/` | `01-DATABASE.md` |
-| Business logic | `Services/` (one class per concern) | `02-SERVICES.md` |
-| REST endpoints | `Http/Controllers/Api/`, `routes/api.php` | `03-API.md` |
-| Cart/invoice hooks | `Listeners/` + `boot()` wiring | `04-EVENTS.md` |
-| Filament screens | `Admin/Pages/*`, `Admin/Resources/*` | `05-ADMIN-UI.md` |
-| Customer sliders | native `dynamic_slider` config option in Paymenter core | `06-FRONTEND.md` |
-| Pricing math | core `Plan::dynamicSliderBasePrice()` + `ConfigOption::calculateDynamicPriceDelta()` (dp-core-01); reads via `Services/SliderConfigReaderService.php` | `07-PRICING-MODELS.md` |
-| Node scoring | `Services/NodeSelectionService.php` | `08-ALGORITHMS.md` |
-| Settled design debates | — | `DECISIONS.md` |
-| Current WIP / checkpoint | — | `PROGRESS.md` |
+| Extension lifecycle / schedules | `DynamicPterodactyl.php` | cleanup every minute; alerts every five minutes |
+| Reservation state changes | `Services/ReservationService.php` | `Listeners/`, `Models/ResourceReservation.php` |
+| Capacity / node choice | `Services/ResourceCalculationService.php`, `Services/NodeSelectionService.php` | `08-ALGORITHMS.md` |
+| Checkout/payment reconciliation | `Listeners/CartItemCreatedListener.php`, `Listeners/InvoicePaidListener.php` | `04-EVENTS.md` |
+| Live API surface | `routes/api.php`, `Http/Controllers/Api/` | code outranks retired endpoints in `03-API.md` |
+| Core slider metadata / price preview | `Services/SliderConfigReaderService.php`, `Http/Controllers/Api/PricingController.php` | core `Plan` and `ConfigOption` methods own math |
+| Admin pages and actions | `Admin/AGENTS.md` | `resources/views/admin/` |
+| Tables / casts / lifecycle values | `Models/`, `database/migrations/` | `DECISIONS.md` before stale schema prose |
+| Test harness and coverage | `tests/AGENTS.md`, `phpunit.xml` | `tests/bootstrap.php` enforces DB isolation |
+| Current decisions / checkpoint | `DECISIONS.md`, `PROGRESS.md` | `CHANGELOG.md` is milestone history |
 
-## Conventions
+## CODE MAP
 
-- **Table prefix**: `ptero_*` (reservations, pricing_configs [dropped in migration 5], audit_logs, alert_configs).
-- **Units**: memory/disk stored in **MB** (display as GB); CPU stored as **%** (100 = 1 core, 400 = 4 cores); money `decimal(10,2)`.
-- **JSON columns**: `snake_case` keys.
-- **Service rule**: one class per concern in `Services/`; controllers stay thin and delegate.
-- **Filament split**: `Pages/` for dashboards (Dashboard, SetupWizard, NodeMonitoring, AuditLogPage); `Resources/` for CRUD (AlertConfig, Reservation).
-- **Tests**: run via this directory's own `phpunit.xml` — `cd` in first, then `vendor/bin/phpunit` (the parent repo's phpunit won't pick these up; parent's `phpunit.xml` only includes `tests/`).
+Caller counts are CodeGraph static counts; Laravel events, container resolution, policies, schedules, and Filament discovery add runtime edges.
 
-## Anti-patterns (this extension)
+| Symbol | Type | Location | Refs | Role |
+|---|---|---|---:|---|
+| `DynamicPterodactyl::boot()` | method | `DynamicPterodactyl.php` | runtime | route, policy, observer, listener, schedule root |
+| `ResourceCalculationService` | class | `Services/ResourceCalculationService.php` | 41 | uncached panel reads and cluster capacity snapshots |
+| `ReservationService` | class | `Services/ReservationService.php` | 26 | reservation state machine, locking, idempotency, audit |
+| `AlertService` | class | `Services/AlertService.php` | 14 | threshold checks, delivery, shortfall notifications |
+| `NodeSelectionService` | class | `Services/NodeSelectionService.php` | 11 | best-fit scoring over current capacity |
+| `SliderConfigReaderService` | class | `Services/SliderConfigReaderService.php` | 5 | native `dynamic_slider` metadata reader |
+| `ConfigOptionSetupService` | class | `Services/ConfigOptionSetupService.php` | admin | transactional setup-wizard writes into core options |
+| `ResourceReservation` | model | `Models/ResourceReservation.php` | cross-layer | shared API, policy, service, listener, admin record |
+| `routes/api.php` | route entry | `routes/api.php` | runtime | customer, checkout, and admin route groups |
 
-- **Do not commit from the outer Paymenter repo** — this is a separate git checkout (`.git/` present). `cd` in, then commit.
-- **Do not add composer.json here** — outer Paymenter's `composer.json` already maps `Paymenter\Extensions\` → `extensions/` for the whole tree.
-- **Do not reimplement server provisioning** — that's the companion pattern's whole point. Delegate to `extensions/Servers/Pterodactyl/`.
-- **Do not add pricing logic to this extension's admin** — pricing moved to Paymenter core (`DECISIONS.md` → "Extension focuses on reservations/availability only"). The `ptero_pricing_configs` table was dropped in migration `2025_01_01_000005`.
-- **Do not cache Pterodactyl API responses** — real-time queries are a settled decision (`DECISIONS.md`). Rate budget is ~10/min against the 240/min panel limit.
-- **Do not swap Filament v3 APIs in** — Paymenter uses Filament 4 (inherited constraint; v3 namespaces moved).
+## CONVENTIONS
 
-## Open TODOs (grep targets)
+- Tables use `ptero_*`; memory/disk use MB, CPU uses percent, money uses `decimal(10,2)`, JSON keys use `snake_case`.
+- Reservation lifecycle is `pending -> confirmed | expired | cancelled`; `released` is retired.
+- Active retries use `idempotency_key`; reservation writes use transactions, `lockForUpdate()`, and deadlock retry.
+- Audit payloads store `token_prefix`, never a full reservation token; audit writes are best-effort around primary state changes.
+- Controllers validate/authorize then delegate. Customer responses expose aggregate capacity; raw node data is admin-only.
+- Route budgets are explicit: availability/pricing/admin `30/min`, reservations `10/min`.
+- Invoice-paid confirmation must re-check live availability before `ReservationService::confirm()` and notify on drift/shortfall.
+- Treat current code plus `DECISIONS.md` as authoritative. `README.md`, `CLAUDE.md`, and numbered specs retain some retired names and endpoints.
+- Record live work in `PROGRESS.md`; record newly settled architecture in `DECISIONS.md`.
 
-- `DynamicPterodactyl.php:95` — register scheduled cleanup job (`CleanupExpiredReservations` every minute).
-- `Listeners/InvoicePaidListener.php:53` — marked `CRITICAL`: final availability re-verification before confirming reservation; `:73-76` admin-notify on shortfall.
-- `Services/AlertService.php:100` — email notification path pending mail setup.
-- `routes/api.php:35` — admin API endpoints stub.
+## ANTI-PATTERNS (THIS PROJECT)
 
-## Enforceable rules (CodeRabbit reads these)
+- Do not add Pterodactyl server creation, suspension, termination, ports, or user provisioning here.
+- Do not add extension-owned pricing models/tables; `ptero_pricing_configs` was deliberately dropped.
+- Do not cache Pterodactyl responses or snapshots; availability is a real-time contract.
+- Do not expose node-level capacity on customer routes.
+- Do not add a local `composer.json` or frontend bundle; the outer app supplies autoloading and native sliders.
+- Do not copy Filament v3 APIs into this Filament 4 codebase.
+- Do not introduce `released`, `base_plus_addon`, full-token audit fields, or retired API endpoints.
+- Do not commit from the outer Paymenter worktree; this directory is its own git checkout.
 
-- FAIL when: Pterodactyl API responses are cached (using `Cache::put`, `Cache::remember`, or similar). Rationale: real-time queries are a settled design decision per DECISIONS.md; caching violates the availability contract.
-- FAIL when: pricing logic is added to this extension's admin or services. Rationale: pricing moved to Paymenter core per DECISIONS.md; the `ptero_pricing_configs` table was dropped in migration 5.
-- FAIL when: server provisioning logic (createServer, suspendServer, terminateServer) is added here. Rationale: this extension is reservation/availability only; provisioning delegates to `extensions/Servers/Pterodactyl/`.
-- FAIL when: a commit is made from the outer Paymenter repo's working tree. Rationale: this is a separate git repo (`.git/` present); `cd` into the extension directory before committing.
+## UNIQUE STYLES
+
+- Routes are loaded by `boot()` rather than extension-local framework discovery.
+- Four Paymenter events adapt cart/invoice/service lifecycle into the reservation service.
+- Schedules are named inline closures in `boot()`; there are no local Job/Command classes.
+- Filament resources perform actions through services; standalone pages own 1:1 namespaced Blade views.
+- Pricing preview calls core `Plan::dynamicSliderBasePrice()` and `ConfigOption::calculateDynamicPriceDelta()` directly.
+
+## COMMANDS
+
+```bash
+# From a deployed Paymenter/extensions/Others/DynamicPterodactyl checkout
+../../../vendor/bin/phpunit -c phpunit.xml
+../../../vendor/bin/phpunit -c phpunit.xml --testsuite Unit
+../../../vendor/bin/phpunit -c phpunit.xml --testsuite Feature
+
+# From the outer Paymenter application root
+php artisan schedule:work
+```
+
+No extension-local Composer/npm build, lint command, or GitHub Actions workflow exists. This `.tools` mirror has no vendor tree; run PHPUnit in the deployed Paymenter tree or its `/var/www/paymenter` container.
+
+## NOTES
+
+- `phpunit.xml` fixes `DB_DATABASE=paymenter_test`; `tests/bootstrap.php` aborts on any non-test database.
+- Cleanup, capacity alert email/webhook delivery, shortfall email notifications, delivery logs, and admin API routes are implemented; older TODOs claiming otherwise are stale.
+- PR/CodeRabbit identity, quiet-period, and verifier commands remain documented in `CLAUDE.md`.
+- PHP LSP is not installed; the code map uses CodeGraph plus current source inspection.
+
+## ENFORCEABLE RULES (CODERABBIT READS THESE)
+
+- FAIL when Pterodactyl API responses are cached. Real-time availability is settled in `DECISIONS.md`.
+- FAIL when pricing logic or storage is added to this extension. Paymenter core owns `dynamic_slider` pricing.
+- FAIL when provisioning methods such as `createServer`, `suspendServer`, or `terminateServer` are added here.
+- FAIL when customer endpoints return raw node-level capacity.
+- FAIL when audit JSON stores a complete reservation token rather than a redacted prefix.
+- FAIL when a commit is made from the outer Paymenter working tree instead of this nested repository.
