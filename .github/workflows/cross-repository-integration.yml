@@ -55,15 +55,6 @@ jobs:
           ref: codex/paymenter-1.5.6-remediation
           path: paymenter
 
-      - name: Assemble extension checkout
-        run: |
-          mkdir -p paymenter/extensions/Others/DynamicPterodactyl
-          rsync -a \
-            --exclude=.git \
-            --exclude=.github \
-            dynamic-pterodactyl/ \
-            paymenter/extensions/Others/DynamicPterodactyl/
-
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
         with:
@@ -76,16 +67,29 @@ jobs:
         working-directory: paymenter
         run: composer install --prefer-dist --no-progress --no-suggest
 
+      - name: Assemble extension checkout
+        run: |
+          mkdir -p paymenter/extensions/Others/DynamicPterodactyl
+          rsync -a \
+            --exclude=.git \
+            --exclude=.github \
+            dynamic-pterodactyl/ \
+            paymenter/extensions/Others/DynamicPterodactyl/
+
       - name: Prepare test database
         working-directory: paymenter
         env:
           APP_ENV: testing
+          CACHE_STORE: array
           DB_CONNECTION: mariadb
           DB_HOST: 127.0.0.1
           DB_PORT: 3306
           DB_DATABASE: paymenter_test
           DB_USERNAME: root
           DB_PASSWORD: password
+          MAIL_MAILER: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
         run: |
           cp .env.example .env
           php artisan key:generate --force
