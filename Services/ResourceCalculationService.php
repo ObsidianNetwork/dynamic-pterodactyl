@@ -8,11 +8,11 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 
 class ResourceCalculationService
 {
-    private PterodactylInventoryService $inventory;
+    private ?PterodactylInventoryService $inventory;
 
     public function __construct(?PterodactylInventoryService $inventory = null)
     {
-        $this->inventory = $inventory ?? app(PterodactylInventoryService::class);
+        $this->inventory = $inventory;
     }
 
     /**
@@ -31,7 +31,7 @@ class ResourceCalculationService
         int $locationId,
         ?string $excludeReservationToken = null
     ): array {
-        $nodes = $this->inventory->nodesInLocation($locationId);
+        $nodes = $this->inventory()->nodesInLocation($locationId);
 
         return $this->buildLocationAvailability(
             $locationId,
@@ -48,8 +48,8 @@ class ResourceCalculationService
         $snapshot = $this->emptyClusterSnapshot();
 
         try {
-            $locations = $this->inventory->locations();
-            $nodes = $this->inventory->nodes();
+            $locations = $this->inventory()->locations();
+            $nodes = $this->inventory()->nodes();
         } catch (\RuntimeException $exception) {
             if ($this->shouldReturnDegradedSnapshot($exception)) {
                 return $this->degradedClusterSnapshot();
@@ -178,7 +178,7 @@ class ResourceCalculationService
         int $nodeId,
         ?string $excludeReservationToken = null
     ): ?array {
-        $node = collect($this->inventory->nodes())->firstWhere('id', $nodeId);
+        $node = collect($this->inventory()->nodes())->firstWhere('id', $nodeId);
         if (! is_array($node)) {
             return null;
         }
@@ -197,12 +197,12 @@ class ResourceCalculationService
      */
     public function getLocations(): array
     {
-        return $this->inventory->locations();
+        return $this->inventory()->locations();
     }
 
     public function testConnection(): array
     {
-        return $this->inventory->testConnection();
+        return $this->inventory()->testConnection();
     }
 
     /**
@@ -215,7 +215,7 @@ class ResourceCalculationService
         ?string $excludeReservationToken = null
     ): array {
         $nodeIds = array_map(fn (array $node): int => (int) $node['id'], $nodes);
-        $servers = $this->inventory->serversForNodes($nodeIds);
+        $servers = $this->inventory()->serversForNodes($nodeIds);
         $reservations = $this->holdingReservations(
             $nodeIds,
             $servers,
@@ -250,7 +250,7 @@ class ResourceCalculationService
                 ->values()
                 ->all();
             $inventoryAllocations =
-                $this->inventory->availableAllocationsForNode($nodeId);
+                $this->inventory()->availableAllocationsForNode($nodeId);
             $assignedServerIps = collect($inventoryAllocations)
                 ->filter(
                     fn (array $allocation): bool => in_array(
@@ -552,7 +552,7 @@ class ResourceCalculationService
         }
 
         return NodeCapacityPolicy::query()
-            ->forPanel($this->inventory->panelIdentity())
+            ->forPanel($this->inventory()->panelIdentity())
             ->whereIn('node_uuid', $uuids)
             ->get()
             ->keyBy('node_uuid')
@@ -587,7 +587,7 @@ class ResourceCalculationService
             )
             ->where(
                 'reservations.panel_identity',
-                $this->inventory->panelIdentity()
+                $this->inventory()->panelIdentity()
             )
             ->whereIn('reservations.node_id', $nodeIds)
             ->where(function ($query): void {
@@ -917,7 +917,7 @@ class ResourceCalculationService
             )
             ->where(
                 'reservations.panel_identity',
-                $this->inventory->panelIdentity()
+                $this->inventory()->panelIdentity()
             )
             ->whereColumn(
                 'allocations.panel_identity',
@@ -1064,5 +1064,10 @@ class ResourceCalculationService
     {
         return str_contains($exception->getMessage(), 'connection failed')
             || preg_match('/inventory API error \\(5\\d\\d\\)/', $exception->getMessage()) === 1;
+    }
+
+    private function inventory(): PterodactylInventoryService
+    {
+        return $this->inventory ??= app(PterodactylInventoryService::class);
     }
 }

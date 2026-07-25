@@ -8,6 +8,7 @@ use App\Helpers\ExtensionHelper;
 use App\Models\ConfigOption;
 use App\Models\Extension;
 use App\Models\Invoice;
+use App\Models\Plan;
 use App\Models\Product;
 use App\Models\Server;
 use App\Models\Service;
@@ -354,7 +355,7 @@ class ReservationServiceTest extends LaravelTestCase
         $price->price = 7;
         $price->save();
 
-        $this->assertSame('7.00', (string) $price->fresh()->price);
+        $this->assertEquals(7.0, (float) $price->fresh()->price);
     }
 
     public function test_pending_commitment_prevents_detaching_its_configuration(): void
@@ -904,9 +905,18 @@ class ReservationServiceTest extends LaravelTestCase
         $invoice = Invoice::factory()->create([
             'user_id' => $service->user_id,
             'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $invoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => 12.50,
+            'quantity' => 1,
+            'description' => 'Dynamic server',
         ]);
         $reservationId = $this->insertReservation(
             serviceId: $service->id,
+            invoiceId: $invoice->id,
             userId: $service->user_id,
             guaranteedUntil: now()->subSecond()
         );
@@ -1719,7 +1729,7 @@ class ReservationServiceTest extends LaravelTestCase
             'settings.cronjob_order_suspend' => 2,
             'settings.cronjob_invoice' => 7,
         ]);
-        $service = $this->makeService(status: Service::STATUS_ACTIVE);
+        $service = $this->makeBillableService(Service::STATUS_ACTIVE);
         DB::table('services')->where('id', $service->id)->update([
             'expires_at' => now()->subDays(3),
             'price' => 10,
@@ -1742,7 +1752,7 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_paid_renewal_can_reactivate_confirmed_dynamic_service(): void
     {
         Queue::fake();
-        $service = $this->makeService(status: Service::STATUS_SUSPENDED);
+        $service = $this->makeBillableService(Service::STATUS_SUSPENDED);
         $this->insertReservation(
             serviceId: $service->id,
             userId: $service->user_id,
@@ -2041,6 +2051,27 @@ class ReservationServiceTest extends LaravelTestCase
         return Service::query()->findOrFail($id);
     }
 
+    private function makeBillableService(string $status): Service
+    {
+        $product = $this->pterodactylProduct();
+        $plan = Plan::factory()->create([
+            'priceable_id' => $product->id,
+            'priceable_type' => Product::class,
+            'type' => 'recurring',
+            'billing_unit' => 'month',
+            'billing_period' => 1,
+        ]);
+        $service = $this->makeService($status);
+        DB::table('services')
+            ->where('id', $service->id)
+            ->update([
+                'product_id' => $product->id,
+                'plan_id' => $plan->id,
+            ]);
+
+        return $service->fresh();
+    }
+
     /**
      * @return array{Service, Product}
      */
@@ -2132,6 +2163,16 @@ class ReservationServiceTest extends LaravelTestCase
                 'user_email' => $userId !== null
                     ? (string) User::query()->whereKey($userId)->value('email')
                     : null,
+            ],
+            'allocation_requirements' => [
+                'required_count' => 1,
+                'mappings' => [[
+                    'environment_key' => 'SERVER_PORT',
+                    'requested_port' => null,
+                    'is_primary' => true,
+                ]],
+                'allowed_port_ranges' => [],
+                'dedicated_ip' => false,
             ],
             'allocations' => [[
                 'allocation_id' => 7001,

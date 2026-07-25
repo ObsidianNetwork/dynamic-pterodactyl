@@ -13,11 +13,11 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfig
 
 class ProductResourceConfigurationService
 {
-    private PterodactylInventoryService $inventory;
+    private ?PterodactylInventoryService $inventory;
 
     public function __construct(?PterodactylInventoryService $inventory = null)
     {
-        $this->inventory = $inventory ?? app(PterodactylInventoryService::class);
+        $this->inventory = $inventory;
     }
 
     /**
@@ -68,7 +68,7 @@ class ProductResourceConfigurationService
         if (
             $provisioningUrl === ''
             || ! hash_equals(
-                $this->inventory->panelIdentity(),
+                $this->inventory()->panelIdentity(),
                 hash('sha256', $provisioningUrl)
             )
         ) {
@@ -76,7 +76,7 @@ class ProductResourceConfigurationService
                 'The product and stock service are not configured for the same Pterodactyl panel.'
             );
         }
-        $this->inventory->assertExclusiveProvisioningControl();
+        $this->inventory()->assertExclusiveProvisioningControl();
 
         $selected = $this->normalizeSubmittedOptions($submittedOptions);
         $activeOptions = $this->activeProductOptions($product);
@@ -675,5 +675,10 @@ class ProductResourceConfigurationService
         } catch (\InvalidArgumentException) {
             return '';
         }
+    }
+
+    private function inventory(): PterodactylInventoryService
+    {
+        return $this->inventory ??= app(PterodactylInventoryService::class);
     }
 }

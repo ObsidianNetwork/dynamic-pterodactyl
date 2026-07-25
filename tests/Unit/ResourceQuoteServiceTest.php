@@ -4,6 +4,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\Product;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\StockUnavailableException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AllocationSelectionService;
@@ -158,9 +159,7 @@ class ResourceQuoteServiceTest extends TestCase
         $this->assertStringNotContainsString('available_allocations', $encoded);
     }
 
-    /**
-     * @dataProvider unboundedInventoryReasons
-     */
+    #[DataProvider('unboundedInventoryReasons')]
     public function test_unbounded_inventory_is_configuration_failure(string $reason): void
     {
         $configuration = $this->configuration();
@@ -282,6 +281,11 @@ class ResourceQuoteServiceTest extends TestCase
             'node_id' => $nodeId,
             'eligible' => true,
             'available' => [
+                'memory' => $memory,
+                'cpu' => $cpu,
+                'disk' => $disk,
+            ],
+            'total' => [
                 'memory' => $memory,
                 'cpu' => $cpu,
                 'disk' => $disk,
