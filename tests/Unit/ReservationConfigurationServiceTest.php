@@ -61,6 +61,30 @@ class ReservationConfigurationServiceTest extends TestCase
         $this->assertSame($service->fingerprint($left), $service->fingerprint($right));
     }
 
+    public function test_integral_float_fingerprint_survives_json_round_trip(): void
+    {
+        $service = new ReservationConfigurationService;
+        $payload = [
+            'config_options' => [
+                ['id' => 1, 'value' => 4096.0],
+                ['id' => 2, 'value' => 1.5],
+            ],
+        ];
+        $stored = json_encode($payload, JSON_THROW_ON_ERROR);
+        $reloaded = json_decode(
+            $stored,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+
+        $this->assertStringNotContainsString('4096.0', $stored);
+        $this->assertSame(
+            $service->fingerprint($payload),
+            $service->fingerprint($reloaded)
+        );
+    }
+
     public function test_resource_or_node_change_changes_fingerprint(): void
     {
         $service = new ReservationConfigurationService;
