@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AllocationSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
@@ -17,7 +18,10 @@ class NodeSelectionServiceTest extends LaravelTestCase
         parent::setUp();
 
         $this->mockResourceService = Mockery::mock(ResourceCalculationService::class);
-        $this->service = new NodeSelectionService($this->mockResourceService);
+        $this->service = new NodeSelectionService(
+            $this->mockResourceService,
+            new AllocationSelectionService()
+        );
     }
 
     protected function tearDown(): void
@@ -153,10 +157,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         $this->assertEquals(2, $result['node_id']);
     }
 
-    /**
-     * CPU limits do not affect node selection without authoritative inventory.
-     */
-    public function test_cpu_is_not_treated_as_hard_capacity(): void
+    public function test_skips_node_with_insufficient_authoritative_cpu(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
             ->with(1, null)
@@ -191,7 +192,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         ]);
 
         $this->assertNotNull($result);
-        $this->assertEquals(1, $result['node_id']);
+        $this->assertEquals(2, $result['node_id']);
     }
 
     /**
@@ -348,5 +349,136 @@ class NodeSelectionServiceTest extends LaravelTestCase
         $result = $this->service->selectBestNode(1, $this->standardResources());
 
         $this->assertNull($result);
+    }
+
+    public function test_requires_requested_number_of_free_allocations(): void
+    {
+        $this->mockResourceService->shouldReceive('getLocationAvailability')
+            ->with(1, null)
+            ->andReturn([
+                'nodes' => [
+                    $this->createNodeData(1, 'Node 1', [
+                        'memory' => 16384,
+                        'cpu' => 800,
+                        'disk' => 102400,
+                    ], [
+                        'memory' => 8192,
+                        'cpu' => 400,
+                        'disk' => 51200,
+                    ]),
+                ],
+                'max_available' => [],
+            ]);
+
+        $result = $this->service->selectBestNodeWithAllocations(
+            1,
+            ['memory' => 4096, 'cpu' => 100, 'disk' => 20480],
+            allocationCount: 2
+        );
+
+        $this->assertNull($result);
+    }
+
+    public function test_explicit_port_requirement_is_part_of_node_eligibility(): void
+    {
+        $first = $this->createNodeData(1, 'Wrong Port', [
+            'memory' => 16384,
+            'cpu' => 800,
+            'disk' => 102400,
+        ], [
+            'memory' => 12288,
+            'cpu' => 600,
+            'disk' => 76800,
+        ]);
+        $second = $this->createNodeData(2, 'Requested Port', [
+            'memory' => 16384,
+            'cpu' => 800,
+            'disk' => 102400,
+        ], [
+            'memory' => 8192,
+            'cpu' => 400,
+            'disk' => 51200,
+        ]);
+        $second['available_allocations'][0]['port'] = 25570;
+
+        $this->mockResourceService->shouldReceive('getLocationAvailability')
+            ->with(1, null)
+            ->andReturn([
+                'nodes' => [$first, $second],
+                'max_available' => [],
+            ]);
+
+        $result = $this->service->selectBestNodeWithAllocations(
+            1,
+            ['memory' => 4096, 'cpu' => 100, 'disk' => 20480],
+            1,
+            null,
+            [25570]
+        );
+
+        $this->assertSame(2, $result['node_id']);
+    }
+
+    public function test_required_port_is_selected_even_when_later_in_inventory(): void
+    {
+        $node = $this->createNodeData(1, 'Node 1', [
+            'memory' => 16384,
+            'cpu' => 800,
+            'disk' => 102400,
+        ], [
+            'memory' => 8192,
+            'cpu' => 400,
+            'disk' => 51200,
+        ]);
+        $node['available_allocations'] = [
+            ['id' => 100, 'ip' => '192.0.2.1', 'port' => 25565],
+            ['id' => 101, 'ip' => '192.0.2.1', 'port' => 25570],
+        ];
+        $this->mockResourceService->shouldReceive('getLocationAvailability')
+            ->with(1, null)
+            ->andReturn(['nodes' => [$node], 'max_available' => []]);
+
+        $result = $this->service->selectBestNodeWithAllocations(
+            1,
+            ['memory' => 4096, 'cpu' => 100, 'disk' => 20480],
+            1,
+            null,
+            [25570]
+        );
+
+        $this->assertSame([101], array_column($result['selected_allocations'], 'id'));
+    }
+
+    public function test_duplicate_port_on_multiple_ips_selects_lowest_allocation_id(): void
+    {
+        $node = $this->createNodeData(1, 'Node 1', [
+            'memory' => 16384,
+            'cpu' => 800,
+            'disk' => 102400,
+        ], [
+            'memory' => 8192,
+            'cpu' => 400,
+            'disk' => 51200,
+        ]);
+        $node['available_allocations'] = [
+            ['id' => 100, 'ip' => '192.0.2.1', 'port' => 25570],
+            ['id' => 101, 'ip' => '192.0.2.2', 'port' => 25570],
+        ];
+        $this->mockResourceService->shouldReceive('getLocationAvailability')
+            ->with(1, null)
+            ->andReturn(['nodes' => [$node], 'max_available' => []]);
+
+        $result = $this->service->selectBestNodeWithAllocations(
+            1,
+            ['memory' => 4096, 'cpu' => 100, 'disk' => 20480],
+            1,
+            null,
+            [25570]
+        );
+
+        $this->assertSame(
+            [100],
+            array_column($result['selected_allocations'], 'id')
+        );
     }
 }

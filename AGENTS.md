@@ -34,7 +34,7 @@ DynamicPterodactyl/
 | Capacity / node choice | `Services/ResourceCalculationService.php`, `Services/NodeSelectionService.php` | `08-ALGORITHMS.md` |
 | Checkout/provisioning reconciliation | `Services/ReservationService.php`, companion Pterodactyl `createServer()` | `04-EVENTS.md` |
 | Live API surface | `routes/api.php`, `Http/Controllers/Api/` | `03-API.md` |
-| Core slider metadata / price preview | `Services/SliderConfigReaderService.php`, `Http/Controllers/Api/PricingController.php` | core `Plan` and `ConfigOption` methods own math |
+| Customer stock quotes | `Services/ResourceQuoteService.php`, `Services/UpgradeReservationService.php`, quote controllers | complete-vector bounds; core `Plan` and `ConfigOption` methods own pricing |
 | Admin pages and actions | `Admin/AGENTS.md` | `resources/views/admin/` |
 | Tables / casts / lifecycle values | `Models/`, `database/migrations/` | `DECISIONS.md` before stale schema prose |
 | Test harness and coverage | `tests/AGENTS.md`, `phpunit.xml` | `tests/bootstrap.php` enforces DB isolation |
@@ -52,7 +52,7 @@ Caller counts are CodeGraph static counts; Laravel events, container resolution,
 | `ReservationConfigurationService` | class | `Services/ReservationConfigurationService.php` | cross-layer | canonical payload and fingerprint authority |
 | `AlertService` | class | `Services/AlertService.php` | 14 | threshold checks, delivery, shortfall notifications |
 | `NodeSelectionService` | class | `Services/NodeSelectionService.php` | 11 | best-fit scoring over current capacity |
-| `SliderConfigReaderService` | class | `Services/SliderConfigReaderService.php` | 5 | native `dynamic_slider` metadata reader |
+| `ResourceQuoteService` | class | `Services/ResourceQuoteService.php` | customer | complete-vector checkout bounds without node disclosure |
 | `ConfigOptionSetupService` | class | `Services/ConfigOptionSetupService.php` | admin | transactional setup-wizard writes into core options |
 | `ResourceReservation` | model | `Models/ResourceReservation.php` | cross-layer | shared API, policy, service, listener, admin record |
 | `routes/api.php` | route entry | `routes/api.php` | runtime | customer, checkout, and admin route groups |
@@ -63,8 +63,8 @@ Caller counts are CodeGraph static counts; Laravel events, container resolution,
 - Reservation lifecycle is `pending -> confirmed | expired | cancelled`; `released` is retired.
 - One pending hold is keyed by `cart_item_id`; reservation writes use transactions, `lockForUpdate()`, and deadlock retry.
 - Tokens are internal/admin-only and never appear in browser, cart, service, URL, or audit state.
-- Controllers validate/authorize then delegate. Customer responses expose aggregate capacity; raw node data is admin-only.
-- Route budgets are explicit: availability/pricing/admin `30/min`; there is no customer reservation route.
+- Controllers validate/authorize then delegate. Customer responses expose only complete-vector bounds; raw node data is admin-only.
+- Quote and admin route budgets are explicit at `30/min`; there is no customer reservation, independent-max availability, or extension pricing route.
 - Provisioning must call `beginProvisioning()` and `completeProvisioning()` around the external create request.
 - CPU is never treated as hard node capacity without an external authoritative inventory.
 - Treat current code plus `DECISIONS.md` as authoritative.

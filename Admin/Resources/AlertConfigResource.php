@@ -70,6 +70,20 @@ class AlertConfigResource extends Resource
                             ->default(95)
                             ->minValue(1)
                             ->maxValue(100),
+                        TextInput::make('cpu_warning_threshold')
+                            ->label('CPU Warning')
+                            ->suffix('%')
+                            ->numeric()
+                            ->default(80)
+                            ->minValue(1)
+                            ->maxValue(100),
+                        TextInput::make('cpu_critical_threshold')
+                            ->label('CPU Critical')
+                            ->suffix('%')
+                            ->numeric()
+                            ->default(95)
+                            ->minValue(1)
+                            ->maxValue(100),
                         TextInput::make('disk_warning_threshold')
                             ->label('Disk Warning')
                             ->suffix('%')
@@ -133,9 +147,11 @@ class AlertConfigResource extends Resource
                 TextColumn::make('thresholds')
                     ->label('Thresholds')
                     ->getStateUsing(fn ($record) => sprintf(
-                        'Mem: %d%%/%d%% | Disk: %d%%/%d%%',
+                        'Mem: %d%%/%d%% | CPU: %d%%/%d%% | Disk: %d%%/%d%%',
                         $record->memory_warning_threshold,
                         $record->memory_critical_threshold,
+                        $record->cpu_warning_threshold,
+                        $record->cpu_critical_threshold,
                         $record->disk_warning_threshold,
                         $record->disk_critical_threshold
                     )),

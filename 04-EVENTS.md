@@ -11,10 +11,11 @@ sequenceDiagram
 
     Cart->>Hold: reserveForCartItem
     Cart->>Hold: transferCartOwnership on login
-    Cart->>Hold: bindCartItemToService
+    Cart->>Hold: bind seven-day invoice guarantee
+    Pay->>Hold: commit paid capacity
     Pay->>Ptero: dispatch CreateJob
     Ptero->>Hold: beginProvisioning
-    Ptero->>Ptero: create exact node and limits
+    Ptero->>Ptero: create exact node, limits, and ports
     Ptero->>Hold: completeProvisioning
 ```
 
@@ -46,8 +47,22 @@ Missing extension, missing hold, expired hold, or identity drift aborts and roll
 
 ## Payment and provisioning
 
-There is no invoice-paid reservation listener. Paymenter dispatches provisioning before `Invoice\Paid`, so confirmation there would be too late.
+Payment processing atomically turns the expiring invoice guarantee into a
+non-expiring `paid_committed` reservation and moves the service to
+`provisioning`. It then dispatches the retryable create job after commit.
 
-The built-in Pterodactyl `createServer()` calls `beginProvisioning()` directly. The returned context overrides the actual lowercase `node`, `location`, `memory`, `cpu`, and `disk` settings. The row remains pending while the external request runs.
+The built-in Pterodactyl `createServer()` calls `beginProvisioning()` directly.
+The returned context overrides the actual lowercase `node`, `location`,
+`memory`, `cpu`, and `disk` settings plus the exact primary/additional
+allocation IDs. The service remains `provisioning` and the row remains
+`paid_committed` while the external request runs.
 
-After a successful server create, `completeProvisioning()` marks it confirmed and records `consumed_at`. Failure clears only the provisioning lease. If the server exists on retry, the provisioner reconciles the row and returns the existing server instead of duplicating it.
+After the server and complete allocation set are re-read and match,
+`completeProvisioning()` marks the reservation confirmed, records durable
+server/user identity and `consumed_at`, then activates the service. Failure
+clears only the matching lease. If the server exists on retry, the provisioner
+reconciles it instead of duplicating it.
+
+Cancellation shares the same per-service queue overlap key. Capacity and
+product stock are released only after the exact numeric Pterodactyl server ID
+is proved absent.

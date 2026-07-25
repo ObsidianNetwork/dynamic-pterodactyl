@@ -1,12 +1,14 @@
 # Pricing Models
 
-> **Related docs**: [02-SERVICES.md](02-SERVICES.md) (SliderConfigReaderService), [05-ADMIN-UI.md](05-ADMIN-UI.md) (configuration forms)
+> **Related docs**: [02-SERVICES.md](02-SERVICES.md) (configuration and quote services), [05-ADMIN-UI.md](05-ADMIN-UI.md) (configuration forms)
 
 ---
 
 ## Overview
 
-Paymenter core now owns `dynamic_slider` pricing math. This extension only stores slider metadata and previews pricing through the same core methods used by checkout and recalculation flows.
+Paymenter core owns `dynamic_slider` pricing math. This extension stores slider
+metadata and supplies live stock bounds; it does not expose a separate pricing
+preview contract.
 
 Three pricing models serve different business needs:
 
@@ -246,7 +248,10 @@ Show what's included vs. what's extra:
 
 ## Database Storage
 
-Slider pricing is read from ConfigOption metadata built by `Services/ConfigOptionSetupService` and consumed by Paymenter core pricing methods plus `Services/SliderConfigReaderService` for config reads. It is no longer stored in `ptero_pricing_configs.pricing_config`.
+Slider pricing is read from ConfigOption metadata built by
+`Services/ConfigOptionSetupService` and consumed directly by Paymenter core.
+It is no longer stored in `ptero_pricing_configs.pricing_config`, and the
+extension exposes no separate customer pricing-preview API.
 
 Paymenter core reads the `model` key from ConfigOption metadata and performs the calculation via `ConfigOption::calculateDynamicPriceDelta()`. The extension only stores and reads configuration — no local `calculateLinear()`, `calculateTiered()`, or `calculateBasePlusAddon()` methods exist in the extension.
 ---

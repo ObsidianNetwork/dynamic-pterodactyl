@@ -101,6 +101,26 @@ class AdminApiTest extends LaravelTestCase
         }
     }
 
+    public function test_admin_can_filter_durable_paid_commitments(): void
+    {
+        $admin = $this->makeAdminUser();
+        $this->makeReservation(['status' => 'paid_committed']);
+        $this->makeReservation(['status' => 'pending']);
+
+        $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
+            ->getJson(
+                '/api/dynamic-pterodactyl/admin/reservations?status=paid_committed'
+            );
+
+        $response->assertOk();
+        $this->assertCount(1, $response->json('data.data'));
+        $this->assertSame(
+            'paid_committed',
+            $response->json('data.data.0.status')
+        );
+    }
+
     public function test_admin_cancels_reservation_with_reason(): void
     {
         $admin = $this->makeAdminUser();

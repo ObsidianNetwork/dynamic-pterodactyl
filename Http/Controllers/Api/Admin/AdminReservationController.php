@@ -18,7 +18,7 @@ class AdminReservationController
     public function index(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'status'      => 'nullable|string|in:pending,confirmed,cancelled,expired',
+            'status'      => 'nullable|string|in:pending,paid_committed,confirmed,cancelled,expired',
             'location_id' => 'nullable|integer',
             'node_id'     => 'nullable|integer',
             'user_id'     => 'nullable|integer',

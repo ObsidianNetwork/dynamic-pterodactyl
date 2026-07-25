@@ -6,25 +6,46 @@ class NodeSelectionService
 {
     private ResourceCalculationService $resourceService;
 
-    public function __construct(ResourceCalculationService $resourceService)
-    {
+    public function __construct(
+        ResourceCalculationService $resourceService,
+        private readonly AllocationSelectionService $allocations
+    ) {
         $this->resourceService = $resourceService;
     }
 
     /**
-     * Select the best node for given resource requirements
+     * Select an eligible node and one primary Pterodactyl allocation.
      *
-     * Algorithm: memory/disk headroom weighting.
-     *
-     * Pterodactyl does not expose authoritative node CPU capacity, so CPU is
-     * passed through as a server limit but is never treated as hard inventory.
+     * @param  array{memory: int, cpu: int, disk: int}  $requirements
      */
     public function selectBestNode(
         int $locationId,
         array $requirements,
         ?string $excludeReservationToken = null
-    ): ?array
-    {
+    ): ?array {
+        return $this->selectBestNodeWithAllocations(
+            $locationId,
+            $requirements,
+            1,
+            $excludeReservationToken
+        );
+    }
+
+    /**
+     * Select an eligible node and the exact free allocations that should be
+     * locked by the reservation transaction.
+     *
+     * @param  array{memory: int, cpu: int, disk: int}  $requirements
+     */
+    public function selectBestNodeWithAllocations(
+        int $locationId,
+        array $requirements,
+        int $allocationCount = 1,
+        ?string $excludeReservationToken = null,
+        array $requiredPorts = [],
+        array $allowedPortRanges = [],
+        bool $dedicatedIp = false
+    ): ?array {
         $locationData = $this->resourceService->getLocationAvailability(
             $locationId,
             $excludeReservationToken
@@ -33,36 +54,47 @@ class NodeSelectionService
         $candidates = [];
 
         foreach ($locationData['nodes'] as $node) {
-            // Skip nodes in maintenance mode
-            if ($node['maintenance_mode'] ?? false) {
+            if (! ($node['eligible'] ?? false)) {
                 continue;
             }
 
-            // Check if node can accommodate requirements
-            if ($node['available']['memory'] < $requirements['memory']) {
+            $selectedAllocations = $this->allocations->select(
+                $node['available_allocations'] ?? [],
+                $allocationCount,
+                $requiredPorts,
+                $allowedPortRanges,
+                $dedicatedIp
+            );
+            if ($selectedAllocations === null) {
                 continue;
             }
-            if ($node['available']['disk'] < $requirements['disk']) {
-                continue;
+
+            foreach (['memory', 'cpu', 'disk'] as $resource) {
+                if (
+                    ! isset($requirements[$resource])
+                    || ! is_int($requirements[$resource])
+                    || $requirements[$resource] < 1
+                    || (int) ($node['available'][$resource] ?? -1) < $requirements[$resource]
+                ) {
+                    continue 2;
+                }
             }
 
-            // Calculate remaining headroom after allocation
-            $remainingMemory = $node['available']['memory'] - $requirements['memory'];
-            $remainingDisk = $node['available']['disk'] - $requirements['disk'];
+            $remaining = [
+                'memory' => $node['available']['memory'] - $requirements['memory'],
+                'cpu' => $node['available']['cpu'] - $requirements['cpu'],
+                'disk' => $node['available']['disk'] - $requirements['disk'],
+            ];
 
-            $memoryScore = ($remainingMemory / max(1, $node['total']['memory'])) * 0.60;
-            $diskScore = ($remainingDisk / max(1, $node['total']['disk'])) * 0.40;
+            $score = ($remaining['memory'] / max(1, $node['total']['memory'])) * 0.50
+                + ($remaining['cpu'] / max(1, $node['total']['cpu'])) * 0.15
+                + ($remaining['disk'] / max(1, $node['total']['disk'])) * 0.35;
 
-            $score = $memoryScore + $diskScore;
-
+            $node['selected_allocations'] = $selectedAllocations;
             $candidates[] = [
                 'node' => $node,
                 'score' => $score,
-                'remaining' => [
-                    'memory' => $remainingMemory,
-                    'cpu' => null,
-                    'disk' => $remainingDisk,
-                ],
+                'remaining' => $remaining,
             ];
         }
 
@@ -70,8 +102,13 @@ class NodeSelectionService
             return null;
         }
 
-        // Sort by score descending, return highest
-        usort($candidates, fn ($a, $b) => $b['score'] <=> $a['score']);
+        usort($candidates, function (array $left, array $right): int {
+            $score = $right['score'] <=> $left['score'];
+
+            return $score !== 0
+                ? $score
+                : $left['node']['node_id'] <=> $right['node']['node_id'];
+        });
 
         return $candidates[0]['node'];
     }
