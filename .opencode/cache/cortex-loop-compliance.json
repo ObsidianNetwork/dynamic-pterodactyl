@@ -1,0 +1,18 @@
+{
+  "endedAt": "2026-07-25T08:18:20.609Z",
+  "durationMs": 456434,
+  "totalToolCalls": 301,
+  "cortexCalls": 0,
+  "verbs": {
+    "reads": 0,
+    "ingests": 0,
+    "reconsolidations": 0,
+    "skillRetrieve": 0,
+    "skillStore": 0,
+    "skillExecuted": 0,
+    "reason": 0
+  },
+  "gaps": [
+    "NO-CORTEX: 301 tool calls over 456s with zero cortex_* usage - prior context never consulted, nothing captured."
+  ]
+}
