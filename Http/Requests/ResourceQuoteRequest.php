@@ -16,7 +16,7 @@ class ResourceQuoteRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'config_options' => ['required', 'array', 'max:50'],
+            'config_options' => ['present', 'array', 'max:50'],
             'cart_item_id' => [
                 'nullable',
                 'integer',

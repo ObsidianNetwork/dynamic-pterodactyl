@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -275,7 +276,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_checkout_stays_overlaid_until_same_snapshot_proves_target(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create();
+        $serviceRecord = \App\Models\Service::factory()->create([
+            'user_id' => User::factory()->create()->id,
+        ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);
@@ -322,7 +325,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_upgrade_supersedes_checkout_and_overlays_only_snapshot_deficit(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create();
+        $serviceRecord = \App\Models\Service::factory()->create([
+            'user_id' => User::factory()->create()->id,
+        ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);
@@ -396,7 +401,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_multiple_confirmed_upgrades_keep_only_latest_target(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create();
+        $serviceRecord = \App\Models\Service::factory()->create([
+            'user_id' => User::factory()->create()->id,
+        ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);
@@ -469,7 +476,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_conflicting_confirmed_server_identities_fail_snapshot_proof_closed(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create();
+        $serviceRecord = \App\Models\Service::factory()->create([
+            'user_id' => User::factory()->create()->id,
+        ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);
@@ -548,7 +557,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_local_claim_blocks_a_stale_free_allocation_snapshot(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create();
+        $serviceRecord = \App\Models\Service::factory()->create([
+            'user_id' => User::factory()->create()->id,
+        ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);
@@ -706,7 +717,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_dedicated_server_blocks_ip_until_service_is_cancelled(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create();
+        $serviceRecord = \App\Models\Service::factory()->create([
+            'user_id' => User::factory()->create()->id,
+        ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);

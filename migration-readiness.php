@@ -668,4 +668,4 @@ return new class
             $missing[] = $field;
         }
     }
-}
+};

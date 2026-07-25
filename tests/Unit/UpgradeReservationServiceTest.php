@@ -614,6 +614,79 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'currency_code' => 'USD',
             'status' => Service::STATUS_ACTIVE,
         ]);
+        $panelIdentity = hash('sha256', 'https://panel.example');
+        $checkoutEmail = strtolower((string) $user->email);
+        $checkoutPayload = [
+            'customer_id' => (int) $user->id,
+            'product_id' => (int) $product->id,
+            'plan_id' => (int) $plan->id,
+            'panel_identity' => $panelIdentity,
+            'node_id' => 1,
+            'resources' => [
+                'memory' => 4096,
+                'cpu' => 200,
+                'disk' => 20480,
+            ],
+            'allocation_requirements' => [
+                'required_count' => 1,
+                'mappings' => [[
+                    'environment_key' => 'SERVER_PORT',
+                    'requested_port' => null,
+                    'is_primary' => true,
+                ]],
+                'allowed_port_ranges' => [],
+                'dedicated_ip' => false,
+            ],
+            'provisioning_identity' => [
+                'nest_id' => 1,
+                'egg_id' => 2,
+                'user_external_id' => "paymenter-user-{$user->id}",
+                'user_email' => $checkoutEmail,
+            ],
+        ];
+        $checkoutConfiguration = new ReservationConfigurationService;
+        DB::table('ptero_resource_reservations')->insert([
+            'purpose' => 'checkout',
+            'token' => hash('sha256', "checkout:{$service->id}"),
+            'service_id' => $service->id,
+            'service_guard_id' => $service->id,
+            'user_id' => $user->id,
+            'node_id' => 1,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 20480,
+            'reserved_memory' => 4096,
+            'reserved_cpu' => 200,
+            'reserved_disk' => 20480,
+            'calculated_price' => 10,
+            'pricing_breakdown' => json_encode([], JSON_THROW_ON_ERROR),
+            'status' => 'confirmed',
+            'expires_at' => now()->addDays(30),
+            'guaranteed_until' => now()->addDays(30),
+            'panel_identity' => $panelIdentity,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'configuration_fingerprint' =>
+                $checkoutConfiguration->fingerprint($checkoutPayload),
+            'configuration_payload' => json_encode(
+                $checkoutPayload,
+                JSON_THROW_ON_ERROR
+            ),
+            'pricing_version' => str_repeat('a', 64),
+            'formula_version' =>
+                ReservationConfigurationService::FORMULA_VERSION,
+            'external_server_id' => 99,
+            'external_user_id' => 44,
+            'external_server_uuid' =>
+                '10000000-0000-4000-8000-000000000099',
+            'external_server_identifier' => 'server-99',
+            'consumed_at' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
         $options = [
             'memory' => $this->option(
                 $product,
@@ -670,70 +743,6 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'type' => 'option',
             'hidden' => false,
             'parent_id' => $select->id,
-        ]);
-
-        $panelIdentity = hash('sha256', 'https://panel.example');
-        $checkoutEmail = strtolower((string) $user->email);
-        $checkoutPayload = [
-            'customer_id' => (int) $user->id,
-            'product_id' => (int) $product->id,
-            'plan_id' => (int) $plan->id,
-            'panel_identity' => $panelIdentity,
-            'node_id' => 1,
-            'resources' => [
-                'memory' => 4096,
-                'cpu' => 200,
-                'disk' => 20480,
-            ],
-            'provisioning_identity' => [
-                'nest_id' => 1,
-                'egg_id' => 2,
-                'user_external_id' => "paymenter-user-{$user->id}",
-                'user_email' => $checkoutEmail,
-            ],
-        ];
-        $checkoutConfiguration = new ReservationConfigurationService;
-        DB::table('ptero_resource_reservations')->insert([
-            'purpose' => 'checkout',
-            'token' => hash('sha256', "checkout:{$service->id}"),
-            'service_id' => $service->id,
-            'service_guard_id' => $service->id,
-            'user_id' => $user->id,
-            'node_id' => 1,
-            'location_id' => 1,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 20480,
-            'reserved_memory' => 4096,
-            'reserved_cpu' => 200,
-            'reserved_disk' => 20480,
-            'calculated_price' => 10,
-            'pricing_breakdown' => json_encode([], JSON_THROW_ON_ERROR),
-            'status' => 'confirmed',
-            'expires_at' => now()->addDays(30),
-            'guaranteed_until' => now()->addDays(30),
-            'panel_identity' => $panelIdentity,
-            'product_id' => $product->id,
-            'plan_id' => $plan->id,
-            'quantity' => 1,
-            'currency_code' => 'USD',
-            'configuration_fingerprint' =>
-                $checkoutConfiguration->fingerprint($checkoutPayload),
-            'configuration_payload' => json_encode(
-                $checkoutPayload,
-                JSON_THROW_ON_ERROR
-            ),
-            'pricing_version' => str_repeat('a', 64),
-            'formula_version' =>
-                ReservationConfigurationService::FORMULA_VERSION,
-            'external_server_id' => 99,
-            'external_user_id' => 44,
-            'external_server_uuid' =>
-                '10000000-0000-4000-8000-000000000099',
-            'external_server_identifier' => 'server-99',
-            'consumed_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
         ]);
 
         $remote = (object) ['server' => [
