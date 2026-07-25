@@ -15,6 +15,7 @@ class ResourceReservation extends Model
         'token',
         'idempotency_key',
         'cart_item_id',
+        'cart_item_guard_id',
         'cart_id',
         'server_extension_id',
         'panel_identity',
