@@ -9,7 +9,6 @@
 use Illuminate\Support\Facades\Route;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\PricingController;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ReservationController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
@@ -19,14 +18,6 @@ Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:3
     Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
     Route::post('/pricing/calculate', [PricingController::class, 'calculate']);
     Route::get('/pricing/config/{productId}', [PricingController::class, 'getConfig']);
-});
-
-// Reservation endpoints — throttled (10 req/min) for checkout-retry burst tolerance without enabling abuse
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'checkout', 'throttle:10,1'])->group(function () {
-    Route::post('/reservation', [ReservationController::class, 'create']);
-    Route::get('/reservation/{token}', [ReservationController::class, 'get']);
-    Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);
-    Route::post('/reservation/{token}/extend', [ReservationController::class, 'extend']);
 });
 
 // Admin routes — session-based, gated by non-null role (matches User::canAccessPanel)

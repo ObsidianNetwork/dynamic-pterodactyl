@@ -23,7 +23,7 @@ class AdminCapacityController
             foreach ($snapshot['locations'] as $location) {
                 $locationSnapshot = $snapshot['by_location'][$location['id']] ?? [
                     'nodes' => [],
-                    'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                    'totals' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
                     'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
                 ];
 

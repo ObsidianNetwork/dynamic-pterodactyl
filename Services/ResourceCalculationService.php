@@ -30,9 +30,10 @@ class ResourceCalculationService
         $locationData = [
             'location_id' => $locationId,
             'nodes' => [],
-            'max_available' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-            'total_capacity' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'max_available' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
+            'total_capacity' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
             'total_allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'cpu_capacity_enforced' => false,
         ];
 
         foreach ($nodes as $node) {
@@ -44,10 +45,6 @@ class ResourceCalculationService
                 $locationData['max_available']['memory'],
                 $nodeAvailability['available']['memory']
             );
-            $locationData['max_available']['cpu'] = max(
-                $locationData['max_available']['cpu'],
-                $nodeAvailability['available']['cpu']
-            );
             $locationData['max_available']['disk'] = max(
                 $locationData['max_available']['disk'],
                 $nodeAvailability['available']['disk']
@@ -55,7 +52,6 @@ class ResourceCalculationService
 
             // Aggregate totals
             $locationData['total_capacity']['memory'] += $nodeAvailability['total']['memory'];
-            $locationData['total_capacity']['cpu'] += $nodeAvailability['total']['cpu'];
             $locationData['total_capacity']['disk'] += $nodeAvailability['total']['disk'];
 
             $locationData['total_allocated']['memory'] += $nodeAvailability['allocated']['memory'];
@@ -86,9 +82,9 @@ class ResourceCalculationService
         foreach ($locations as $location) {
             $snapshot['by_location'][$location['id']] = [
                 'nodes' => [],
-                'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                'totals' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
                 'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-                'available' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                'available' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
             ];
         }
 
@@ -119,21 +115,19 @@ class ResourceCalculationService
             if (! array_key_exists($locationId, $snapshot['by_location'])) {
                 $snapshot['by_location'][$locationId] = [
                     'nodes' => [],
-                    'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                    'totals' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
                     'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-                    'available' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+                    'available' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
                 ];
             }
 
             $snapshot['by_location'][$locationId]['nodes'][] = $nodeId;
             $snapshot['by_location'][$locationId]['totals']['memory'] += $availability['total']['memory'];
-            $snapshot['by_location'][$locationId]['totals']['cpu'] += $availability['total']['cpu'];
             $snapshot['by_location'][$locationId]['totals']['disk'] += $availability['total']['disk'];
             $snapshot['by_location'][$locationId]['allocated']['memory'] += $availability['allocated']['memory'];
             $snapshot['by_location'][$locationId]['allocated']['cpu'] += $availability['allocated']['cpu'];
             $snapshot['by_location'][$locationId]['allocated']['disk'] += $availability['allocated']['disk'];
             $snapshot['by_location'][$locationId]['available']['memory'] += $availability['available']['memory'];
-            $snapshot['by_location'][$locationId]['available']['cpu'] += $availability['available']['cpu'];
             $snapshot['by_location'][$locationId]['available']['disk'] += $availability['available']['disk'];
         }
 
@@ -195,7 +189,11 @@ class ResourceCalculationService
     }
 
     /**
-     * Verify resources are still available (called at payment time)
+     * Verify authoritative memory and disk capacity.
+     *
+     * CPU is intentionally not checked because Pterodactyl does not publish node
+     * CPU inventory. The requested CPU limit is still reserved as identity data
+     * and passed to server creation.
      */
     public function verifyAvailability(int $nodeId, array $requirements, ?string $excludeReservationToken = null): bool
     {
@@ -209,7 +207,6 @@ class ResourceCalculationService
         $availability = $this->calculateNodeAvailability($node, $excludeReservationToken);
 
         return $availability['available']['memory'] >= $requirements['memory']
-            && $availability['available']['cpu'] >= $requirements['cpu']
             && $availability['available']['disk'] >= $requirements['disk'];
     }
 
@@ -255,11 +252,9 @@ class ResourceCalculationService
 
         $effectiveMemory = $node['memory'] * (1 + ($node['memory_overallocate'] ?? 0) / 100);
         $effectiveDisk = $node['disk'] * (1 + ($node['disk_overallocate'] ?? 0) / 100);
-        $effectiveCpu = ($node['cpu_threads'] ?? 4) * 100;
-
         $available = [
             'memory' => max(0, (int) $effectiveMemory - $allocated['memory'] - $pendingReservations['memory']),
-            'cpu' => max(0, (int) $effectiveCpu - $allocated['cpu'] - $pendingReservations['cpu']),
+            'cpu' => null,
             'disk' => max(0, (int) $effectiveDisk - $allocated['disk'] - $pendingReservations['disk']),
         ];
 
@@ -270,13 +265,14 @@ class ResourceCalculationService
             'maintenance_mode' => $node['maintenance_mode'] ?? false,
             'total' => [
                 'memory' => (int) $effectiveMemory,
-                'cpu' => (int) $effectiveCpu,
+                'cpu' => null,
                 'disk' => (int) $effectiveDisk,
             ],
             'allocated' => $allocated,
             'reserved' => $pendingReservations,
             'available' => $available,
             'server_count' => count($servers),
+            'cpu_capacity_enforced' => false,
             'utilization' => [
                 'memory' => $effectiveMemory > 0
                     ? round(($allocated['memory'] + $pendingReservations['memory']) / $effectiveMemory * 100, 1)
@@ -536,6 +532,7 @@ class ResourceCalculationService
     private function getExtensionConfig(): array
     {
         return Extension::where('extension', 'DynamicPterodactyl')
+            ->where('enabled', true)
             ->first()
             ?->settings
             ->pluck('value', 'key')

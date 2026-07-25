@@ -92,7 +92,7 @@ class Dashboard extends Page
     {
         $locationSnapshot = $snapshot['by_location'][$locationId] ?? [
             'nodes' => [],
-            'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'totals' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
             'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
         ];
 
@@ -106,7 +106,7 @@ class Dashboard extends Page
             'nodes' => $nodes,
             'max_available' => [
                 'memory' => \collect($nodes)->max('available.memory') ?? 0,
-                'cpu' => \collect($nodes)->max('available.cpu') ?? 0,
+                'cpu' => null,
                 'disk' => \collect($nodes)->max('available.disk') ?? 0,
             ],
             'total_capacity' => $locationSnapshot['totals'],

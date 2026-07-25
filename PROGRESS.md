@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-19 slider→reservation-API wiring shipped
-**Last Updated**: 2026-04-27
-**Last Session**: dp-19 shipped. Wired `dynamicSliderGroup` Alpine component to `POST /api/dynamic-pterodactyl/reservation`; swapped route middleware to `checkout` for guest support; made `cart_item_id` optional; added `Cart::checkout()` confirmation hook; 3 new guest tests green; CodeRabbit 2 findings fixed.
+**Phase**: Paymenter 1.5.6 reservation remediation
+**Last Updated**: 2026-07-25
+**Last Session**: Reconstructed the Paymenter fork on 1.5.6 and replaced the two token flows with one server-owned cart-to-provisioning lifecycle.
 
 ---
 
@@ -66,16 +66,39 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-27
-**Working on**: No active task
-**Status**: dp-19 shipped. `dynamicSliderGroup` Alpine wired to reservation API; guest support via `checkout` middleware; `Cart::checkout()` confirms reservations with extension-disabled fallback. CodeRabbit findings fixed (Alpine x-data fallback + obsidian theme sync).
-**Current file**: PROGRESS.md
-**Next action**: All dp-NN backlog items complete. Next work determined by driver.
-**Blockers**: None
+**Last checkpoint**: 2026-07-25
+**Working on**: Cross-repository verification and test updates
+**Status**: Server-owned cart hold, immutable customer/cart/panel fingerprint, guest transfer, fail-closed checkout, payment-duration hold, provisioning lease/consume, node binding, key normalization, and advisory CPU semantics are implemented on local remediation branches.
+**Current file**: tests and lifecycle docs
+**Next action**: Run the PHP suites in a Paymenter container with Composer dependencies and a dedicated test database.
+**Blockers**: This workspace has no PHP or Composer runtime, so PHPUnit and migrations cannot execute locally.
 
 ### This Session's Changes:
 
-1. dp-19 — direct commits on `dynamic-slider` (extension) and `dynamic-slider/1.4.7` (outer Paymenter).
+1. Established a clean Paymenter 1.5.6 companion branch.
+2. Retired the browser reservation API/token flow and invoice-paid confirmation listener.
+3. Added the cart-to-provisioning reservation protocol and cross-repository provisioner integration.
+4. Updated schema, tests, algorithms, and docs for immutable identity and non-authoritative CPU.
+
+---
+
+## 2026-07-25 — Release-blocker remediation
+
+**Status**: Implemented locally; awaiting full container verification
+**Branches**: `codex/paymenter-1.5.6-remediation` in both repositories
+
+Implemented the ten-step repair order from the private-code audit:
+
+- Paymenter 1.5.6 baseline;
+- one server-owned reservation;
+- immutable configuration fingerprint;
+- atomic guest transfer and no browser token;
+- fail-closed cart/checkout;
+- pending hold through payment and provisioning;
+- actual `node` field binding;
+- lowercase config keys and slider serialization;
+- CPU removed from hard capacity;
+- replacement lifecycle/concurrency tests and current documentation.
 
 ---
 

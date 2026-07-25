@@ -87,6 +87,7 @@ class ConfigOptionSetupService
         if ($existingOption) {
             $existingOption->update([
                 'type' => 'dynamic_slider',
+                'env_variable' => $resourceType,
                 'metadata' => $metadata,
             ]);
 
@@ -96,7 +97,7 @@ class ConfigOptionSetupService
         $option = ConfigOption::create([
             'name' => ucfirst($resourceType),
             'type' => 'dynamic_slider',
-            'env_variable' => strtoupper($resourceType),
+            'env_variable' => $resourceType,
             'hidden' => false,
             'sort' => match ($resourceType) {
                 'memory' => 1,
@@ -176,11 +177,12 @@ class ConfigOptionSetupService
 
         if ($existingLocation) {
             $locationOption = $existingLocation;
+            $locationOption->update(['env_variable' => 'location']);
         } else {
             $locationOption = ConfigOption::create([
                 'name' => 'Location',
                 'type' => 'select',
-                'env_variable' => 'LOCATION',
+                'env_variable' => 'location',
                 'hidden' => false,
                 'sort' => 0,
                 'parent_id' => null,
