@@ -361,7 +361,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         [$upgrade, $invoice] = $this->upgrade($fixture);
         $upgrade->configs()->create([
             'config_option_id' => $fixture->select->id,
-            'config_value_id' => $fixture->selectChild->id,
+            'config_value_id' => $fixture->selectAlternate->id,
             'slider_value' => null,
         ]);
         $upgrade->unsetRelation('configs');
@@ -731,6 +731,13 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'hidden' => false,
             'parent_id' => $select->id,
         ]);
+        $selectAlternate = ConfigOption::create([
+            'name' => 'Alternate',
+            'env_variable' => 'alternate',
+            'type' => 'option',
+            'hidden' => false,
+            'parent_id' => $select->id,
+        ]);
 
         $resourceValues = [
             'memory' => 4096,
@@ -1048,6 +1055,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'options' => $options,
             'select' => $select,
             'selectChild' => $selectChild,
+            'selectAlternate' => $selectAlternate,
             'remote' => $remote,
             'upgrades' => $upgrades,
             'checkoutReservationId' => $checkoutReservationId,
