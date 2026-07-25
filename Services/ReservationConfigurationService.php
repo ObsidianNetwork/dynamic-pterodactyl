@@ -9,6 +9,11 @@ use App\Models\ConfigOption;
 use App\Models\Extension;
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\User;
+use App\Support\PanelEndpointIdentity;
+use App\Support\StrictInteger;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidResourceSelectionException;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 
 class ReservationConfigurationService
 {
@@ -28,10 +33,16 @@ class ReservationConfigurationService
      *     currency_code: string,
      *     location_id: int,
      *     resources: array{memory: int, cpu: int, disk: int},
-     *     calculated_price: float,
+     *     calculated_price: string,
      *     pricing_version: string,
      *     formula_version: string,
-     *     config_options: array<int, array<string, mixed>>
+     *     config_options: array<int, array<string, mixed>>,
+     *     allocation_requirements: array{
+     *         required_count: int,
+     *         mappings: array<int, array<string, mixed>>,
+     *         allowed_port_ranges: array<int, array{from: int, to: int}>,
+     *         dedicated_ip: bool
+     *     }
      * }
      */
     public function forCartItem(CartItem $cartItem): array
@@ -51,11 +62,18 @@ class ReservationConfigurationService
             throw new DisplayException('Dynamic resource products currently require a quantity of one.');
         }
 
+        try {
+            $stockConfiguration = app(ProductResourceConfigurationService::class)
+                ->forQuote($cartItem->product, (array) ($cartItem->config_options ?? []));
+        } catch (InvalidResourceSelectionException|InvalidStockConfigurationException $exception) {
+            throw new DisplayException($exception->getMessage(), previous: $exception);
+        }
+
         $selectedOptions = collect($cartItem->config_options ?? [])
             ->keyBy(fn ($option) => (int) data_get($option, 'option_id'));
 
-        $resources = [];
-        $locationId = null;
+        $resources = $stockConfiguration['resources'];
+        $locationId = (int) $stockConfiguration['location_id'];
         $configurationOptions = [];
 
         foreach ($cartItem->product->configOptions as $option) {
@@ -65,16 +83,11 @@ class ReservationConfigurationService
             $environmentKey = strtolower((string) ($option->env_variable ?: $option->name));
 
             if ($option->type === 'dynamic_slider' && in_array($resourceType, ['memory', 'cpu', 'disk'], true)) {
-                $minimum = $resourceType === 'cpu' ? 0 : 1;
-                if ($value === null || ! is_numeric($value) || (float) $value < $minimum) {
-                    throw new DisplayException("A valid {$resourceType} selection is required.");
-                }
-
-                $resources[$resourceType] = (int) $value;
+                $value = $resources[$resourceType];
             }
 
             if ($environmentKey === 'location' || strtolower($option->name) === 'location') {
-                $locationId = $this->resolveLocationId($option, $value);
+                $value = (int) $value;
             }
 
             $configurationOptions[] = [
@@ -87,26 +100,24 @@ class ReservationConfigurationService
             ];
         }
 
-        $staticResources = $this->resolveStaticResources($cartItem);
-        foreach (['memory', 'cpu', 'disk'] as $requiredResource) {
-            if (! array_key_exists($requiredResource, $resources)) {
-                $resources[$requiredResource] = $staticResources[$requiredResource]
-                    ?? throw new DisplayException(
-                        "The {$requiredResource} resource is missing from both the slider and product settings."
-                    );
-            }
-        }
-
-        $locationId ??= $this->resolveStaticLocationId($cartItem);
-        if ($locationId === null || $locationId <= 0) {
-            throw new DisplayException('A deployment location is required before this product can be reserved.');
-        }
-
         usort($configurationOptions, fn (array $left, array $right) => $left['id'] <=> $right['id']);
 
-        $calculatedPrice = round((float) $cartItem->price->total * (int) $cartItem->quantity, 2);
+        $calculatedPrice = $this->canonicalMoney(
+            $cartItem->price->total,
+            (int) $cartItem->quantity
+        );
         $currencyCode = strtoupper((string) $cartItem->cart->currency_code);
         $panel = $this->checkoutPanelIdentity($cartItem);
+        $allocationRequirements = [
+            'required_count' => (int) $stockConfiguration['allocation_count'],
+            'mappings' => (array) $stockConfiguration['allocation_mappings'],
+            'allowed_port_ranges' => (array) (
+                $stockConfiguration['allowed_port_ranges'] ?? []
+            ),
+            'dedicated_ip' => (bool) (
+                $stockConfiguration['dedicated_ip'] ?? false
+            ),
+        ];
         $pricingIdentity = [
             'product_id' => (int) $cartItem->product_id,
             'plan_id' => (int) $cartItem->plan_id,
@@ -114,11 +125,16 @@ class ReservationConfigurationService
             'calculated_price' => $calculatedPrice,
             'config_options' => $configurationOptions,
         ];
+        $customerId = $cartItem->cart->user_id !== null
+            ? (int) $cartItem->cart->user_id
+            : (auth()->id() !== null ? (int) auth()->id() : null);
+        $provisioningIdentity = $this->provisioningIdentity(
+            $cartItem->product,
+            $customerId
+        );
 
         return [
-            'customer_id' => $cartItem->cart->user_id !== null
-                ? (int) $cartItem->cart->user_id
-                : (auth()->id() !== null ? (int) auth()->id() : null),
+            'customer_id' => $customerId,
             'cart_id' => (int) $cartItem->cart_id,
             'server_extension_id' => $panel['server_extension_id'],
             'panel_identity' => $panel['panel_identity'],
@@ -132,6 +148,8 @@ class ReservationConfigurationService
             'pricing_version' => hash('sha256', $this->canonicalJson($pricingIdentity)),
             'formula_version' => self::FORMULA_VERSION,
             'config_options' => $configurationOptions,
+            'allocation_requirements' => $allocationRequirements,
+            'provisioning_identity' => $provisioningIdentity,
         ];
     }
 
@@ -149,6 +167,7 @@ class ReservationConfigurationService
         return ConfigOption::query()
             ->whereHas('products', fn ($query) => $query->whereKey($productId))
             ->where('type', 'dynamic_slider')
+            ->where('hidden', false)
             ->whereNull('parent_id')
             ->get()
             ->contains(fn (ConfigOption $option) => in_array(
@@ -156,6 +175,24 @@ class ReservationConfigurationService
                 ['memory', 'cpu', 'disk'],
                 true
             ));
+    }
+
+    /**
+     * A seven-day capacity claim is truthful only when every server create,
+     * move, resize, and allocation assignment on eligible nodes participates
+     * in this protocol.
+     */
+    public function assertExclusiveProvisioningControl(): void
+    {
+        try {
+            app(PterodactylInventoryService::class)
+                ->assertExclusiveProvisioningControl();
+        } catch (\RuntimeException $exception) {
+            throw new DisplayException(
+                'Dynamic ordering is disabled until an administrator confirms that this Paymenter instance exclusively controls all provisioning on eligible Pterodactyl nodes.',
+                previous: $exception
+            );
+        }
     }
 
     /**
@@ -180,7 +217,38 @@ class ReservationConfigurationService
             'pricing_version' => $snapshot['pricing_version'],
             'formula_version' => $snapshot['formula_version'],
             'config_options' => $snapshot['config_options'],
+            'allocation_requirements' => $snapshot['allocation_requirements'],
+            'provisioning_identity' => $snapshot['provisioning_identity'],
         ]);
+    }
+
+    /**
+     * Add the exact Pterodactyl placement selected under the capacity lock.
+     *
+     * @param  array<string, mixed>  $snapshot
+     * @param  array<int, array<string, mixed>>  $allocations
+     * @return array<string, mixed>
+     */
+    public function withPlacement(array $snapshot, int $nodeId, array $allocations): array
+    {
+        $payload = $this->withNode($snapshot, $nodeId);
+        $payload['allocations'] = array_values(array_map(
+            fn (array $allocation) => [
+                'allocation_id' => (int) ($allocation['allocation_id'] ?? $allocation['id'] ?? 0),
+                'ip' => (string) ($allocation['ip'] ?? ''),
+                'port' => (int) ($allocation['port'] ?? 0),
+                'environment_key' => $allocation['environment_key'] ?? null,
+                'is_primary' => (bool) ($allocation['is_primary'] ?? false),
+            ],
+            $allocations
+        ));
+
+        usort(
+            $payload['allocations'],
+            fn (array $left, array $right) => $left['allocation_id'] <=> $right['allocation_id']
+        );
+
+        return $this->canonicalize($payload);
     }
 
     /**
@@ -190,9 +258,17 @@ class ReservationConfigurationService
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    public function withCustomer(array $payload, int $customerId): array
+    public function withCustomer(
+        array $payload,
+        int $customerId,
+        string $customerEmail
+    ): array
     {
         $payload['customer_id'] = $customerId;
+        $payload['provisioning_identity']['user_external_id']
+            = $this->pterodactylUserExternalId($customerId);
+        $payload['provisioning_identity']['user_email']
+            = $this->normalizeCustomerEmail($customerEmail);
 
         return $this->canonicalize($payload);
     }
@@ -205,14 +281,67 @@ class ReservationConfigurationService
         return hash('sha256', $this->canonicalJson($payload));
     }
 
+    private function canonicalMoney(mixed $unitPrice, int $quantity): string
+    {
+        if (
+            $quantity !== 1
+            || ! is_string($unitPrice)
+            || preg_match('/^(0|[1-9]\d*)\.(\d{2})$/D', $unitPrice) !== 1
+        ) {
+            throw new DisplayException(
+                'The dynamic product price is outside the supported invoice format.'
+            );
+        }
+
+        $wholeDigits = strlen(strstr($unitPrice, '.', true));
+        if ($wholeDigits > 15) {
+            throw new DisplayException(
+                'The dynamic product price exceeds the supported invoice range.'
+            );
+        }
+
+        return $unitPrice;
+    }
+
     /**
-     * Prove that the service still represents the immutable checkout payload.
+     * Prove that the service still owns the immutable checkout payload.
+     *
+     * Product defaults, config-option metadata, and server settings are
+     * intentionally not recomputed here: administrators may edit them while a
+     * seven-day quote is open. The signed reservation remains authoritative
+     * and the provisioner overrides placement and resources from that snapshot.
      *
      * @param  object  $reservation
      */
     public function assertServiceMatches(Service $service, object $reservation): void
     {
-        $expected = [
+        try {
+            $payload = json_decode(
+                (string) $reservation->configuration_payload,
+                true,
+                512,
+                JSON_THROW_ON_ERROR
+            );
+        } catch (\JsonException $exception) {
+            throw new \RuntimeException(
+                'The capacity reservation snapshot is unreadable.',
+                previous: $exception
+            );
+        }
+        if (
+            ! is_array($payload)
+            || ! hash_equals(
+                (string) $reservation->configuration_fingerprint,
+                $this->fingerprint($payload)
+            )
+        ) {
+            throw new \RuntimeException(
+                'The capacity reservation snapshot failed its integrity check.'
+            );
+        }
+
+        $reservationIdentity = [
+            'customer_id' => (int) $reservation->user_id,
             'server_extension_id' => (int) $reservation->server_extension_id,
             'panel_identity' => (string) $reservation->panel_identity,
             'product_id' => (int) $reservation->product_id,
@@ -224,37 +353,137 @@ class ReservationConfigurationService
             'cpu' => (int) $reservation->cpu,
             'disk' => (int) $reservation->disk,
             'location' => (int) $reservation->location_id,
+            'node_id' => (int) $reservation->node_id,
         ];
-
-        $properties = collect(ExtensionHelper::getServiceProperties($service))
-            ->mapWithKeys(fn ($value, $key) => [strtolower((string) $key) => $value]);
-        $settings = $service->product->settings()
-            ->get(['key', 'value'])
-            ->mapWithKeys(fn ($setting) => [strtolower((string) $setting->key) => $setting->value]);
-        $server = $service->product->server;
-        $serverSettings = $server?->settings
-            ?->pluck('value', 'key') ?? collect();
-
-        $actual = [
-            'server_extension_id' => (int) $service->product->server_id,
-            'panel_identity' => hash(
-                'sha256',
-                $this->normalizePanelUrl((string) $serverSettings->get('host'))
-            ),
+        $payloadIdentity = [
+            'customer_id' => (int) ($payload['customer_id'] ?? 0),
+            'server_extension_id' => (int) ($payload['server_extension_id'] ?? 0),
+            'panel_identity' => (string) ($payload['panel_identity'] ?? ''),
+            'product_id' => (int) ($payload['product_id'] ?? 0),
+            'plan_id' => (int) ($payload['plan_id'] ?? 0),
+            'quantity' => (int) ($payload['quantity'] ?? 0),
+            'currency_code' => strtoupper((string) ($payload['currency_code'] ?? '')),
+            'user_id' => (int) ($payload['customer_id'] ?? 0),
+            'memory' => (int) data_get($payload, 'resources.memory', 0),
+            'cpu' => (int) data_get($payload, 'resources.cpu', 0),
+            'disk' => (int) data_get($payload, 'resources.disk', 0),
+            'location' => (int) ($payload['location_id'] ?? 0),
+            'node_id' => (int) ($payload['node_id'] ?? 0),
+        ];
+        $serviceIdentity = [
+            'service_id' => (int) $service->id,
             'product_id' => (int) $service->product_id,
             'plan_id' => (int) $service->plan_id,
             'quantity' => (int) $service->quantity,
             'currency_code' => strtoupper((string) $service->currency_code),
             'user_id' => (int) $service->user_id,
-            'memory' => (int) ($properties->get('memory') ?? $settings->get('memory')),
-            'cpu' => (int) ($properties->get('cpu') ?? $settings->get('cpu')),
-            'disk' => (int) ($properties->get('disk') ?? $settings->get('disk')),
-            'location' => $this->serviceLocationId($service, $properties->get('location')),
+        ];
+        $expectedServiceIdentity = [
+            'service_id' => (int) $reservation->service_id,
+            'product_id' => (int) $reservation->product_id,
+            'plan_id' => (int) $reservation->plan_id,
+            'quantity' => (int) $reservation->quantity,
+            'currency_code' => strtoupper((string) $reservation->currency_code),
+            'user_id' => (int) $reservation->user_id,
         ];
 
-        if ($expected !== $actual) {
-            throw new \RuntimeException('The service configuration does not match its capacity reservation.');
+        if (
+            $reservationIdentity !== $payloadIdentity
+            || $serviceIdentity !== $expectedServiceIdentity
+        ) {
+            throw new \RuntimeException(
+                'The service identity does not match its immutable capacity reservation.'
+            );
         }
+
+        $provisioningIdentity = (array) (
+            $payload['provisioning_identity'] ?? []
+        );
+        if (
+            StrictInteger::parse($provisioningIdentity['nest_id'] ?? null) === null
+            || (int) $provisioningIdentity['nest_id'] <= 0
+            || StrictInteger::parse($provisioningIdentity['egg_id'] ?? null) === null
+            || (int) $provisioningIdentity['egg_id'] <= 0
+            || ! hash_equals(
+                $this->pterodactylUserExternalId((int) $service->user_id),
+                (string) ($provisioningIdentity['user_external_id'] ?? '')
+            )
+            || strtolower(trim((string) (
+                $provisioningIdentity['user_email'] ?? ''
+            ))) === ''
+        ) {
+            throw new \RuntimeException(
+                'The provisioning identity does not match its immutable capacity reservation.'
+            );
+        }
+    }
+
+    /**
+     * @return array{
+     *     nest_id: int,
+     *     egg_id: int,
+     *     user_external_id: string|null,
+     *     user_email: string|null
+     * }
+     */
+    private function provisioningIdentity(
+        Product $product,
+        ?int $customerId
+    ): array {
+        $settings = ExtensionHelper::settingsToArray($product->settings);
+        $nestId = StrictInteger::parse($settings['nest_id'] ?? null);
+        $eggId = StrictInteger::parse($settings['egg_id'] ?? null);
+        if (
+            $nestId === null
+            || $nestId <= 0
+            || $eggId === null
+            || $eggId <= 0
+        ) {
+            throw new DisplayException(
+                'The dynamic product must have one valid Pterodactyl nest and egg.'
+            );
+        }
+
+        return [
+            'nest_id' => $nestId,
+            'egg_id' => $eggId,
+            'user_external_id' => $customerId === null
+                ? null
+                : $this->pterodactylUserExternalId($customerId),
+            'user_email' => $customerId === null
+                ? null
+                : $this->paymenterUserEmail($customerId),
+        ];
+    }
+
+    private function pterodactylUserExternalId(int $customerId): string
+    {
+        if ($customerId <= 0) {
+            throw new \InvalidArgumentException(
+                'A valid Paymenter customer is required for provisioning.'
+            );
+        }
+
+        return "paymenter-user-{$customerId}";
+    }
+
+    private function paymenterUserEmail(int $customerId): string
+    {
+        return $this->normalizeCustomerEmail((string) User::query()
+            ->whereKey($customerId)
+            ->value('email'));
+    }
+
+    private function normalizeCustomerEmail(string $email): string
+    {
+        $email = strtolower(trim($email));
+        if ($email === '') {
+            throw new \InvalidArgumentException(
+                'A valid Paymenter customer email is required for provisioning.'
+            );
+        }
+
+        return $email;
     }
 
     /**
@@ -294,82 +523,15 @@ class ReservationConfigurationService
 
     private function normalizePanelUrl(string $url): string
     {
-        return strtolower(rtrim(trim($url), '/'));
-    }
-
-    private function resolveLocationId(ConfigOption $option, mixed $value): ?int
-    {
-        if ($value === null || $value === '') {
-            return null;
+        if (trim($url) === '') {
+            return '';
         }
 
-        if ($option->type === 'dynamic_slider') {
-            return is_numeric($value) ? (int) $value : null;
+        try {
+            return PanelEndpointIdentity::canonicalUrl($url);
+        } catch (\InvalidArgumentException) {
+            return '';
         }
-
-        $selectedChild = $option->children->firstWhere('id', (int) $value);
-        $resolved = $selectedChild?->env_variable ?? $value;
-
-        return is_numeric($resolved) ? (int) $resolved : null;
-    }
-
-    private function resolveStaticLocationId(CartItem $cartItem): ?int
-    {
-        $settings = $cartItem->product->settings()->pluck('value', 'key');
-        $locations = $settings->get('location_ids');
-
-        if (is_string($locations)) {
-            $decoded = json_decode($locations, true);
-            $locations = json_last_error() === JSON_ERROR_NONE ? $decoded : $locations;
-        }
-
-        $locations = is_array($locations) ? array_values($locations) : [$locations];
-        $locations = array_values(array_filter($locations, fn ($location) => is_numeric($location)));
-
-        return count($locations) === 1 ? (int) $locations[0] : null;
-    }
-
-    /**
-     * Static Pterodactyl limits fill resources whose sliders are intentionally
-     * disabled. They become part of the same immutable payload.
-     *
-     * @return array{memory?: int, cpu?: int, disk?: int}
-     */
-    private function resolveStaticResources(CartItem $cartItem): array
-    {
-        $settings = $cartItem->product->settings()
-            ->get(['key', 'value'])
-            ->mapWithKeys(fn ($setting) => [strtolower((string) $setting->key) => $setting->value]);
-        $resources = [];
-
-        foreach (['memory', 'cpu', 'disk'] as $resourceType) {
-            $value = $settings->get($resourceType);
-            $minimum = $resourceType === 'cpu' ? 0 : 1;
-
-            if (is_numeric($value) && (float) $value >= $minimum) {
-                $resources[$resourceType] = (int) $value;
-            }
-        }
-
-        return $resources;
-    }
-
-    private function serviceLocationId(Service $service, mixed $propertyLocation): int
-    {
-        if (is_numeric($propertyLocation)) {
-            return (int) $propertyLocation;
-        }
-
-        $locations = $service->product->settings()->where('key', 'location_ids')->value('value');
-        if (is_string($locations)) {
-            $decoded = json_decode($locations, true);
-            $locations = json_last_error() === JSON_ERROR_NONE ? $decoded : $locations;
-        }
-
-        $locations = is_array($locations) ? array_values($locations) : [$locations];
-        $locations = array_values(array_filter($locations, fn ($location) => is_numeric($location)));
-
-        return count($locations) === 1 ? (int) $locations[0] : 0;
     }
 
     /**

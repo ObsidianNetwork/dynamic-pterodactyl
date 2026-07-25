@@ -17,11 +17,13 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemDeletedList
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\LegacyReservationReadinessService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\UpgradeReservationService;
 
 #[ExtensionMeta(
     name: 'Dynamic Pterodactyl',
-    description: 'Dynamic resource sliders (RAM/CPU/Disk), real-time availability, and 15-min reservations for Pterodactyl products.',
+    description: 'Dynamic RAM/CPU/disk stock with live quotes, short cart holds, and seven-day invoice guarantees for Pterodactyl products.',
     version: '4.0.0',
     author: 'Paymenter',
     url: '',
@@ -59,6 +61,7 @@ class DynamicPterodactyl extends Extension
                 'type' => 'password',
                 'description' => 'Application API key with read access to Locations, Nodes, and Servers',
                 'required' => true,
+                'encrypted' => true,
             ],
             [
                 'name' => 'reservation_ttl',
@@ -68,6 +71,14 @@ class DynamicPterodactyl extends Extension
                 'default' => 15,
                 'validation' => 'integer|min:5|max:60',
             ],
+            [
+                'name' => 'exclusive_provisioning_control',
+                'label' => 'Paymenter exclusively controls eligible nodes',
+                'type' => 'checkbox',
+                'description' => 'Required for strict stock guarantees. Every node with an enabled CPU policy is dedicated to reservation-backed products: Paymenter blocks its own static creates and non-capacity upgrades, and no administrator, automation, or other billing system may create, move, resize, or assign allocations there.',
+                'required' => true,
+                'validation' => 'accepted',
+            ],
         ];
     }
 
@@ -76,15 +87,37 @@ class DynamicPterodactyl extends Extension
      */
     public function installed(): void
     {
-        ExtensionHelper::runMigrations('extensions/Others/DynamicPterodactyl/database/migrations');
+        ExtensionHelper::runMigrationsOrFail('extensions/Others/DynamicPterodactyl/database/migrations');
+        $this->assertMigrationReady();
     }
 
     /**
-     * Called when extension is uninstalled.
+     * Apply every newly shipped extension migration before upgraded code is used.
+     */
+    public function upgraded($oldVersion = null): void
+    {
+        ExtensionHelper::runMigrationsOrFail('extensions/Others/DynamicPterodactyl/database/migrations');
+        $this->assertMigrationReady();
+    }
+
+    /**
+     * Shared by install/upgrade and Paymenter's explicit extension migration
+     * command so migrations can never report success over unsafe legacy rows.
+     */
+    public function assertMigrationReady(): void
+    {
+        app(LegacyReservationReadinessService::class)->assertReady();
+    }
+
+    /**
+     * Durable reservation, payment-attention, allocation, and CPU-policy
+     * history is deliberately retained on uninstall. Core lifecycle guards
+     * already require all active work to be drained first; preserving the
+     * schema keeps completed fulfillment auditable and makes reinstall safe.
      */
     public function uninstalled(): void
     {
-        ExtensionHelper::rollbackMigrations('extensions/Others/DynamicPterodactyl/database/migrations');
+        // Intentionally no destructive migration rollback.
     }
 
     /**
@@ -112,15 +145,28 @@ class DynamicPterodactyl extends Extension
 
         // Scheduled cleanup: transition expired pending reservations.
         // Keeps admin dashboards accurate and preserves the TTL guarantee on confirm().
-        Schedule::call(fn () => app(ReservationService::class)->cleanupExpired())
+        Schedule::call(function (): void {
+            app(UpgradeReservationService::class)->expireUnpaidUpgrades();
+            app(ReservationService::class)->cleanupExpired();
+        })
             ->everyMinute()
             ->name('dynamic-pterodactyl:cleanup-expired-reservations')
-            ->withoutOverlapping();
+            ->withoutOverlapping(5);
+
+        Schedule::call(
+            function (): void {
+                app(ReservationService::class)->reconcileStalledPaidCommitments();
+                app(UpgradeReservationService::class)->reconcileStalledUpgrades();
+            }
+        )
+            ->everyTenMinutes()
+            ->name('dynamic-pterodactyl:reconcile-paid-commitments')
+            ->withoutOverlapping(15);
 
         Schedule::call(fn () => app(AlertService::class)->checkCapacityAlerts())
             ->everyFiveMinutes()
             ->name('dynamic-pterodactyl:check-capacity-alerts')
-            ->withoutOverlapping();
+            ->withoutOverlapping(10);
     }
 
     /**

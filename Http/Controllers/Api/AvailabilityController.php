@@ -3,54 +3,16 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api;
 
 use Illuminate\Http\JsonResponse;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 
 class AvailabilityController
 {
     private ResourceCalculationService $resourceService;
-    private NodeSelectionService $nodeService;
 
     public function __construct(
-        ResourceCalculationService $resourceService,
-        NodeSelectionService $nodeService
+        ResourceCalculationService $resourceService
     ) {
         $this->resourceService = $resourceService;
-        $this->nodeService = $nodeService;
-    }
-
-    public function getByLocation(int $locationId): JsonResponse
-    {
-        try {
-            $locationData = $this->resourceService->getLocationAvailability($locationId);
-            $maxAvailable = $this->nodeService->getMaxAvailable($locationId, $locationData);
-            $resourceCapacity = [
-                'memory' => $maxAvailable['memory'] > 0,
-                'cpu' => null,
-                'disk' => $maxAvailable['disk'] > 0,
-            ];
-
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'location_id' => $locationId,
-                    'max_memory' => $maxAvailable['memory'],
-                    'max_cpu' => $maxAvailable['cpu'],
-                    'max_disk' => $maxAvailable['disk'],
-                    'node_count' => count($locationData['nodes']),
-                    'has_capacity' => $resourceCapacity['memory'] && $resourceCapacity['disk'],
-                    'resource_capacity' => $resourceCapacity,
-                    'cpu_capacity_enforced' => false,
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            \report($e);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch availability',
-            ], 500);
-        }
     }
 
     public function getNodes(int $locationId): JsonResponse

@@ -2,18 +2,18 @@
 
 All routes are registered from `routes/api.php`.
 
-## Authenticated customer routes
+## Customer quote routes
 
 Prefix: `/api/dynamic-pterodactyl`
-Middleware: `web`, `auth`, `throttle:30,1`
 
 | Method | Route | Response |
 |---|---|---|
-| GET | `/availability/{locationId}` | Aggregate location maxima; no node identity |
-| POST | `/pricing/calculate` | Core-owned dynamic-slider price preview |
-| GET | `/pricing/config/{productId}` | Native slider configuration |
+| POST | `/products/{product}/resource-quote` | Guest-safe, complete-vector checkout bounds; `web`, `throttle:30,1` |
+| POST | `/services/{service}/upgrade-quote` | Customer-owned, fixed-node upgrade bounds; `web`, `auth`, `throttle:30,1` |
 
-Availability responses set `max_cpu` and `resource_capacity.cpu` to `null` and expose `cpu_capacity_enforced: false`. `has_capacity` uses memory and disk only.
+The quote responses expose no node identity. Each bound is feasible for the
+complete RAM/CPU/disk/allocation vector, rather than an independent cluster
+maximum that might combine different nodes.
 
 ## Admin routes
 
@@ -27,8 +27,13 @@ Middleware: `web`, `auth`, `EnsureUserIsAdmin`, `throttle:30,1`
 | GET | `/capacity` | Cluster capacity summary |
 | GET | `/availability/{locationId}/nodes` | Raw per-node details |
 
-## Removed customer reservation API
+## Removed customer reservation and legacy preview APIs
 
 There is no customer create/get/cancel/extend reservation endpoint. Capacity holds are created synchronously by server-side cart listeners. This removes browser idempotency, bearer tokens, session storage, URL state, and client-selected node ownership from the protocol.
+
+The retired `/availability/{locationId}`, `/pricing/calculate`, and
+`/pricing/config/{productId}` routes are also absent. Checkout pricing is owned
+by Paymenter core, and live stock is available only through the complete-vector
+quote contracts above.
 
 Controllers validate and authorize, then delegate to services. Customer errors must never include raw upstream Pterodactyl bodies or node details.

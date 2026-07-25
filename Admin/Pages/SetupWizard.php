@@ -90,7 +90,12 @@ class SetupWizard extends Page implements HasForms
                         ->schema([
                             Select::make('product_id')
                                 ->label('Select Product')
-                                ->options(fn () => Product::pluck('name', 'id'))
+                                ->options(fn () => Product::query()
+                                    ->where('hidden', false)
+                                    ->whereHas('server', fn ($query) => $query
+                                        ->where('extension', 'Pterodactyl')
+                                        ->where('enabled', true))
+                                    ->pluck('name', 'id'))
                                 ->required()
                                 ->searchable()
                                 ->live()
@@ -126,6 +131,8 @@ class SetupWizard extends Page implements HasForms
                                         ->label('Base Price')
                                         ->prefix('$')
                                         ->numeric()
+                                        ->required()
+                                        ->minValue(0)
                                         ->default(0)
                                         ->helperText('Monthly base price before resource costs'),
                                 ]),
@@ -149,21 +156,29 @@ class SetupWizard extends Page implements HasForms
                                                 ->label('Min')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(1),
                                             TextInput::make('memory_max')
                                                 ->label('Max')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(64),
                                             TextInput::make('memory_step')
                                                 ->label('Step')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0.0001)
                                                 ->default(1),
                                             TextInput::make('memory_default')
                                                 ->label('Default')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(4),
                                         ]),
                                 ]),
@@ -182,20 +197,28 @@ class SetupWizard extends Page implements HasForms
                                                 ->label('Min')
                                                 ->suffix('cores')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(1),
                                             TextInput::make('cpu_max')
                                                 ->label('Max')
                                                 ->suffix('cores')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(8),
                                             TextInput::make('cpu_step')
                                                 ->label('Step')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0.0001)
                                                 ->default(1),
                                             TextInput::make('cpu_default')
                                                 ->label('Default')
                                                 ->suffix('cores')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(2),
                                         ]),
                                 ]),
@@ -214,21 +237,29 @@ class SetupWizard extends Page implements HasForms
                                                 ->label('Min')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(10),
                                             TextInput::make('disk_max')
                                                 ->label('Max')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(500),
                                             TextInput::make('disk_step')
                                                 ->label('Step')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0.0001)
                                                 ->default(10),
                                             TextInput::make('disk_default')
                                                 ->label('Default')
                                                 ->suffix('GB')
                                                 ->numeric()
+                                                ->required()
+                                                ->minValue(0)
                                                 ->default(50),
                                         ]),
                                 ]),
@@ -249,18 +280,24 @@ class SetupWizard extends Page implements HasForms
                                             ->prefix('$')
                                             ->suffix('/GB/mo')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0.50),
                                         TextInput::make('cpu_rate')
                                             ->label('CPU Rate')
                                             ->prefix('$')
                                             ->suffix('/core/mo')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(2.00),
                                         TextInput::make('disk_rate')
                                             ->label('Disk Rate')
                                             ->prefix('$')
                                             ->suffix('/GB/mo')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0.02),
                                     ]),
                                 ]),
@@ -275,11 +312,13 @@ class SetupWizard extends Page implements HasForms
                                             TextInput::make('up_to')
                                                 ->label('Up to (GB)')
                                                 ->numeric()
+                                                ->minValue(0)
                                                 ->placeholder('∞ (leave empty for unlimited)'),
                                             TextInput::make('rate')
                                                 ->label('Price per GB')
                                                 ->prefix('$')
                                                 ->numeric()
+                                                ->minValue(0)
                                                 ->required(),
                                         ])
                                         ->columns(2)
@@ -299,11 +338,13 @@ class SetupWizard extends Page implements HasForms
                                             TextInput::make('up_to')
                                                 ->label('Up to (cores)')
                                                 ->numeric()
+                                                ->minValue(0)
                                                 ->placeholder('∞'),
                                             TextInput::make('rate')
                                                 ->label('Price per core')
                                                 ->prefix('$')
                                                 ->numeric()
+                                                ->minValue(0)
                                                 ->required(),
                                         ])
                                         ->columns(2)
@@ -322,11 +363,13 @@ class SetupWizard extends Page implements HasForms
                                             TextInput::make('up_to')
                                                 ->label('Up to (GB)')
                                                 ->numeric()
+                                                ->minValue(0)
                                                 ->placeholder('∞'),
                                             TextInput::make('rate')
                                                 ->label('Price per GB')
                                                 ->prefix('$')
                                                 ->numeric()
+                                                ->minValue(0)
                                                 ->required(),
                                         ])
                                         ->columns(2)
@@ -347,16 +390,22 @@ class SetupWizard extends Page implements HasForms
                                             ->label('Included Memory')
                                             ->suffix('GB')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(4),
                                         TextInput::make('cpu_included')
                                             ->label('Included CPU')
                                             ->suffix('cores')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(2),
                                         TextInput::make('disk_included')
                                             ->label('Included Disk')
                                             ->suffix('GB')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(50),
                                     ]),
                                 ]),
@@ -371,18 +420,24 @@ class SetupWizard extends Page implements HasForms
                                             ->prefix('$')
                                             ->suffix('/GB/mo')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0.75),
                                         TextInput::make('cpu_overage')
                                             ->label('CPU Overage')
                                             ->prefix('$')
                                             ->suffix('/core/mo')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(3.00),
                                         TextInput::make('disk_overage')
                                             ->label('Disk Overage')
                                             ->prefix('$')
                                             ->suffix('/GB/mo')
                                             ->numeric()
+                                            ->required()
+                                            ->minValue(0)
                                             ->default(0.05),
                                     ]),
                                 ]),
@@ -399,7 +454,7 @@ class SetupWizard extends Page implements HasForms
                                         ->label('Allowed Locations')
                                         ->multiple()
                                         ->options(fn () => $this->getLocationOptions())
-                                        ->helperText('Select locations to create a location selector. Leave empty to skip location config option.'),
+                                        ->helperText('Select one or more customer choices, or leave empty only when the product has exactly one valid static Pterodactyl location.'),
                                 ]),
                         ]),
                 ])->columnSpanFull(),
@@ -447,6 +502,22 @@ class SetupWizard extends Page implements HasForms
             if (! empty($selectedLocationIds)) {
                 $allLocations = app(ResourceCalculationService::class)->getLocations();
                 $locations = array_filter($allLocations, fn ($loc) => in_array($loc['id'], $selectedLocationIds));
+                $resolvedLocationIds = collect($locations)
+                    ->pluck('id')
+                    ->map(fn ($id) => (string) $id)
+                    ->sort()
+                    ->values()
+                    ->all();
+                $submittedLocationIds = collect($selectedLocationIds)
+                    ->map(fn ($id) => (string) $id)
+                    ->unique()
+                    ->sort()
+                    ->values()
+                    ->all();
+
+                if ($resolvedLocationIds !== $submittedLocationIds) {
+                    throw new \InvalidArgumentException('One or more selected locations no longer exist on the configured Pterodactyl panel.');
+                }
             }
 
             // Call the service to create config options

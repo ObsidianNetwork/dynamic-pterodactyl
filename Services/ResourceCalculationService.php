@@ -2,73 +2,54 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
-use App\Models\Extension;
-use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Http;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\NodeCapacityPolicy;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 
 class ResourceCalculationService
 {
-    private string $apiUrl;
+    private PterodactylInventoryService $inventory;
 
-    private string $apiKey;
-
-    public function __construct()
+    public function __construct(?PterodactylInventoryService $inventory = null)
     {
-        $config = $this->getExtensionConfig();
-        $this->apiUrl = rtrim($config['pterodactyl_url'] ?? '', '/');
-        $this->apiKey = $config['pterodactyl_api_key'] ?? '';
+        $this->inventory = $inventory ?? app(PterodactylInventoryService::class);
     }
 
     /**
-     * Get available resources for a location (real-time from Pterodactyl API)
+     * Build current stock for every node in a location.
+     *
+     * Memory and disk allocation use the greater of NodeTransformer's
+     * allocated_resources and the complete server index. This is deliberately
+     * conservative while Pterodactyl's independently-read node and server
+     * snapshots converge after a create or update. CPU comes from the server
+     * index and a local, explicit per-node capacity policy. Any missing or
+     * ambiguous inventory makes that node ineligible rather than optimistic.
+     *
+     * @return array<string, mixed>
      */
-    public function getLocationAvailability(int $locationId, ?string $excludeReservationToken = null): array
-    {
-        $nodes = $this->fetchNodesInLocation($locationId);
+    public function getLocationAvailability(
+        int $locationId,
+        ?string $excludeReservationToken = null
+    ): array {
+        $nodes = $this->inventory->nodesInLocation($locationId);
 
-        $locationData = [
-            'location_id' => $locationId,
-            'nodes' => [],
-            'max_available' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
-            'total_capacity' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
-            'total_allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-            'cpu_capacity_enforced' => false,
-        ];
-
-        foreach ($nodes as $node) {
-            $nodeAvailability = $this->calculateNodeAvailability($node, $excludeReservationToken);
-            $locationData['nodes'][] = $nodeAvailability;
-
-            // Track maximum available across all nodes
-            $locationData['max_available']['memory'] = max(
-                $locationData['max_available']['memory'],
-                $nodeAvailability['available']['memory']
-            );
-            $locationData['max_available']['disk'] = max(
-                $locationData['max_available']['disk'],
-                $nodeAvailability['available']['disk']
-            );
-
-            // Aggregate totals
-            $locationData['total_capacity']['memory'] += $nodeAvailability['total']['memory'];
-            $locationData['total_capacity']['disk'] += $nodeAvailability['total']['disk'];
-
-            $locationData['total_allocated']['memory'] += $nodeAvailability['allocated']['memory'];
-            $locationData['total_allocated']['cpu'] += $nodeAvailability['allocated']['cpu'];
-            $locationData['total_allocated']['disk'] += $nodeAvailability['allocated']['disk'];
-        }
-
-        return $locationData;
+        return $this->buildLocationAvailability(
+            $locationId,
+            $nodes,
+            $excludeReservationToken
+        );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function buildClusterSnapshot(): array
     {
         $snapshot = $this->emptyClusterSnapshot();
 
         try {
-            $locations = $this->fetchAllLocations();
-            $nodes = $this->fetchClusterNodes();
+            $locations = $this->inventory->locations();
+            $nodes = $this->inventory->nodes();
         } catch (\RuntimeException $exception) {
             if ($this->shouldReturnDegradedSnapshot($exception)) {
                 return $this->degradedClusterSnapshot();
@@ -78,552 +59,990 @@ class ResourceCalculationService
         }
 
         $snapshot['locations'] = $locations;
-        $knownLocationIds = [];
+        $nodesByLocation = collect($nodes)->groupBy('location_id');
 
         foreach ($locations as $location) {
-            $knownLocationIds[$location['id']] = true;
-            $snapshot['by_location'][$location['id']] = [
-                'nodes' => [],
-                'totals' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
-                'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-                'available' => ['memory' => 0, 'cpu' => null, 'disk' => 0],
-            ];
-        }
-
-        $pendingReservations = $this->getPendingReservationsForNodes(array_keys($nodes));
-
-        foreach ($nodes as $nodeId => $nodeData) {
-            $node = $nodeData['node'];
-            $locationId = $nodeData['location_id'];
-            if (! array_key_exists($locationId, $knownLocationIds)) {
-                throw new \RuntimeException('Pterodactyl API returned a node for an unknown location.');
-            }
-            $availability = $this->buildNodeAvailabilityFromServers(
-                $node,
-                $nodeData['servers'],
-                $pendingReservations[$nodeId] ?? ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            $locationId = (int) $location['id'];
+            $locationAvailability = $this->buildLocationAvailability(
+                $locationId,
+                $nodesByLocation->get($locationId, collect())->values()->all()
             );
 
-            $snapshot['nodes'][$nodeId] = [
-                'node' => $node,
-                'location_id' => $locationId,
-                'servers' => $nodeData['servers'],
-                'totals' => $availability['total'],
-                'allocated' => $availability['allocated'],
-                'available' => $availability['available'],
-                'reserved' => $availability['reserved'],
-                'server_count' => $availability['server_count'],
-                'utilization' => $availability['utilization'],
-                'node_availability' => $availability,
+            $snapshot['by_location'][$locationId] = [
+                'nodes' => array_column($locationAvailability['nodes'], 'node_id'),
+                'totals' => $locationAvailability['total_capacity'],
+                'allocated' => $locationAvailability['total_allocated'],
+                'available' => $locationAvailability['total_available'],
             ];
 
-            $snapshot['by_location'][$locationId]['nodes'][] = $nodeId;
-            $snapshot['by_location'][$locationId]['totals']['memory'] += $availability['total']['memory'];
-            $snapshot['by_location'][$locationId]['totals']['disk'] += $availability['total']['disk'];
-            $snapshot['by_location'][$locationId]['allocated']['memory'] += $availability['allocated']['memory'];
-            $snapshot['by_location'][$locationId]['allocated']['cpu'] += $availability['allocated']['cpu'];
-            $snapshot['by_location'][$locationId]['allocated']['disk'] += $availability['allocated']['disk'];
-            $snapshot['by_location'][$locationId]['available']['memory'] += $availability['available']['memory'];
-            $snapshot['by_location'][$locationId]['available']['disk'] += $availability['available']['disk'];
+            foreach ($locationAvailability['nodes'] as $node) {
+                $snapshot['nodes'][$node['node_id']] = [
+                    'node' => [
+                        'id' => $node['node_id'],
+                        'uuid' => $node['node_uuid'],
+                        'name' => $node['name'],
+                        'fqdn' => $node['fqdn'],
+                        'public' => $node['public'],
+                        'maintenance_mode' => $node['maintenance_mode'],
+                        'location_id' => $locationId,
+                    ],
+                    'location_id' => $locationId,
+                    'servers' => $node['servers'],
+                    'totals' => $node['total'],
+                    'allocated' => $node['allocated'],
+                    'available' => $node['available'],
+                    'reserved' => $node['reserved'],
+                    'server_count' => $node['server_count'],
+                    'utilization' => $node['utilization'],
+                    'node_availability' => $node,
+                ];
+            }
         }
 
         return $snapshot;
     }
 
     /**
-     * Calculate available resources for a specific node
-     */
-    private function calculateNodeAvailability(array $nodeWithServers, ?string $excludeReservationToken = null): array
-    {
-        $node = $nodeWithServers['node'];
-        $servers = $nodeWithServers['servers'];
-        $pendingReservations = $this->getPendingReservations($node['id'], $excludeReservationToken);
-
-        return $this->buildNodeAvailabilityFromServers($node, $servers, $pendingReservations);
-    }
-
-    /**
-     * Test API connection
-     */
-    // Does not use pterodactylGet() — admin-initiated diagnostic needs longer timeout and different error surfaces.
-    public function testConnection(): array
-    {
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer '.$this->apiKey,
-                'Accept' => 'application/json',
-            ])->timeout(10)->get("{$this->apiUrl}/api/application/nodes");
-
-            if ($response->successful()) {
-                $data = $response->json();
-
-                if (! is_array($data) || ! is_array($data['data'] ?? null)) {
-                    return [
-                        'success' => false,
-                        'message' => 'Connection succeeded but response body was not a valid Pterodactyl nodes payload.',
-                    ];
-                }
-
-                return [
-                    'success' => true,
-                    'message' => 'Connection successful',
-                    'node_count' => count($data['data']),
-                    'panel_version' => $response->header('X-Pterodactyl-Version'),
-                ];
-            }
-
-            return [
-                'success' => false,
-                'message' => 'API returned error: '.$response->status(),
-                'details' => $response->json('errors', []),
-            ];
-        } catch (\Exception $e) {
-            return [
-                'success' => false,
-                'message' => 'Connection failed: '.$e->getMessage(),
-            ];
-        }
-    }
-
-    /**
-     * Verify authoritative memory and disk capacity.
+     * Verify the complete resource vector against one currently eligible node.
      *
-     * CPU is intentionally not checked because Pterodactyl does not publish node
-     * CPU inventory. The requested CPU limit is still reserved as identity data
-     * and passed to server creation.
+     * @param  array{memory: int, cpu: int, disk: int}  $requirements
      */
-    public function verifyAvailability(int $nodeId, array $requirements, ?string $excludeReservationToken = null): bool
-    {
-        $nodes = $this->fetchNodesInLocation($this->getNodeLocation($nodeId));
-        $nodeWithServers = \collect($nodes)->first(fn ($n) => ($n['node']['id'] ?? null) === $nodeId);
+    public function verifyAvailability(
+        int $nodeId,
+        array $requirements,
+        ?string $excludeReservationToken = null
+    ): bool {
+        return $this->verifyNodeCapacity(
+            $nodeId,
+            $requirements,
+            1,
+            $excludeReservationToken
+        );
+    }
 
-        if (! $nodeWithServers) {
+    /**
+     * Verify a capacity vector on a fixed node. Existing-server upgrades call
+     * this with allocationCount=0 because their primary port remains assigned.
+     *
+     * @param  array{memory: int, cpu: int, disk: int}  $requirements
+     */
+    public function verifyNodeCapacity(
+        int $nodeId,
+        array $requirements,
+        int $allocationCount = 1,
+        ?string $excludeReservationToken = null
+    ): bool {
+        if ($allocationCount < 0) {
+            throw new \InvalidArgumentException('Allocation count cannot be negative.');
+        }
+
+        foreach (['memory', 'cpu', 'disk'] as $resource) {
+            if (
+                ! array_key_exists($resource, $requirements)
+                || ! is_int($requirements[$resource])
+                || $requirements[$resource] < 0
+            ) {
+                throw new \InvalidArgumentException(
+                    'Resource requirements must be non-negative integers.'
+                );
+            }
+        }
+
+        $availability = $this->getNodeAvailability(
+            $nodeId,
+            $excludeReservationToken
+        );
+        if ($availability === null) {
             return false;
         }
 
-        $availability = $this->calculateNodeAvailability($nodeWithServers, $excludeReservationToken);
+        $blockingReasons = array_values(array_filter(
+            $availability['ineligible_reasons'],
+            fn (string $reason): bool => $allocationCount > 0
+                || $reason !== 'no_available_allocation'
+        ));
 
-        return $availability['available']['memory'] >= $requirements['memory']
-            && $availability['available']['disk'] >= $requirements['disk'];
+        return $blockingReasons === []
+            && $availability['available']['memory'] >= $requirements['memory']
+            && $availability['available']['cpu'] >= $requirements['cpu']
+            && $availability['available']['disk'] >= $requirements['disk']
+            && count($availability['available_allocations']) >= $allocationCount;
     }
 
     /**
-     * Get all locations from Pterodactyl
+     * Internal stock detail for fixed-node fulfillment and upgrade decisions.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getNodeAvailability(
+        int $nodeId,
+        ?string $excludeReservationToken = null
+    ): ?array {
+        $node = collect($this->inventory->nodes())->firstWhere('id', $nodeId);
+        if (! is_array($node)) {
+            return null;
+        }
+
+        $location = $this->buildLocationAvailability(
+            (int) $node['location_id'],
+            [$node],
+            $excludeReservationToken
+        );
+
+        return $location['nodes'][0] ?? null;
+    }
+
+    /**
+     * @return list<array{id: int, short: string, long: string}>
      */
     public function getLocations(): array
     {
-        return $this->fetchAllLocations();
+        return $this->inventory->locations();
     }
 
-    // --- Private Methods ---
-
-    private function fetchNodesInLocation(int $locationId): array
+    public function testConnection(): array
     {
-        $response = $this->pterodactylGet(
-            "/api/application/locations/{$locationId}",
-            ['include' => 'nodes,servers']
+        return $this->inventory->testConnection();
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $nodes
+     * @return array<string, mixed>
+     */
+    private function buildLocationAvailability(
+        int $locationId,
+        array $nodes,
+        ?string $excludeReservationToken = null
+    ): array {
+        $nodeIds = array_map(fn (array $node): int => (int) $node['id'], $nodes);
+        $servers = $this->inventory->serversForNodes($nodeIds);
+        $reservations = $this->holdingReservations(
+            $nodeIds,
+            $servers,
+            $excludeReservationToken
         );
+        $reservedAllocationClaims = $this->reservedAllocationClaims(
+            $nodeIds,
+            $excludeReservationToken
+        );
+        $policies = $this->cpuPolicies($nodes);
 
-        $nodesData = $this->requireRelationshipData($response, 'nodes');
-        $serversData = $this->requireRelationshipData($response, 'servers');
+        $location = [
+            'location_id' => $locationId,
+            'nodes' => [],
+            'max_available' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'total_capacity' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'total_allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'total_available' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            'cpu_capacity_enforced' => true,
+        ];
 
-        $nodesById = [];
-        foreach ($nodesData as $node) {
-            $attributes = $this->requireNodeAttributes($node);
-            if ($attributes['location_id'] !== $locationId) {
-                throw new \RuntimeException('Pterodactyl API returned a node for an unexpected location.');
-            }
-            $this->rememberUniqueId($nodesById, $attributes['id'], 'included node');
-            $nodesById[$attributes['id']] = $attributes;
-        }
-
-        $serversByNode = [];
-        $serverIds = [];
-        foreach ($serversData as $server) {
-            $attributes = $this->requireServerAttributes($server);
-            $nodeId = $attributes['node'];
-            if (! array_key_exists($nodeId, $nodesById)) {
-                throw new \RuntimeException('Pterodactyl API returned a server for an unknown included node.');
-            }
-            $this->rememberUniqueId($serverIds, $attributes['id'], 'included server');
-            $serversByNode[$nodeId][] = $attributes;
-        }
-
-        $nodes = [];
-        foreach ($nodesById as $nodeId => $attributes) {
-            $nodes[] = [
-                'node' => $attributes,
-                'servers' => $serversByNode[$nodeId] ?? [],
+        foreach ($nodes as $node) {
+            $nodeId = (int) $node['id'];
+            $nodeServers = $servers[$nodeId] ?? [];
+            $assignedServerAllocationIds = collect($nodeServers)
+                ->flatMap(
+                    fn (array $server): array =>
+                        $server['assigned_allocation_ids'] ?? []
+                )
+                ->map(fn ($id): int => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+            $inventoryAllocations =
+                $this->inventory->availableAllocationsForNode($nodeId);
+            $assignedServerIps = collect($inventoryAllocations)
+                ->filter(
+                    fn (array $allocation): bool => in_array(
+                        (int) $allocation['id'],
+                        $assignedServerAllocationIds,
+                        true
+                    )
+                )
+                ->map(
+                    fn (array $allocation): string =>
+                        $this->canonicalIp((string) $allocation['ip'])
+                )
+                ->unique()
+                ->values()
+                ->all();
+            $nodeClaims = $reservedAllocationClaims[$nodeId] ?? [
+                'ids' => [],
+                'ips' => [],
+                'blocked_ips' => [],
             ];
+            $blockedAllocationIds = [
+                ...$nodeClaims['ids'],
+                ...$assignedServerAllocationIds,
+            ];
+            $availableAllocations = array_values(array_map(
+                fn (array $allocation): array => [
+                    ...$allocation,
+                    'ip_in_use' => (bool) (
+                        $allocation['ip_in_use'] ?? false
+                    ) || in_array(
+                        $this->canonicalIp((string) $allocation['ip']),
+                        $nodeClaims['ips'],
+                        true
+                    ) || in_array(
+                        $this->canonicalIp((string) $allocation['ip']),
+                        $assignedServerIps,
+                        true
+                    ),
+                ],
+                array_filter(
+                    $inventoryAllocations,
+                    fn (array $allocation): bool =>
+                        ! in_array(
+                            (int) $allocation['id'],
+                            $blockedAllocationIds,
+                            true
+                        )
+                        && ! in_array(
+                            $this->canonicalIp((string) $allocation['ip']),
+                            $nodeClaims['blocked_ips'],
+                            true
+                        )
+                )
+            ));
+            $nodeAvailability = $this->buildNodeAvailability(
+                $node,
+                $nodeServers,
+                $reservations[$nodeId] ?? $this->emptyResources(),
+                $availableAllocations,
+                $policies[(string) $node['uuid']] ?? null
+            );
+
+            $location['nodes'][] = $nodeAvailability;
+
+            foreach (['memory', 'cpu', 'disk'] as $resource) {
+                $location['total_capacity'][$resource] += $nodeAvailability['total'][$resource];
+                $location['total_allocated'][$resource] += $nodeAvailability['allocated'][$resource];
+                $location['total_available'][$resource] += $nodeAvailability['available'][$resource];
+
+                if ($nodeAvailability['eligible']) {
+                    $location['max_available'][$resource] = max(
+                        $location['max_available'][$resource],
+                        $nodeAvailability['available'][$resource]
+                    );
+                }
+            }
+
+            if (! $nodeAvailability['cpu_capacity_enforced']) {
+                $location['cpu_capacity_enforced'] = false;
+            }
         }
 
-        return $nodes;
+        return $location;
     }
 
-    private function buildNodeAvailabilityFromServers(array $node, array $servers, array $pendingReservations): array
-    {
-        $this->validateNodeAttributes($node);
+    /**
+     * @param  list<array{
+     *     id: int,
+     *     node: int,
+     *     memory: int,
+     *     cpu: int,
+     *     disk: int,
+     *     allocation_limit: int,
+     *     assigned_allocation_ids: list<int>,
+     *     allocation_headroom: int
+     * }>  $servers
+     * @param  array{memory: int, cpu: int, disk: int}  $reserved
+     * @param  list<array{id: int, ip: string, port: int, ip_in_use?: bool}>  $availableAllocations
+     * @return array<string, mixed>
+     */
+    private function buildNodeAvailability(
+        array $node,
+        array $servers,
+        array $reserved,
+        array $availableAllocations,
+        ?NodeCapacityPolicy $cpuPolicy
+    ): array {
+        $memoryOverallocate = (int) $node['memory_overallocate'];
+        $diskOverallocate = (int) $node['disk_overallocate'];
+        $totalMemory = $this->effectiveCapacity(
+            (int) $node['memory'],
+            $memoryOverallocate
+        );
+        $totalDisk = $this->effectiveCapacity(
+            (int) $node['disk'],
+            $diskOverallocate
+        );
+        $cpuPolicyIdentityMatches = $cpuPolicy !== null
+            && (int) $cpuPolicy->node_id === (int) $node['id']
+            && (int) $cpuPolicy->location_id
+                === (int) $node['location_id'];
+        $totalCpu = $cpuPolicyIdentityMatches
+            ? $cpuPolicy->effectiveCpuCapacity()
+            : 0;
+        $serverAllocatedMemory = $this->sumServerResource($servers, 'memory');
+        $allocatedCpu = $this->sumServerResource($servers, 'cpu');
+        $serverAllocatedDisk = $this->sumServerResource($servers, 'disk');
 
-        $allocated = ['memory' => 0, 'cpu' => 0, 'disk' => 0];
-        foreach ($servers as $server) {
-            $this->validateServerAttributes($server);
-            $allocated['memory'] += $server['limits']['memory'];
-            $allocated['cpu'] += $server['limits']['cpu'];
-            $allocated['disk'] += $server['limits']['disk'];
-        }
-
-        $effectiveMemory = $node['memory'] * (1 + ($node['memory_overallocate'] ?? 0) / 100);
-        $effectiveDisk = $node['disk'] * (1 + ($node['disk_overallocate'] ?? 0) / 100);
-        $available = [
-            'memory' => max(0, (int) $effectiveMemory - $allocated['memory'] - $pendingReservations['memory']),
-            'cpu' => null,
-            'disk' => max(0, (int) $effectiveDisk - $allocated['disk'] - $pendingReservations['disk']),
+        $allocated = [
+            'memory' => max(
+                (int) $node['allocated_resources']['memory'],
+                $serverAllocatedMemory
+            ),
+            'cpu' => $allocatedCpu,
+            'disk' => max(
+                (int) $node['allocated_resources']['disk'],
+                $serverAllocatedDisk
+            ),
         ];
+        $available = [
+            'memory' => max(0, $totalMemory - $allocated['memory'] - $reserved['memory']),
+            'cpu' => max(0, $totalCpu - $allocated['cpu'] - $reserved['cpu']),
+            'disk' => max(0, $totalDisk - $allocated['disk'] - $reserved['disk']),
+        ];
+
+        $reasons = [];
+        if ($node['public'] !== true) {
+            $reasons[] = 'private_node';
+        }
+        if ($node['maintenance_mode'] === true) {
+            $reasons[] = 'maintenance_mode';
+        }
+        if ($memoryOverallocate < 0) {
+            // Pterodactyl uses -1 to disable its memory allocation limit.
+            // An unbounded panel cannot provide authoritative finite stock.
+            $reasons[] = 'unbounded_memory_overallocation';
+        }
+        if ($diskOverallocate < 0) {
+            // Pterodactyl uses -1 to disable its disk allocation limit.
+            // An unbounded panel cannot provide authoritative finite stock.
+            $reasons[] = 'unbounded_disk_overallocation';
+        }
+        if ($cpuPolicy !== null && ! $cpuPolicyIdentityMatches) {
+            $reasons[] = 'cpu_policy_identity_mismatch';
+        } elseif (
+            $cpuPolicy === null
+            || ! $cpuPolicy->enabled
+            || $totalCpu <= 0
+        ) {
+            $reasons[] = 'cpu_policy_missing';
+        }
+        if (collect($servers)->contains(
+            fn (array $server): bool => (int) $server['memory'] <= 0
+                || (int) $server['cpu'] <= 0
+                || (int) $server['disk'] <= 0
+        )) {
+            $reasons[] = 'unlimited_existing_resource';
+        }
+        if (collect($servers)->contains(
+            fn (array $server): bool => (int) (
+                $server['allocation_limit'] ?? 0
+            ) > 1
+        )) {
+            // In Pterodactyl 1.11, a customer can delete any non-primary
+            // allocation whenever allocation_limit is nonzero, then add a
+            // replacement once the assigned count falls below that limit.
+            // A limit above one can therefore consume a port that Paymenter
+            // promised to an unpaid seven-day commitment even when the server
+            // initially has no allocation headroom. Dynamic servers use zero;
+            // a legacy primary-only server with a total limit of one is safe.
+            $reasons[] = 'customer_allocation_headroom';
+        }
+        if ($availableAllocations === []) {
+            $reasons[] = 'no_available_allocation';
+        }
 
         return [
-            'node_id' => $node['id'],
-            'name' => $node['name'],
-            'fqdn' => $node['fqdn'],
-            'maintenance_mode' => $node['maintenance_mode'] ?? false,
+            'node_id' => (int) $node['id'],
+            'node_uuid' => (string) $node['uuid'],
+            'name' => (string) $node['name'],
+            'fqdn' => (string) $node['fqdn'],
+            'public' => (bool) $node['public'],
+            'maintenance_mode' => (bool) $node['maintenance_mode'],
+            'eligible' => $reasons === [],
+            'ineligible_reasons' => $reasons,
             'total' => [
-                'memory' => (int) $effectiveMemory,
-                'cpu' => null,
-                'disk' => (int) $effectiveDisk,
+                'memory' => $totalMemory,
+                'cpu' => $totalCpu,
+                'disk' => $totalDisk,
             ],
             'allocated' => $allocated,
-            'reserved' => $pendingReservations,
+            'reserved' => $reserved,
             'available' => $available,
+            'available_allocations' => $availableAllocations,
             'server_count' => count($servers),
-            'cpu_capacity_enforced' => false,
+            'servers' => $servers,
+            'cpu_capacity_enforced' => $cpuPolicy !== null
+                && $cpuPolicyIdentityMatches
+                && $cpuPolicy->enabled
+                && $totalCpu > 0
+                && ! collect($servers)->contains(
+                    fn (array $server): bool => (int) $server['cpu'] <= 0
+                ),
             'utilization' => [
-                'memory' => $effectiveMemory > 0
-                    ? round(($allocated['memory'] + $pendingReservations['memory']) / $effectiveMemory * 100, 1)
-                    : 100,
-                'disk' => $effectiveDisk > 0
-                    ? round(($allocated['disk'] + $pendingReservations['disk']) / $effectiveDisk * 100, 1)
-                    : 100,
+                'memory' => $this->utilization(
+                    $allocated['memory'] + $reserved['memory'],
+                    $totalMemory
+                ),
+                'cpu' => $this->utilization(
+                    $allocated['cpu'] + $reserved['cpu'],
+                    $totalCpu
+                ),
+                'disk' => $this->utilization(
+                    $allocated['disk'] + $reserved['disk'],
+                    $totalDisk
+                ),
             ],
         ];
     }
 
-    private function fetchAllLocations(): array
+    private function effectiveCapacity(int $physical, int $overallocatePercent): int
     {
-        $locations = [];
-        $locationIds = [];
-        foreach ($this->pterodactylGetPaginatedData('/api/application/locations', ['per_page' => 100]) as $location) {
-            $attributes = $this->requireLocationAttributes($location);
-            $this->rememberUniqueId($locationIds, $attributes['id'], 'location');
-            $locations[] = [
-                'id' => $attributes['id'],
-                'short' => $attributes['short'],
-                'long' => $attributes['long'],
-            ];
+        if ($overallocatePercent < 0) {
+            // Keep diagnostics finite while the ineligibility reason above
+            // prevents this node from participating in quotes or placement.
+            return max(0, $physical);
         }
 
-        return $locations;
+        if ($overallocatePercent > PHP_INT_MAX - 100) {
+            throw new \RuntimeException('Pterodactyl overallocation value is outside the supported range.');
+        }
+
+        $factor = max(0, 100 + $overallocatePercent);
+        if ($factor > 0 && $physical > intdiv(PHP_INT_MAX, $factor)) {
+            throw new \RuntimeException('Pterodactyl effective capacity exceeds the supported range.');
+        }
+
+        return max(0, intdiv($physical * $factor, 100));
     }
 
-    private function fetchClusterNodes(): array
+    private function utilization(int $used, int $total): float
     {
-        try {
-            return $this->fetchClusterNodesWithIncludedServers();
-        } catch (\RuntimeException $exception) {
-            if ($this->shouldReturnDegradedSnapshot($exception)) {
-                throw $exception;
-            }
-
-            if ($exception->getMessage() !== 'Pterodactyl API returned a missing servers relationship payload.') {
-                throw $exception;
-            }
-
-            return $this->fetchClusterNodesFromServerIndex();
-        }
+        return $total > 0 ? round($used / $total * 100, 1) : 100.0;
     }
 
-    private function fetchClusterNodesWithIncludedServers(): array
+    /**
+     * @param  list<array<string, mixed>>  $servers
+     */
+    private function sumServerResource(array $servers, string $resource): int
     {
-        $nodes = [];
-        $serverIds = [];
-        foreach ($this->pterodactylGetPaginatedData('/api/application/nodes', [
-            'include' => 'servers',
-            'per_page' => 100,
-        ]) as $node) {
-            $attributes = $this->requireNodeAttributes($node);
-            $this->rememberUniqueId($nodes, $attributes['id'], 'node');
-            $servers = [];
-            foreach ($this->requireRelationshipData($node, 'servers') as $server) {
-                $serverAttributes = $this->requireServerAttributes($server);
-                if ($serverAttributes['node'] !== $attributes['id']) {
-                    throw new \RuntimeException('Pterodactyl API returned a server for an unexpected node.');
-                }
-                $this->rememberUniqueId($serverIds, $serverAttributes['id'], 'server');
-                $servers[] = $serverAttributes;
-            }
+        $sum = 0;
 
-            $nodes[$attributes['id']] = [
-                'node' => $attributes,
-                'location_id' => $attributes['location_id'],
-                'servers' => $servers,
-            ];
+        foreach ($servers as $server) {
+            $value = (int) ($server[$resource] ?? 0);
+            if ($value < 0 || $value > PHP_INT_MAX - $sum) {
+                throw new \RuntimeException(
+                    "Pterodactyl {$resource} allocation exceeds the supported range."
+                );
+            }
+            $sum += $value;
         }
 
-        return $nodes;
+        return $sum;
     }
 
-    private function fetchClusterNodesFromServerIndex(): array
+    /**
+     * @param  list<array<string, mixed>>  $nodes
+     * @return array<string, NodeCapacityPolicy>
+     */
+    private function cpuPolicies(array $nodes): array
     {
-        $nodes = [];
-        foreach ($this->pterodactylGetPaginatedData('/api/application/nodes', ['per_page' => 100]) as $node) {
-            $attributes = $this->requireNodeAttributes($node);
-            $this->rememberUniqueId($nodes, $attributes['id'], 'node');
-            $nodes[$attributes['id']] = [
-                'node' => $attributes,
-                'location_id' => $attributes['location_id'],
-                'servers' => [],
-            ];
+        $uuids = array_values(array_map(
+            fn (array $node): string => (string) $node['uuid'],
+            $nodes
+        ));
+
+        if ($uuids === []) {
+            return [];
         }
 
-        $serverIds = [];
-        foreach ($this->pterodactylGetPaginatedData('/api/application/servers', ['per_page' => 100]) as $server) {
-            $attributes = $this->requireServerAttributes($server);
-            $nodeId = $attributes['node'];
-
-            if (! array_key_exists($nodeId, $nodes)) {
-                throw new \RuntimeException('Pterodactyl API returned a server for an unknown node.');
-            }
-
-            $this->rememberUniqueId($serverIds, $attributes['id'], 'server');
-            $nodes[$nodeId]['servers'][] = $attributes;
-        }
-
-        return $nodes;
+        return NodeCapacityPolicy::query()
+            ->forPanel($this->inventory->panelIdentity())
+            ->whereIn('node_uuid', $uuids)
+            ->get()
+            ->keyBy('node_uuid')
+            ->all();
     }
 
-    private function pterodactylGetPaginatedData(string $path, array $query = []): array
-    {
-        $page = 1;
-        $data = [];
-        $expectedTotalPages = null;
-        $expectedPerPage = null;
-        $expectedTotal = null;
-
-        while (true) {
-            $payload = $this->pterodactylGet($path, array_merge($query, ['page' => $page]));
-            if (! is_array($payload['data'] ?? null)) {
-                throw new \RuntimeException('Pterodactyl API returned an invalid paginated data payload.');
-            }
-            $pageData = $payload['data'];
-
-            $pagination = $payload['meta']['pagination'] ?? null;
-            if (! is_array($pagination)) {
-                throw new \RuntimeException('Pterodactyl API returned invalid pagination metadata.');
-            }
-
-            $currentPage = filter_var(
-                $pagination['current_page'] ?? null,
-                FILTER_VALIDATE_INT,
-                ['options' => ['min_range' => 1]],
-            );
-            $totalPages = filter_var(
-                $pagination['total_pages'] ?? null,
-                FILTER_VALIDATE_INT,
-                ['options' => ['min_range' => 1]],
-            );
-            $count = filter_var(
-                $pagination['count'] ?? null,
-                FILTER_VALIDATE_INT,
-                ['options' => ['min_range' => 0]],
-            );
-            $perPage = filter_var(
-                $pagination['per_page'] ?? null,
-                FILTER_VALIDATE_INT,
-                ['options' => ['min_range' => 1]],
-            );
-            $total = filter_var(
-                $pagination['total'] ?? null,
-                FILTER_VALIDATE_INT,
-                ['options' => ['min_range' => 0]],
-            );
-            if ($currentPage === false || $totalPages === false || $count === false
-                || $perPage === false || $total === false
-                || $currentPage !== $page || $totalPages < $currentPage) {
-                throw new \RuntimeException('Pterodactyl API returned invalid pagination metadata.');
-            }
-
-            $expectedTotalPages ??= $totalPages;
-            $expectedPerPage ??= $perPage;
-            $expectedTotal ??= $total;
-            if ($totalPages !== $expectedTotalPages || $perPage !== $expectedPerPage || $total !== $expectedTotal) {
-                throw new \RuntimeException('Pterodactyl API returned inconsistent pagination metadata.');
-            }
-
-            $calculatedTotalPages = max(1, (int) ceil($total / $perPage));
-            $expectedCount = $currentPage < $totalPages
-                ? $perPage
-                : max(0, $total - ($perPage * ($currentPage - 1)));
-            if ($totalPages !== $calculatedTotalPages || $count !== count($pageData) || $count !== $expectedCount) {
-                throw new \RuntimeException('Pterodactyl API returned incomplete pagination data.');
-            }
-
-            $data = array_merge($data, $pageData);
-            if ($currentPage === $totalPages) {
-                break;
-            }
-
-            $page = $currentPage + 1;
+    /**
+     * @param  list<int>  $nodeIds
+     * Confirmed commitments remain in the local overlay until the independently
+     * read server snapshot proves the exact target vector. This closes the
+     * handoff window where the local row is consumed before every Pterodactyl
+     * inventory endpoint reflects the create or update.
+     *
+     * @param  array<int, list<array<string, mixed>>>  $servers
+     * @return array<int, array{memory: int, cpu: int, disk: int}>
+     */
+    private function holdingReservations(
+        array $nodeIds,
+        array $servers,
+        ?string $excludeReservationToken
+    ): array {
+        if ($nodeIds === []) {
+            return [];
         }
 
-        if (count($data) !== $expectedTotal) {
-            throw new \RuntimeException('Pterodactyl API returned incomplete pagination data.');
+        $query = DB::table('ptero_resource_reservations as reservations')
+            ->leftJoin(
+                'services',
+                'services.id',
+                '=',
+                'reservations.service_id'
+            )
+            ->where(
+                'reservations.panel_identity',
+                $this->inventory->panelIdentity()
+            )
+            ->whereIn('reservations.node_id', $nodeIds)
+            ->where(function ($query): void {
+                $query->where(function ($query): void {
+                    $query->where(
+                        'reservations.status',
+                        ResourceReservation::STATUS_PENDING
+                    )->where('reservations.expires_at', '>', now());
+                })->orWhere(
+                    'reservations.status',
+                    ResourceReservation::STATUS_PAID_COMMITTED
+                )->orWhere(function ($query): void {
+                    $query->where(
+                        'reservations.status',
+                        ResourceReservation::STATUS_CONFIRMED
+                    )->where(function ($query): void {
+                        $query->whereNull('services.status')
+                            ->orWhere('services.status', '!=', 'cancelled');
+                    });
+                });
+            });
+
+        if ($excludeReservationToken !== null) {
+            $query->where(
+                'reservations.token',
+                '!=',
+                $excludeReservationToken
+            );
         }
 
-        return $data;
+        $rows = $query->get([
+            'reservations.id',
+            'reservations.node_id',
+            'reservations.service_id',
+            'reservations.service_upgrade_id',
+            'reservations.purpose',
+            'reservations.status',
+            'reservations.external_server_id',
+            'reservations.external_server_uuid',
+            'reservations.external_server_identifier',
+            'reservations.configuration_payload',
+            'reservations.memory',
+            'reservations.cpu',
+            'reservations.disk',
+            'reservations.reserved_memory',
+            'reservations.reserved_cpu',
+            'reservations.reserved_disk',
+            'reservations.consumed_at',
+            'reservations.created_at',
+            'reservations.updated_at',
+        ]);
+
+        $totals = [];
+        $confirmedByService = [];
+
+        foreach ($rows as $reservation) {
+            if ($reservation->status === ResourceReservation::STATUS_CONFIRMED) {
+                $key = $reservation->service_id === null
+                    ? 'reservation:'.(int) $reservation->id
+                    : 'service:'.(int) $reservation->service_id;
+                $confirmedByService[$key][] = $reservation;
+
+                continue;
+            }
+
+            $nodeId = (int) $reservation->node_id;
+            $isUpgrade = $reservation->purpose === 'upgrade';
+            $this->addReservedResources($totals, $nodeId, [
+                'memory' => (int) (
+                    $isUpgrade
+                        ? $reservation->reserved_memory
+                        : $reservation->memory
+                ),
+                'cpu' => (int) (
+                    $isUpgrade
+                        ? $reservation->reserved_cpu
+                        : $reservation->cpu
+                ),
+                'disk' => (int) (
+                    $isUpgrade
+                        ? $reservation->reserved_disk
+                        : $reservation->disk
+                ),
+            ]);
+        }
+
+        foreach ($confirmedByService as $expectations) {
+            $target = $this->latestConfirmedTarget($expectations);
+            $nodeId = (int) $target->node_id;
+            $this->addReservedResources(
+                $totals,
+                $nodeId,
+                $this->confirmedExpectationOverlay(
+                    $target,
+                    $expectations,
+                    $servers[$nodeId] ?? []
+                )
+            );
+        }
+
+        return $totals;
     }
 
-    private function requireLocationAttributes(mixed $payload): array
+    /**
+     * A completed upgrade supersedes the checkout vector and every older
+     * upgrade for the same service. Completion time is authoritative; the
+     * immutable row ID breaks a same-timestamp tie.
+     *
+     * @param  list<object>  $expectations
+     */
+    private function latestConfirmedTarget(array $expectations): object
     {
-        $attributes = is_array($payload) && is_array($payload['attributes'] ?? null)
-            ? $payload['attributes']
+        $upgrades = array_values(array_filter(
+            $expectations,
+            fn (object $row): bool => $row->purpose === 'upgrade'
+        ));
+        $candidates = $upgrades === [] ? $expectations : $upgrades;
+
+        usort($candidates, function (object $left, object $right): int {
+            $leftTime = strtotime((string) (
+                $left->consumed_at
+                ?? $left->updated_at
+                ?? $left->created_at
+                ?? ''
+            )) ?: 0;
+            $rightTime = strtotime((string) (
+                $right->consumed_at
+                ?? $right->updated_at
+                ?? $right->created_at
+                ?? ''
+            )) ?: 0;
+
+            return [$leftTime, (int) $left->id]
+                <=> [$rightTime, (int) $right->id];
+        });
+
+        return $candidates[array_key_last($candidates)];
+    }
+
+    /**
+     * The same server-list snapshot used by aggregate allocation must prove
+     * the pinned identity, node, and complete target vector. If a resize is
+     * visible but still converging, only the positive component deficit is
+     * overlaid. If identity is absent or ambiguous, the full target stays held.
+     *
+     * @param  list<object>  $expectations
+     * @param  list<array<string, mixed>>  $servers
+     * @return array{memory: int, cpu: int, disk: int}
+     */
+    private function confirmedExpectationOverlay(
+        object $target,
+        array $expectations,
+        array $servers
+    ): array {
+        $identity = $this->confirmedExternalIdentity($expectations);
+        if ($identity['ambiguous'] || $identity['id'] <= 0) {
+            return $this->targetResources($target);
+        }
+
+        $matches = array_values(array_filter(
+            $servers,
+            function (array $server) use ($identity, $target): bool {
+                return (int) ($server['id'] ?? 0) === $identity['id']
+                    && (
+                        $identity['uuid'] === null
+                        || ($server['uuid'] ?? null) === $identity['uuid']
+                    )
+                    && (
+                        $identity['identifier'] === null
+                        || ($server['identifier'] ?? null)
+                            === $identity['identifier']
+                    )
+                    && (
+                        array_key_exists('external_id', $server)
+                        && (string) ($server['external_id'] ?? '')
+                            === (string) ($target->service_id ?? '')
+                    );
+            }
+        ));
+        if (count($matches) !== 1) {
+            return $this->targetResources($target);
+        }
+
+        $overlay = [];
+        foreach (['memory', 'cpu', 'disk'] as $resource) {
+            $overlay[$resource] = max(
+                0,
+                (int) $target->{$resource}
+                    - (int) ($matches[0][$resource] ?? 0)
+            );
+        }
+
+        return $overlay;
+    }
+
+    /**
+     * @param  list<object>  $expectations
+     * @return array{
+     *     id: int,
+     *     uuid: ?string,
+     *     identifier: ?string,
+     *     ambiguous: bool
+     * }
+     */
+    private function confirmedExternalIdentity(
+        array $expectations
+    ): array {
+        $ids = [];
+        $uuids = [];
+        $identifiers = [];
+
+        foreach ($expectations as $expectation) {
+            $payload = is_array($expectation->configuration_payload ?? null)
+                ? $expectation->configuration_payload
+                : json_decode(
+                    (string) ($expectation->configuration_payload ?? ''),
+                    true
+                );
+            $id = (int) (
+                $expectation->external_server_id
+                ?? (is_array($payload)
+                    ? ($payload['external_server_id'] ?? 0)
+                    : 0)
+            );
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+            $uuid = $this->optionalIdentityString(
+                $expectation->external_server_uuid ?? null
+            );
+            if ($uuid !== null) {
+                $uuids[$uuid] = true;
+            }
+            $identifier = $this->optionalIdentityString(
+                $expectation->external_server_identifier ?? null
+            );
+            if ($identifier !== null) {
+                $identifiers[$identifier] = true;
+            }
+        }
+
+        return [
+            'id' => count($ids) === 1 ? (int) array_key_first($ids) : 0,
+            'uuid' => count($uuids) === 1
+                ? (string) array_key_first($uuids)
+                : null,
+            'identifier' => count($identifiers) === 1
+                ? (string) array_key_first($identifiers)
+                : null,
+            'ambiguous' => count($ids) > 1
+                || count($uuids) > 1
+                || count($identifiers) > 1,
+        ];
+    }
+
+    private function optionalIdentityString(mixed $value): ?string
+    {
+        return is_string($value) && trim($value) !== ''
+            ? trim($value)
             : null;
-        if ($attributes === null
-            || filter_var($attributes['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
-            || ! is_string($attributes['short'] ?? null) || $attributes['short'] === ''
-            || ! is_string($attributes['long'] ?? null) || $attributes['long'] === '') {
-            throw new \RuntimeException('Pterodactyl API returned an invalid location payload.');
-        }
-
-        $attributes['id'] = (int) $attributes['id'];
-
-        return $attributes;
     }
 
-    private function requireRelationshipData(array $payload, string $relationship): array
+    /**
+     * @return array{memory: int, cpu: int, disk: int}
+     */
+    private function targetResources(object $target): array
     {
-        $attributes = is_array($payload['attributes'] ?? null) ? $payload['attributes'] : [];
-        if (! array_key_exists('relationships', $attributes)) {
-            throw new \RuntimeException(sprintf(
-                'Pterodactyl API returned a missing %s relationship payload.',
-                $relationship
-            ));
-        }
-
-        $relationships = $attributes['relationships'];
-        if (! is_array($relationships)) {
-            throw new \RuntimeException(sprintf(
-                'Pterodactyl API returned an invalid %s relationship payload.',
-                $relationship
-            ));
-        }
-
-        if (! array_key_exists($relationship, $relationships)) {
-            throw new \RuntimeException(sprintf(
-                'Pterodactyl API returned a missing %s relationship payload.',
-                $relationship
-            ));
-        }
-
-        $entry = $relationships[$relationship];
-        if (! is_array($entry) || ! is_array($entry['data'] ?? null)) {
-            throw new \RuntimeException(sprintf(
-                'Pterodactyl API returned an invalid %s relationship payload.',
-                $relationship
-            ));
-        }
-
-        return $entry['data'];
+        return [
+            'memory' => (int) $target->memory,
+            'cpu' => (int) $target->cpu,
+            'disk' => (int) $target->disk,
+        ];
     }
 
-    private function requireNodeAttributes(mixed $payload): array
-    {
-        $attributes = is_array($payload) && is_array($payload['attributes'] ?? null)
-            ? $payload['attributes']
-            : null;
-        if ($attributes === null) {
-            throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
-        }
+    /**
+     * @param  array<int, array{memory: int, cpu: int, disk: int}>  $totals
+     * @param  array{memory: int, cpu: int, disk: int}  $resources
+     */
+    private function addReservedResources(
+        array &$totals,
+        int $nodeId,
+        array $resources
+    ): void {
+        $totals[$nodeId] ??= $this->emptyResources();
 
-        $this->validateNodeAttributes($attributes);
-        $attributes['id'] = (int) $attributes['id'];
-        $attributes['location_id'] = (int) $attributes['location_id'];
-        foreach (['memory', 'disk', 'cpu_threads'] as $field) {
-            $attributes[$field] = (int) $attributes[$field];
-        }
-        foreach (['memory_overallocate', 'disk_overallocate'] as $field) {
-            if (array_key_exists($field, $attributes)) {
-                $attributes[$field] = (int) $attributes[$field];
+        foreach ($resources as $resource => $value) {
+            if (
+                $value < 0
+                || $value > PHP_INT_MAX - $totals[$nodeId][$resource]
+            ) {
+                throw new \RuntimeException(
+                    "Reserved {$resource} exceeds the supported range."
+                );
             }
-        }
-
-        return $attributes;
-    }
-
-    private function requireServerAttributes(mixed $payload): array
-    {
-        $attributes = is_array($payload) && is_array($payload['attributes'] ?? null)
-            ? $payload['attributes']
-            : null;
-        if ($attributes === null) {
-            throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
-        }
-
-        $this->validateServerAttributes($attributes);
-        $attributes['id'] = (int) $attributes['id'];
-        $attributes['node'] = (int) $attributes['node'];
-        foreach (['memory', 'cpu', 'disk'] as $field) {
-            $attributes['limits'][$field] = (int) $attributes['limits'][$field];
-        }
-
-        return $attributes;
-    }
-
-    private function validateNodeAttributes(array $attributes): void
-    {
-        foreach (['id', 'location_id'] as $field) {
-            if (filter_var($attributes[$field] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false) {
-                throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
-            }
-        }
-
-        foreach (['memory', 'disk', 'cpu_threads'] as $field) {
-            if (! is_int($attributes[$field] ?? null) || $attributes[$field] < 1) {
-                throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
-            }
-        }
-
-        if (! is_string($attributes['name'] ?? null) || $attributes['name'] === ''
-            || ! is_string($attributes['fqdn'] ?? null) || $attributes['fqdn'] === '') {
-            throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
-        }
-
-        foreach (['memory_overallocate', 'disk_overallocate'] as $field) {
-            if (array_key_exists($field, $attributes) && ! is_int($attributes[$field])) {
-                throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
-            }
+            $totals[$nodeId][$resource] += $value;
         }
     }
 
-    private function validateServerAttributes(array $attributes): void
-    {
-        if (filter_var($attributes['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
-            || filter_var($attributes['node'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
-            || ! is_array($attributes['limits'] ?? null)) {
-            throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
+    /**
+     * @param  list<int>  $nodeIds
+     * @return array<int, array{
+     *     ids: list<int>,
+     *     ips: list<string>,
+     *     blocked_ips: list<string>
+     * }>
+     */
+    private function reservedAllocationClaims(
+        array $nodeIds,
+        ?string $excludeReservationToken
+    ): array {
+        if ($nodeIds === []) {
+            return [];
         }
 
-        foreach (['memory', 'cpu', 'disk'] as $field) {
-            if (! is_int($attributes['limits'][$field] ?? null) || $attributes['limits'][$field] < 0) {
-                throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
-            }
+        $query = DB::table('ptero_reservation_allocations as allocations')
+            ->join(
+                'ptero_resource_reservations as reservations',
+                'reservations.id',
+                '=',
+                'allocations.reservation_id'
+            )
+            ->leftJoin(
+                'services',
+                'services.id',
+                '=',
+                'reservations.service_id'
+            )
+            ->where(
+                'reservations.panel_identity',
+                $this->inventory->panelIdentity()
+            )
+            ->whereColumn(
+                'allocations.panel_identity',
+                'reservations.panel_identity'
+            )
+            ->whereIn('allocations.node_id', $nodeIds)
+            ->where(function ($query): void {
+                $query->where(function ($query): void {
+                    $query->whereNull('allocations.released_at')
+                        ->where(function ($query): void {
+                            $query->where(function ($query): void {
+                                $query->where(
+                                    'reservations.status',
+                                    ResourceReservation::STATUS_PENDING
+                                )->where(
+                                    'reservations.expires_at',
+                                    '>',
+                                    now()
+                                );
+                            })->orWhere(
+                                'reservations.status',
+                                ResourceReservation::STATUS_PAID_COMMITTED
+                            );
+                        });
+                })->orWhere(function ($query): void {
+                    $query->where(
+                        'reservations.status',
+                        ResourceReservation::STATUS_CONFIRMED
+                    )->where(function ($query): void {
+                        $query->whereNull('services.status')
+                            ->orWhere(
+                                'services.status',
+                                '!=',
+                                'cancelled'
+                            );
+                    });
+                });
+            });
+
+        if ($excludeReservationToken !== null) {
+            $query->where('reservations.token', '!=', $excludeReservationToken);
         }
+
+        return $query
+            ->get([
+                'allocations.node_id',
+                'allocations.allocation_id',
+                'allocations.ip',
+                'allocations.released_at',
+                'reservations.status',
+                'reservations.configuration_payload',
+                'services.status as service_status',
+            ])
+            ->groupBy('node_id')
+            ->map(function ($rows): array {
+                $holdingOrActive = $rows->filter(
+                    fn ($row): bool => in_array(
+                        $row->status,
+                        [
+                            ResourceReservation::STATUS_PENDING,
+                            ResourceReservation::STATUS_PAID_COMMITTED,
+                            ResourceReservation::STATUS_CONFIRMED,
+                        ],
+                        true
+                    )
+                );
+                $dedicated = $rows->filter(function ($row): bool {
+                    $payload = json_decode(
+                        (string) $row->configuration_payload,
+                        true
+                    );
+
+                    return is_array($payload)
+                        && data_get(
+                            $payload,
+                            'allocation_requirements.dedicated_ip'
+                        ) === true;
+                });
+
+                return [
+                    'ids' => $holdingOrActive
+                    ->pluck('allocation_id')
+                    ->map(fn ($id): int => (int) $id)
+                    ->unique()
+                    ->values()
+                    ->all(),
+                    'ips' => $holdingOrActive
+                    ->pluck('ip')
+                    ->filter(fn ($ip): bool => is_string($ip) && $ip !== '')
+                    ->map(fn (string $ip): string => $this->canonicalIp($ip))
+                    ->unique()
+                    ->values()
+                    ->all(),
+                    'blocked_ips' => $dedicated
+                        ->pluck('ip')
+                        ->filter(
+                            fn ($ip): bool => is_string($ip) && $ip !== ''
+                        )
+                        ->map(
+                            fn (string $ip): string =>
+                                $this->canonicalIp($ip)
+                        )
+                        ->unique()
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->all();
     }
 
-    private function rememberUniqueId(array &$seen, int $id, string $resource): void
+    private function canonicalIp(string $ip): string
     {
-        if (array_key_exists($id, $seen)) {
-            throw new \RuntimeException("Pterodactyl API returned a duplicate {$resource}.");
-        }
+        $packed = @inet_pton(trim($ip));
 
-        $seen[$id] = true;
+        return $packed === false
+            ? strtolower(trim($ip))
+            : bin2hex($packed);
+    }
+
+    /**
+     * @return array{memory: int, cpu: int, disk: int}
+     */
+    private function emptyResources(): array
+    {
+        return ['memory' => 0, 'cpu' => 0, 'disk' => 0];
     }
 
     private function emptyClusterSnapshot(): array
@@ -632,150 +1051,18 @@ class ResourceCalculationService
             'locations' => [],
             'nodes' => [],
             'by_location' => [],
-            'generated_at' => \now()->toIso8601String(),
+            'generated_at' => now()->toIso8601String(),
         ];
     }
 
     private function degradedClusterSnapshot(): array
     {
-        return $this->emptyClusterSnapshot() + [
-            'error' => 'Pterodactyl unavailable',
-        ];
+        return $this->emptyClusterSnapshot() + ['error' => 'Pterodactyl unavailable'];
     }
 
     private function shouldReturnDegradedSnapshot(\Throwable $exception): bool
     {
-        if ($this->extractStatusCode($exception) >= 500) {
-            return true;
-        }
-
-        return str_contains($exception->getMessage(), 'Pterodactyl API connection failed');
-    }
-
-    private function extractStatusCode(\Throwable $exception): int
-    {
-        preg_match('/\((\d{3})\)/', $exception->getMessage(), $matches);
-
-        return (int) ($matches[1] ?? 0);
-    }
-
-    private function getPendingReservationsForNodes(array $nodeIds): array
-    {
-        if ($nodeIds === []) {
-            return [];
-        }
-
-        return DB::table('ptero_resource_reservations')
-            ->whereIn('node_id', $nodeIds)
-            ->where('status', 'pending')
-            ->where('expires_at', '>', \now())
-            ->select('node_id')
-            ->selectRaw('COALESCE(SUM(memory), 0) as memory')
-            ->selectRaw('COALESCE(SUM(cpu), 0) as cpu')
-            ->selectRaw('COALESCE(SUM(disk), 0) as disk')
-            ->groupBy('node_id')
-            ->get()
-            ->mapWithKeys(fn ($reservation) => [
-                $reservation->node_id => [
-                    'memory' => (int) $reservation->memory,
-                    'cpu' => (int) $reservation->cpu,
-                    'disk' => (int) $reservation->disk,
-                ],
-            ])
-            ->toArray();
-    }
-
-    private function pterodactylGet(string $path, array $query = []): array
-    {
-        try {
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer '.$this->apiKey,
-                'Accept' => 'application/json',
-            ])
-                ->timeout(3)            // per-attempt; worst case: 2 × 3s + 250ms = ~6.25s
-                ->connectTimeout(2)
-                ->retry(2, 250, function ($exception) {
-                    // Per-attempt timeout, not end-to-end. Retry on connection errors only.
-                    // Do not retry 4xx (other than 429) or 5xx — Pterodactyl returns meaningful errors.
-                    return $exception instanceof ConnectionException;
-                }, throw: false)
-                ->get($this->apiUrl.$path, $query);
-        } catch (ConnectionException $exception) {
-            // Full message may contain internal hostnames/ports; log for diagnostics, throw sanitized.
-            \report($exception);
-            throw new \RuntimeException('Pterodactyl API connection failed.', previous: $exception);
-        }
-
-        if ($response->status() === 429) {
-            throw new \RuntimeException('Pterodactyl rate limit exceeded. Retry in a few seconds.');
-        }
-        if ($response->failed()) {
-            // Log full upstream body for diagnostics, but do NOT leak it to callers —
-            // AvailabilityController surfaces exception messages to API clients.
-            \report(new \RuntimeException(sprintf(
-                'Pterodactyl API error (%d) body: %s',
-                $response->status(),
-                $response->body()
-            )));
-
-            throw new \RuntimeException(sprintf('Pterodactyl API error (%d).', $response->status()));
-        }
-
-        $payload = $response->json();
-
-        if (! is_array($payload)) {
-            throw new \RuntimeException(sprintf(
-                'Pterodactyl API returned an invalid JSON payload (status %d).',
-                $response->status()
-            ));
-        }
-
-        return $payload;
-    }
-
-    private function getPendingReservations(int $nodeId, ?string $excludeReservationToken = null): array
-    {
-        $query = DB::table('ptero_resource_reservations')
-            ->where('node_id', $nodeId)
-            ->where('status', 'pending')
-            ->where('expires_at', '>', \now());
-
-        if ($excludeReservationToken !== null) {
-            $query->where('token', '!=', $excludeReservationToken);
-        }
-
-        $result = $query
-            ->selectRaw('COALESCE(SUM(memory), 0) as memory')
-            ->selectRaw('COALESCE(SUM(cpu), 0) as cpu')
-            ->selectRaw('COALESCE(SUM(disk), 0) as disk')
-            ->first();
-
-        return [
-            'memory' => (int) $result->memory,
-            'cpu' => (int) $result->cpu,
-            'disk' => (int) $result->disk,
-        ];
-    }
-
-    private function getNodeLocation(int $nodeId): int
-    {
-        $data = $this->pterodactylGet("/api/application/nodes/{$nodeId}");
-
-        $locationId = $data['attributes']['location_id'] ?? null;
-        if (! is_int($locationId)) {
-            throw new \RuntimeException("Pterodactyl node {$nodeId} response is missing location_id.");
-        }
-
-        return $locationId;
-    }
-
-    private function getExtensionConfig(): array
-    {
-        return Extension::where('extension', 'DynamicPterodactyl')
-            ->where('enabled', true)
-            ->first()
-            ?->settings
-            ->pluck('value', 'key')
-            ->toArray() ?? [];
+        return str_contains($exception->getMessage(), 'connection failed')
+            || preg_match('/inventory API error \\(5\\d\\d\\)/', $exception->getMessage()) === 1;
     }
 }

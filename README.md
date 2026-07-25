@@ -1,6 +1,13 @@
 # Dynamic Pterodactyl
 
-Companion extension for Paymenter 1.5.6 that adds native RAM/CPU/disk sliders, live memory/disk capacity holds, deterministic node selection, and Filament 5 administration to the built-in Pterodactyl server extension.
+Companion extension for Paymenter 1.5.6 that adds native RAM/CPU/disk
+sliders, live complete-vector stock, exact port reservations, deterministic
+node selection, capacity-aware upgrades, and Filament 5 administration to the
+built-in Pterodactyl server extension.
+
+Production deployments require Pterodactyl Panel and Wings 1.12.3 or newer.
+The stock and provisioning API contracts are verified against Panel 1.12.3,
+but a real-panel staging canary remains a release gate.
 
 ## Ownership
 
@@ -15,10 +22,10 @@ The browser never owns a reservation. A synchronous cart listener creates one se
 ```mermaid
 flowchart TD
     A["Native sliders"] --> B["Transactional cart hold"]
-    B --> C["Service-bound pending hold"]
-    C --> D["Reserved node and limits"]
-    D --> E["Pterodactyl server"]
-    E --> F["Consumed reservation"]
+    B --> C["Seven-day invoice guarantee"]
+    C --> D["Paid commitment"]
+    D --> E["Exact node, limits, and ports"]
+    E --> F["Verified Pterodactyl server"]
 ```
 
 ## Safety properties
@@ -27,10 +34,21 @@ flowchart TD
 - Cart create/edit and checkout fail closed for dynamic products.
 - Guest ownership transfers with the cart in one transaction.
 - The immutable fingerprint covers customer, cart, Paymenter server extension, hashed panel identity, product, plan, location, node, resources, quantity, currency, pricing version, and formula version.
-- Holds remain pending through payment and external provisioning.
-- The actual Pterodactyl request uses the reserved `node`, `memory`, `cpu`, and `disk`.
+- A 15-minute cart hold becomes an exact seven-day invoice guarantee at
+  checkout. Payment converts it to a non-expiring `paid_committed` commitment.
+- The actual Pterodactyl request uses the reserved `node`, `memory`, `cpu`,
+  `disk`, primary allocation, and additional allocations.
+- The Paymenter service stays `provisioning` until the external server and its
+  complete allocation set match the immutable commitment.
 - Config keys are lowercase and dynamic `ServiceConfig.slider_value` is serialized correctly.
-- CPU is a provisioned limit, not fabricated hard node inventory.
+- CPU is authoritative stock backed by an explicit per-node physical capacity
+  and configurable basis-point overcommit policy. Nodes without an enabled
+  policy are ineligible.
+- Enabled capacity-policy nodes are dedicated to the reservation-backed flow;
+  external administrators and automation must not mutate their stock.
+- Dynamic resource upgrades reserve a positive capacity delta on the server's
+  existing node and reconcile the exact build before local billing state moves.
+- Dynamic products force quantity to one.
 - Customer reservation tokens and reservation endpoints do not exist.
 
 ## Documentation
@@ -49,6 +67,10 @@ flowchart TD
 
 ## Installation boundary
 
-This extension must be deployed with the companion Paymenter remediation branch. Run the Paymenter and extension migrations together, then execute both test suites against a dedicated test database.
+This extension must be deployed with the companion Paymenter remediation
+branch. Enter maintenance mode, deploy and migrate Paymenter core first, run
+the extension migration/readiness gate, restart queue workers, and then leave
+maintenance mode. Migrations are forward-only: a failure after schema
+activation must remain in maintenance for operator recovery.
 
 The extension stores no cached Pterodactyl capacity. Customer responses expose aggregate location signals only; raw node data remains admin-only.

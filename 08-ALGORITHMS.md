@@ -2,33 +2,55 @@
 
 ## Availability
 
-For memory and disk:
+For RAM, CPU, and disk:
 
-`available = effective node total - Pterodactyl server allocations - live pending holds`
+`available = effective node total - Pterodactyl server limits - live local commitments`
 
-Effective totals apply Pterodactyl's memory/disk overallocation percentage. Pending means `status = pending` and `expires_at > now()`.
+Effective RAM/disk totals apply Pterodactyl's finite overallocation percentage.
+Effective CPU is the administrator-declared physical percentage multiplied by
+the per-node basis-point overcommit ratio. A missing or stale CPU policy makes
+the node ineligible; CPU is never inferred from a fabricated default.
 
-CPU is not hard inventory because the Pterodactyl application API exposes server CPU limits but no authoritative node CPU capacity. CPU remains part of the immutable purchase and provisioned server limit, while availability returns null and `cpu_capacity_enforced = false`.
+Live commitments include unexpired `pending` checkout/upgrade holds,
+non-expiring `paid_committed` rows, and confirmed expectations until live
+Pterodactyl inventory proves the exact external target. Upgrade rows reserve
+only each positive resource delta while retaining the full immutable target.
+
+Unassigned Pterodactyl allocation IDs are filtered by local allocation claims.
+Required ports, allowed primary-port ranges, and dedicated-IP grouping are
+evaluated by the same deterministic selector during quote and reservation.
 
 ## Node selection
 
 1. Fetch live nodes for the chosen location.
-2. Subtract unexpired pending holds.
-3. Reject maintenance nodes.
-4. Reject nodes that cannot fit memory or disk.
+2. Overlay live local resource and allocation claims.
+3. Reject private, maintenance, unbounded, unmanaged-CPU, unsafe-allocation,
+   or port-infeasible nodes.
+4. Reject nodes that cannot fit the complete RAM/CPU/disk vector.
 5. Score remaining relative headroom:
-   - memory: 60%;
-   - disk: 40%.
-6. Choose the highest score.
+   - memory: 50%;
+   - CPU: 15%;
+   - disk: 35%.
+6. Choose the highest score, then the lowest node ID on a tie.
 
 When replacing a cart hold, the previous token is excluded from availability calculation and the old row is cancelled in the same transaction.
 
 ## Concurrency
 
-`reserveForCartItem()` locks pending rows for the location before selecting and inserting. A generated unique active-cart-item column prevents two live holds for one cart item.
+`reserveForCartItem()` locks the panel/location capacity-scope row before
+reading inventory, selecting allocations, and inserting. Database-specific
+unique guards prevent duplicate live cart, checkout-service, and upgrade rows.
 
-`beginProvisioning()` locks the service-bound reservation. A five-minute `provisioning_started_at` lease rejects a second worker. The hold expiry is extended through the lease so scheduled cleanup cannot release capacity during the Pterodactyl request.
+Checkout extends the cart hold to exactly seven days. Payment changes it to
+`paid_committed`, which has no capacity expiry. `beginProvisioning()` locks the
+service-bound commitment; an unguessable lease rejects concurrent or stale
+workers.
 
-The row stays pending until the external create succeeds. This closes the gap where a confirmed row stopped counting before a server existed. After success, Pterodactyl is the allocated-capacity source and the reservation becomes confirmed.
+The row stays `paid_committed` until the external create and allocation set are
+verified. After confirmation, a local expectation overlay remains until the
+separately-read Pterodactyl inventory catches up.
 
-Pterodactyl `external_id = service.id` provides reconciliation on retry: an existing server completes the bound reservation instead of creating another.
+Pterodactyl `external_id = service.id` initiates reconciliation on retry, but
+is never sufficient proof. Numeric server/user IDs, UUID, identifier, panel,
+node, nest, egg, resource limits, owner external ID, and allocation IDs must
+all match the immutable commitment.

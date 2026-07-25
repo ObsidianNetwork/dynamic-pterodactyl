@@ -14,6 +14,7 @@ use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Events\AlertDeliveryFailed;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ProvisioningFailedNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
@@ -82,6 +83,61 @@ class AlertServiceTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke($service, $config, $availability, $alerts);
+    }
+
+    public function test_capacity_thresholds_include_holds_and_authoritative_cpu(): void
+    {
+        $method = new \ReflectionMethod(
+            AlertService::class,
+            'checkThresholds'
+        );
+        $method->setAccessible(true);
+        $alerts = $method->invoke(
+            $this->makeService(),
+            [
+                'total_capacity' => [
+                    'memory' => 100,
+                    'cpu' => 100,
+                    'disk' => 100,
+                ],
+                // Only ten is provisioned; the other 85 is held capacity.
+                'total_allocated' => [
+                    'memory' => 10,
+                    'cpu' => 10,
+                    'disk' => 10,
+                ],
+                'total_available' => [
+                    'memory' => 5,
+                    'cpu' => 15,
+                    'disk' => 90,
+                ],
+            ],
+            (object) [
+                'memory_warning_threshold' => 80,
+                'memory_critical_threshold' => 90,
+                'cpu_warning_threshold' => 80,
+                'cpu_critical_threshold' => 90,
+                'disk_warning_threshold' => 80,
+                'disk_critical_threshold' => 90,
+            ]
+        );
+
+        $this->assertSame([
+            [
+                'type' => 'critical',
+                'resource' => 'memory',
+                'utilization' => 95.0,
+                'usage_percent' => 95.0,
+                'threshold' => 90,
+            ],
+            [
+                'type' => 'warning',
+                'resource' => 'cpu',
+                'utilization' => 85.0,
+                'usage_percent' => 85.0,
+                'threshold' => 80,
+            ],
+        ], $alerts);
     }
 
     public function test_notify_shortfall_emails_all_admins(): void
@@ -479,6 +535,52 @@ class AlertServiceAuditTest extends LaravelTestCase
         $method = new \ReflectionMethod($service, 'checkAlertConfig');
         $method->setAccessible(true);
         $method->invoke($service, $alertConfig);
+    }
+
+    public function test_terminal_upgrade_failure_notifies_and_audits_full_identity(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['role_id' => 1]);
+        $service = $this->makeService(
+            Mockery::mock(ResourceCalculationService::class)
+        );
+        $snapshot = [
+            'operation' => 'upgrade',
+            'upgrade_id' => 41,
+            'service_id' => 42,
+            'invoice_id' => 43,
+            'reservation_id' => 44,
+            'node_id' => 45,
+            'attempts' => 5,
+            'error' => 'Panel rejected the build.',
+        ];
+
+        $service->notifyUpgradeFailure($snapshot);
+
+        Notification::assertSentTo(
+            $admin,
+            ProvisioningFailedNotification::class,
+            fn (ProvisioningFailedNotification $notification): bool =>
+                $notification->snapshot === $snapshot
+        );
+        $this->assertDatabaseHas('ptero_audit_logs', [
+            'action' => 'upgrade_failure_alerted',
+            'entity_type' => 'resource_reservation',
+            'entity_id' => 44,
+        ]);
+        $audit = DB::table('ptero_audit_logs')
+            ->where('action', 'upgrade_failure_alerted')
+            ->where('entity_id', 44)
+            ->latest('id')
+            ->first();
+        $this->assertSame([
+            'upgrade_id' => 41,
+            'service_id' => 42,
+            'invoice_id' => 43,
+            'reservation_id' => 44,
+            'attempts' => 5,
+            'error' => 'Panel rejected the build.',
+        ], json_decode($audit->new_values, true));
     }
 
     public function test_capacity_alert_writes_audit_row_on_successful_send(): void

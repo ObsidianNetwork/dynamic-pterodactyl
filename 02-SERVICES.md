@@ -4,10 +4,14 @@
 |---|---|
 | `ReservationConfigurationService` | Build canonical checkout payloads, fingerprints, and service-match proofs |
 | `ReservationService` | Own the hold from cart creation through provisioning |
-| `ResourceCalculationService` | Read live Pterodactyl memory/disk inventory and pending holds |
-| `NodeSelectionService` | Select a non-maintenance node that fits authoritative resources |
+| `PterodactylInventoryService` | Read paginated Pterodactyl 1.12.3+ node, server, location, and allocation inventory |
+| `ResourceCalculationService` | Overlay live RAM/disk/CPU/port inventory with local commitments |
+| `NodeSelectionService` | Select one public, non-maintenance node that fits the complete vector |
 | `ConfigOptionSetupService` | Transactionally create normalized native slider options |
-| `SliderConfigReaderService` | Read native slider metadata for price previews |
+| `ResourceQuoteService` | Compute customer-safe, complete-vector live bounds |
+| `UpgradeReservationService` | Quote, reserve, and fulfill fixed-node resource upgrades |
+| `AllocationSelectionService` | Deterministically select the exact primary/additional ports used by quotes and reservations |
+| `LegacyReservationReadinessService` | Fail extension migration over unresolved legacy lifecycle identity without inferring values |
 | `AlertService` | Capacity and shortfall notifications |
 | `AuditLogService` | Best-effort extension audit writes |
 
@@ -32,7 +36,8 @@ The primary methods are:
 | `reserveForCartItem()` | Create, reuse, or atomically replace one cart hold |
 | `transferCartOwnership()` | Move guest holds with the cart during login |
 | `bindCartItemToService()` | Attach the matching hold and extend it through invoice due time |
-| `beginProvisioning()` | Lock, validate, and lease the pending hold |
+| `commitPaidService()` | Convert the seven-day invoice guarantee to non-expiring paid capacity |
+| `beginProvisioning()` | Lock, validate, and lease the paid commitment |
 | `completeProvisioning()` | Consume it only after Pterodactyl accepts the server |
 | `failProvisioning()` | Clear the attempt lease while retaining capacity |
 | `cancelForCartItem()` | Release an unbound hold before cart-item deletion |
@@ -41,23 +46,27 @@ All state-changing paths use transactions and row locks. Customer input never su
 
 ## ResourceCalculationService
 
-Memory and disk capacity are computed as:
+RAM, disk, and CPU capacity are computed as:
 
-`effective total - existing server allocation - unexpired pending reservations`
+`effective total - existing Pterodactyl limits - live local commitments`
 
-Memory and disk honor Pterodactyl overallocation. Reads are uncached and the cluster snapshot path batches node/server data.
+Memory and disk honor finite Pterodactyl overallocation. CPU uses an enabled,
+panel- and node-bound `NodeCapacityPolicy`; the physical value is expressed in
+Pterodactyl percentage and multiplied by its configured overcommit ratio.
+Nodes with missing/mismatched CPU policy, unlimited existing server limits,
+private/maintenance state, unsafe client allocation headroom, or no feasible
+port are excluded.
 
-Pterodactyl does not expose authoritative node CPU capacity. Therefore:
-
-- `total.cpu` and `available.cpu` are `null`;
-- `cpu_capacity_enforced` is `false`;
-- CPU allocations/reservations remain visible for reporting;
-- CPU never rejects or scores a node;
-- the selected CPU value is still fingerprinted and passed as the server limit.
+The service also reserves exact allocation IDs. A confirmed commitment remains
+in the local overlay until the independently-read Pterodactyl server snapshot
+proves the pinned identity and complete target vector, preventing a
+read-after-write oversell window.
 
 ## NodeSelectionService
 
-Candidates must be outside maintenance mode and fit memory and disk. The score is 60% relative memory headroom and 40% relative disk headroom. CPU is deliberately excluded.
+Candidates must fit RAM, CPU, disk, and the requested allocation contract on
+one eligible node in the selected location. Remaining relative headroom is
+scored 50% RAM, 15% CPU, and 35% disk; node ID is the deterministic tie-breaker.
 
 ## Configuration setup
 
