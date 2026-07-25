@@ -75,10 +75,26 @@ class ReservationConfigurationServiceTest extends TestCase
             'currency_code' => 'AUD',
             'location_id' => 2,
             'resources' => ['memory' => 4096, 'cpu' => 200, 'disk' => 51200],
-            'calculated_price' => 25.00,
+            'calculated_price' => '25.00',
             'pricing_version' => str_repeat('a', 64),
             'formula_version' => ReservationConfigurationService::FORMULA_VERSION,
             'config_options' => [],
+            'allocation_requirements' => [
+                'required_count' => 1,
+                'mappings' => [[
+                    'environment_key' => 'SERVER_PORT',
+                    'requested_port' => null,
+                    'is_primary' => true,
+                ]],
+                'allowed_port_ranges' => [],
+                'dedicated_ip' => false,
+            ],
+            'provisioning_identity' => [
+                'nest_id' => 1,
+                'egg_id' => 2,
+                'user_external_id' => 'paymenter-user-30',
+                'user_email' => 'customer@example.com',
+            ],
         ];
 
         $original = $service->fingerprint($service->withNode($snapshot, 3));
@@ -95,7 +111,11 @@ class ReservationConfigurationServiceTest extends TestCase
             $service->fingerprint($service->withNode($snapshot, 4))
         );
 
-        $guestPayload = $service->withNode(array_replace($snapshot, ['customer_id' => null]), 3);
+        $guestSnapshot = $snapshot;
+        $guestSnapshot['customer_id'] = null;
+        $guestSnapshot['provisioning_identity']['user_external_id'] = null;
+        $guestSnapshot['provisioning_identity']['user_email'] = null;
+        $guestPayload = $service->withNode($guestSnapshot, 3);
         $this->assertNotSame(
             $service->fingerprint($guestPayload),
             $service->fingerprint($service->withCustomer(

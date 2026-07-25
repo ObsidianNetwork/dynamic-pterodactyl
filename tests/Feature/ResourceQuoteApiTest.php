@@ -179,7 +179,8 @@ class ResourceQuoteApiTest extends LaravelTestCase
             ]);
         $this->app->instance(ResourceQuoteService::class, $quotes);
 
-        $this->withCookie('cart', $cart->ulid)
+        $this->withCredentials()
+            ->withCookie('cart', $cart->ulid)
             ->postJson(
                 "/api/dynamic-pterodactyl/products/{$product->id}/resource-quote",
                 ['config_options' => [], 'cart_item_id' => $cartItemId]
@@ -203,7 +204,8 @@ class ResourceQuoteApiTest extends LaravelTestCase
             'updated_at' => now(),
         ]);
 
-        $this->withCookie('cart', $ownedCart->ulid)
+        $this->withCredentials()
+            ->withCookie('cart', $ownedCart->ulid)
             ->postJson(
                 "/api/dynamic-pterodactyl/products/{$product->id}/resource-quote",
                 ['config_options' => [], 'cart_item_id' => $otherItemId]
