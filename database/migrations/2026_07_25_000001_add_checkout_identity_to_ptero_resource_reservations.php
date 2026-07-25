@@ -10,6 +10,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('ptero_resource_reservations', function (Blueprint $table) {
+            // MariaDB does not allow a generated column to depend on
+            // cart_item_id because its foreign key uses ON DELETE SET NULL.
+            // Keep an immutable non-FK copy solely for the partial-unique guard.
+            $table->unsignedBigInteger('cart_item_guard_id')->nullable()->after('cart_item_id');
             $table->unsignedBigInteger('cart_id')->nullable()->after('cart_item_id');
             $table->unsignedBigInteger('server_extension_id')->nullable()->after('cart_id');
             $table->string('panel_identity', 64)->nullable()->after('server_extension_id');
@@ -28,8 +32,8 @@ return new class extends Migration
 
             $table->unsignedBigInteger('active_cart_item_id')
                 ->nullable()
-                ->storedAs("CASE WHEN status = 'pending' THEN cart_item_id ELSE NULL END")
-                ->after('cart_item_id');
+                ->storedAs("CASE WHEN status = 'pending' THEN cart_item_guard_id ELSE NULL END")
+                ->after('cart_item_guard_id');
         });
 
         // Every pre-migration pending row came from one of the two superseded
@@ -66,6 +70,7 @@ return new class extends Migration
             $table->dropIndex('ptero_reservations_fingerprint_idx');
             $table->dropColumn([
                 'active_cart_item_id',
+                'cart_item_guard_id',
                 'cart_id',
                 'server_extension_id',
                 'panel_identity',

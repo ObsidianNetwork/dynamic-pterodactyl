@@ -4,6 +4,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\Service;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
@@ -60,6 +61,15 @@ class ReservationServiceTest extends LaravelTestCase
             $this->configurationService->fingerprint($payload),
             $reservation->configuration_fingerprint
         );
+    }
+
+    public function test_only_one_pending_hold_may_use_a_cart_item_guard(): void
+    {
+        $this->insertReservation(cartItemGuardId: 42);
+
+        $this->expectException(QueryException::class);
+
+        $this->insertReservation(cartItemGuardId: 42);
     }
 
     public function test_begin_keeps_hold_pending_until_complete_consumes_it(): void
@@ -221,6 +231,7 @@ class ReservationServiceTest extends LaravelTestCase
     private function insertReservation(
         ?int $serviceId = null,
         ?int $cartId = null,
+        ?int $cartItemGuardId = null,
         ?int $userId = null,
         string $status = 'pending',
         mixed $provisioningStartedAt = null,
@@ -230,6 +241,7 @@ class ReservationServiceTest extends LaravelTestCase
         return DB::table('ptero_resource_reservations')->insertGetId([
             'token' => str_repeat((string) random_int(1, 9), 64),
             'cart_item_id' => null,
+            'cart_item_guard_id' => $cartItemGuardId,
             'cart_id' => $cartId,
             'server_extension_id' => null,
             'panel_identity' => null,

@@ -131,6 +131,7 @@ class ReservationService
                 'token' => $token,
                 'idempotency_key' => null,
                 'cart_item_id' => $cartItem->id,
+                'cart_item_guard_id' => $cartItem->id,
                 'cart_id' => $snapshot['cart_id'],
                 'server_extension_id' => $snapshot['server_extension_id'],
                 'panel_identity' => $snapshot['panel_identity'],
