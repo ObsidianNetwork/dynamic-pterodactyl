@@ -542,6 +542,18 @@ class ReservationConfigurationService
         foreach ($value as $key => $item) {
             if (is_array($item)) {
                 $value[$key] = $this->canonicalize($item);
+            } elseif (
+                is_float($item)
+                && is_finite($item)
+                && floor($item) === $item
+                && $item >= PHP_INT_MIN
+                && $item <= PHP_INT_MAX
+            ) {
+                // JSON columns may normalize 4096.0 to 4096. Treat integral
+                // numeric values identically before both persistence and
+                // fingerprinting so a database round trip cannot invalidate
+                // an otherwise immutable reservation.
+                $value[$key] = (int) $item;
             }
         }
 

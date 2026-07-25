@@ -6,6 +6,7 @@ use App\Enums\InvoiceTransactionStatus;
 use App\Exceptions\PermanentProvisioningException;
 use App\Helpers\ExtensionHelper;
 use App\Jobs\Server\UpgradeJob;
+use App\Models\Cart;
 use App\Models\ConfigOption;
 use App\Models\ConfigOptionProduct;
 use App\Models\Invoice;
@@ -18,7 +19,7 @@ use App\Models\ServiceConfig;
 use App\Models\ServiceUpgrade;
 use App\Models\Server;
 use App\Models\User;
-use App\Services\Service\FulfillmentStatusTransitionService;
+use App\Services\Service\CapacityServiceCreationCoordinator;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -87,6 +88,72 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         parent::tearDown();
     }
 
+    public function test_upgrade_fixture_starts_from_completed_paid_checkout(): void
+    {
+        $fixture = $this->fixture();
+        $reservation = DB::table('ptero_resource_reservations')
+            ->where('id', $fixture->checkoutReservationId)
+            ->first();
+        $allocation = DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $fixture->checkoutReservationId)
+            ->first();
+        $invoice = $fixture->checkoutInvoice->fresh();
+        $payload = json_decode(
+            (string) $reservation->configuration_payload,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+
+        $this->assertSame('checkout', $reservation->purpose);
+        $this->assertSame('confirmed', $reservation->status);
+        $this->assertNull($reservation->cart_item_id);
+        $this->assertSame(
+            $fixture->cartItemGuardId,
+            (int) $reservation->cart_item_guard_id
+        );
+        $this->assertFalse(
+            DB::table('carts')
+                ->where('id', $reservation->cart_id)
+                ->exists()
+        );
+        $this->assertSame(0, (int) $reservation->reserved_memory);
+        $this->assertSame(0, (int) $reservation->reserved_cpu);
+        $this->assertSame(0, (int) $reservation->reserved_disk);
+        $this->assertSame(1, (int) $reservation->provisioning_attempts);
+        $this->assertNotNull($reservation->paid_committed_at);
+        $this->assertNotNull($reservation->last_provisioning_attempt_at);
+        $this->assertNotNull($reservation->consumed_at);
+        $this->assertNotNull($reservation->last_reconciled_at);
+        $this->assertNotNull($allocation->released_at);
+        $this->assertSame(Invoice::STATUS_PAID, $invoice->status);
+        $this->assertSame(
+            $invoice->due_at->getTimestamp(),
+            \Carbon\Carbon::parse(
+                $reservation->guaranteed_until
+            )->getTimestamp()
+        );
+        $this->assertSame(
+            $fixture->checkoutPrice,
+            (string) $invoice->items()->sole()->price
+        );
+        $this->assertSame(
+            (int) $fixture->select->id,
+            collect($payload['config_options'])
+                ->firstWhere('environment_key', 'template')['id']
+        );
+        $this->assertSame(
+            (new ReservationConfigurationService)->fingerprint([
+                'product_id' => (int) $fixture->product->id,
+                'plan_id' => (int) $fixture->plan->id,
+                'currency_code' => 'USD',
+                'calculated_price' => $fixture->checkoutPrice,
+                'config_options' => $payload['config_options'],
+            ]),
+            $reservation->pricing_version
+        );
+    }
+
     public function test_fixed_node_quote_clamps_32_gb_to_23_gb_and_accepts_select_key(): void
     {
         $fixture = $this->fixture();
@@ -131,13 +198,20 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             );
         }
 
-        $duplicate->hidden = true;
-        $duplicate->save();
-        $fixture->service->unsetRelation('product');
+        $hiddenFixture = $this->fixture();
+        $this->option(
+            $hiddenFixture->product,
+            'memory',
+            1024,
+            32768,
+            1024,
+            4096,
+            hidden: true
+        );
 
-        $quote = $fixture->upgrades->quoteForService(
-            $fixture->service,
-            $this->selection($fixture)
+        $quote = $hiddenFixture->upgrades->quoteForService(
+            $hiddenFixture->service,
+            $this->selection($hiddenFixture)
         );
         $this->assertSame(23552, $quote['bounds']['memory']['max']);
     }
@@ -359,7 +433,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $payload = (array) $reservation->fresh()->configuration_payload;
         $payload['target']['memory'] = 16384;
         DB::table('ptero_resource_reservations')
-            ->whereKey($reservation->id)
+            ->where('id', $reservation->id)
             ->update([
                 'configuration_payload' => json_encode(
                     $payload,
@@ -395,7 +469,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $payload = (array) $reservation->configuration_payload;
         $payload['target']['memory'] = 16384;
         DB::table('ptero_resource_reservations')
-            ->whereKey($reservation->id)
+            ->where('id', $reservation->id)
             ->update([
                 'configuration_payload' => json_encode(
                     $payload,
@@ -428,7 +502,9 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             $upgrade,
             $invoice->due_at
         );
-        $invoice->items()->firstOrFail()->update(['price' => 1]);
+        DB::table('invoice_items')
+            ->where('id', $invoice->items()->firstOrFail()->id)
+            ->update(['price' => 1]);
 
         $failure = $fixture->upgrades->preflightPaidUpgrade(
             $upgrade,
@@ -489,13 +565,18 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             $invoice->due_at
         );
 
-        // Simulate renewal/admin drift beneath the model guard so the real
-        // synchronous payment listener encounters a stale immutable source.
-        DB::table('services')
-            ->where('id', $fixture->service->id)
+        // Simulate storage tampering beneath the model layer so the real
+        // synchronous payment listener must preserve external payment
+        // evidence without consuming an invalid capacity commitment.
+        $payload = (array) $reservation->configuration_payload;
+        $payload['target']['memory'] = 16384;
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservation->id)
             ->update([
-                'price' => '11.00',
-                'updated_at' => now(),
+                'configuration_payload' => json_encode(
+                    $payload,
+                    JSON_THROW_ON_ERROR
+                ),
             ]);
 
         ExtensionHelper::addPayment(
@@ -606,90 +687,6 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'currency_code' => 'USD',
         ]);
 
-        // Create the service while the product is still non-dynamic; the
-        // production checkout creates dynamic services through its coordinator.
-        $service = Service::factory()->create([
-            'user_id' => $user->id,
-            'product_id' => $product->id,
-            'plan_id' => $plan->id,
-            'quantity' => 1,
-            'price' => 10,
-            'currency_code' => 'USD',
-            'status' => Service::STATUS_ACTIVE,
-        ]);
-        $panelIdentity = hash('sha256', 'https://panel.example');
-        $checkoutEmail = strtolower((string) $user->email);
-        $checkoutPayload = [
-            'customer_id' => (int) $user->id,
-            'product_id' => (int) $product->id,
-            'plan_id' => (int) $plan->id,
-            'panel_identity' => $panelIdentity,
-            'node_id' => 1,
-            'resources' => [
-                'memory' => 4096,
-                'cpu' => 200,
-                'disk' => 20480,
-            ],
-            'allocation_requirements' => [
-                'required_count' => 1,
-                'mappings' => [[
-                    'environment_key' => 'SERVER_PORT',
-                    'requested_port' => null,
-                    'is_primary' => true,
-                ]],
-                'allowed_port_ranges' => [],
-                'dedicated_ip' => false,
-            ],
-            'provisioning_identity' => [
-                'nest_id' => 1,
-                'egg_id' => 2,
-                'user_external_id' => "paymenter-user-{$user->id}",
-                'user_email' => $checkoutEmail,
-            ],
-        ];
-        $checkoutConfiguration = new ReservationConfigurationService;
-        DB::table('ptero_resource_reservations')->insert([
-            'purpose' => 'checkout',
-            'token' => hash('sha256', "checkout:{$service->id}"),
-            'service_id' => $service->id,
-            'service_guard_id' => $service->id,
-            'user_id' => $user->id,
-            'node_id' => 1,
-            'location_id' => 1,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 20480,
-            'reserved_memory' => 4096,
-            'reserved_cpu' => 200,
-            'reserved_disk' => 20480,
-            'calculated_price' => 10,
-            'pricing_breakdown' => json_encode([], JSON_THROW_ON_ERROR),
-            'status' => 'confirmed',
-            'expires_at' => now()->addDays(30),
-            'guaranteed_until' => now()->addDays(30),
-            'panel_identity' => $panelIdentity,
-            'product_id' => $product->id,
-            'plan_id' => $plan->id,
-            'quantity' => 1,
-            'currency_code' => 'USD',
-            'configuration_fingerprint' =>
-                $checkoutConfiguration->fingerprint($checkoutPayload),
-            'configuration_payload' => json_encode(
-                $checkoutPayload,
-                JSON_THROW_ON_ERROR
-            ),
-            'pricing_version' => str_repeat('a', 64),
-            'formula_version' =>
-                ReservationConfigurationService::FORMULA_VERSION,
-            'external_server_id' => 99,
-            'external_user_id' => 44,
-            'external_server_uuid' =>
-                '10000000-0000-4000-8000-000000000099',
-            'external_server_identifier' => 'server-99',
-            'consumed_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
         $options = [
             'memory' => $this->option(
                 $product,
@@ -716,24 +713,6 @@ class UpgradeReservationServiceTest extends LaravelTestCase
                 20480
             ),
         ];
-        FulfillmentStatusTransitionService::run(
-            $service,
-            function () use ($service, $options): void {
-                foreach ([
-                    'memory' => 4096,
-                    'cpu' => 200,
-                    'disk' => 20480,
-                ] as $resource => $value) {
-                    ServiceConfig::create([
-                        'configurable_id' => $service->id,
-                        'configurable_type' => Service::class,
-                        'config_option_id' => $options[$resource]->id,
-                        'config_value_id' => null,
-                        'slider_value' => $value,
-                    ]);
-                }
-            }
-        );
         $select = ConfigOption::create([
             'name' => 'Template',
             'env_variable' => 'template',
@@ -752,6 +731,255 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'hidden' => false,
             'parent_id' => $select->id,
         ]);
+
+        $resourceValues = [
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 20480,
+        ];
+        $checkoutPrice = number_format(
+            10 + array_sum($resourceValues),
+            2,
+            '.',
+            ''
+        );
+        $checkoutStartedAt = now()->subMinutes(4);
+        $checkoutCommittedAt = now()->subMinutes(3);
+        $checkoutCompletedAt = now()->subMinutes(2);
+        $checkoutDueAt = now()->addDays(7);
+        $service = CapacityServiceCreationCoordinator::run(
+            fn () => Service::factory()->create([
+                'user_id' => $user->id,
+                'product_id' => $product->id,
+                'plan_id' => $plan->id,
+                'quantity' => 1,
+                'price' => $checkoutPrice,
+                'currency_code' => 'USD',
+                'status' => Service::STATUS_ACTIVE,
+                'expires_at' => now()->addMonth(),
+            ])
+        );
+        foreach ($resourceValues as $resource => $value) {
+            ServiceConfig::create([
+                'configurable_id' => $service->id,
+                'configurable_type' => Service::class,
+                'config_option_id' => $options[$resource]->id,
+                'config_value_id' => null,
+                'slider_value' => $value,
+            ]);
+        }
+        ServiceConfig::create([
+            'configurable_id' => $service->id,
+            'configurable_type' => Service::class,
+            'config_option_id' => $select->id,
+            'config_value_id' => $selectChild->id,
+            'slider_value' => null,
+        ]);
+
+        $cart = Cart::create([
+            'user_id' => $user->id,
+            'currency_code' => 'USD',
+        ]);
+        $panelIdentity = hash('sha256', 'https://panel.example');
+        $checkoutEmail = strtolower((string) $user->email);
+        $allocationId = 1000 + (int) $service->id;
+        $allocationIp = '192.0.2.'.(((int) $service->id % 250) + 1);
+        $allocationPort = 20000 + ((int) $service->id % 40000);
+        $configurationOptions = collect($resourceValues)
+            ->map(function (int $value, string $resource) use ($options): array {
+                $option = $options[$resource];
+
+                return [
+                    'id' => (int) $option->id,
+                    'type' => 'dynamic_slider',
+                    'environment_key' => $resource,
+                    'resource_type' => $resource,
+                    'value' => (float) $value,
+                    'metadata' => (array) $option->metadata,
+                ];
+            })
+            ->sortBy('id')
+            ->values()
+            ->all();
+        $configurationOptions[] = [
+            'id' => (int) $select->id,
+            'type' => 'select',
+            'environment_key' => 'template',
+            'resource_type' => null,
+            'value' => (float) $selectChild->id,
+            'metadata' => (array) ($select->metadata ?? []),
+        ];
+        usort(
+            $configurationOptions,
+            fn (array $left, array $right): int =>
+                $left['id'] <=> $right['id']
+        );
+        $cartSelections = collect($configurationOptions)
+            ->map(function (array $option) use (
+                $options,
+                $select
+            ): array {
+                $model = $option['type'] === 'dynamic_slider'
+                    ? $options[$option['resource_type']]
+                    : $select;
+
+                return [
+                    'option_id' => (int) $option['id'],
+                    'option_name' => (string) $model->name,
+                    'option_type' => (string) $option['type'],
+                    'option_env_variable' =>
+                        (string) $option['environment_key'],
+                    'value' => $option['value'],
+                ];
+            })
+            ->all();
+        $cartItemGuardId = DB::table('cart_items')->insertGetId([
+            'cart_id' => $cart->id,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'config_options' => json_encode(
+                $cartSelections,
+                JSON_THROW_ON_ERROR
+            ),
+            'checkout_config' => json_encode([], JSON_THROW_ON_ERROR),
+            'quantity' => 1,
+            'created_at' => $checkoutStartedAt,
+            'updated_at' => $checkoutStartedAt,
+        ]);
+        $checkoutInvoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'currency_code' => 'USD',
+            'status' => Invoice::STATUS_PENDING,
+            'due_at' => $checkoutDueAt,
+        ]);
+        $checkoutInvoice->items()->create([
+            'description' => (string) $service->description,
+            'price' => $checkoutPrice,
+            'quantity' => 1,
+            'reference_id' => $service->id,
+            'reference_type' => Service::class,
+        ]);
+        DB::table('invoices')
+            ->where('id', $checkoutInvoice->id)
+            ->update([
+                'status' => Invoice::STATUS_PAID,
+                'updated_at' => $checkoutCommittedAt,
+            ]);
+        $checkoutInvoice->refresh();
+        $checkoutConfiguration = new ReservationConfigurationService;
+        $pricingVersion = $checkoutConfiguration->fingerprint([
+            'product_id' => (int) $product->id,
+            'plan_id' => (int) $plan->id,
+            'currency_code' => 'USD',
+            'calculated_price' => $checkoutPrice,
+            'config_options' => $configurationOptions,
+        ]);
+        $checkoutPayload = $checkoutConfiguration->withPlacement([
+            'customer_id' => (int) $user->id,
+            'cart_id' => (int) $cart->id,
+            'server_extension_id' => (int) $server->id,
+            'panel_identity' => $panelIdentity,
+            'product_id' => (int) $product->id,
+            'plan_id' => (int) $plan->id,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'location_id' => 1,
+            'resources' => $resourceValues,
+            'calculated_price' => $checkoutPrice,
+            'pricing_version' => $pricingVersion,
+            'formula_version' =>
+                ReservationConfigurationService::FORMULA_VERSION,
+            'config_options' => $configurationOptions,
+            'allocation_requirements' => [
+                'required_count' => 1,
+                'mappings' => [[
+                    'environment_key' => 'SERVER_PORT',
+                    'requested_port' => null,
+                    'is_primary' => true,
+                ]],
+                'allowed_port_ranges' => [],
+                'dedicated_ip' => false,
+            ],
+            'provisioning_identity' => [
+                'nest_id' => 1,
+                'egg_id' => 2,
+                'user_external_id' => "paymenter-user-{$user->id}",
+                'user_email' => $checkoutEmail,
+            ],
+        ], 1, [[
+            'allocation_id' => $allocationId,
+            'ip' => $allocationIp,
+            'port' => $allocationPort,
+            'environment_key' => 'SERVER_PORT',
+            'is_primary' => true,
+        ]]);
+        $checkoutReservationId = DB::table(
+            'ptero_resource_reservations'
+        )->insertGetId([
+            'purpose' => 'checkout',
+            'token' => hash('sha256', "checkout:{$service->id}"),
+            'cart_item_id' => $cartItemGuardId,
+            'cart_item_guard_id' => $cartItemGuardId,
+            'cart_id' => $cart->id,
+            'server_extension_id' => $server->id,
+            'service_id' => $service->id,
+            'service_guard_id' => $service->id,
+            'invoice_id' => $checkoutInvoice->id,
+            'user_id' => $user->id,
+            'node_id' => 1,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 20480,
+            'reserved_memory' => 0,
+            'reserved_cpu' => 0,
+            'reserved_disk' => 0,
+            'calculated_price' => $checkoutPrice,
+            'pricing_breakdown' => json_encode([], JSON_THROW_ON_ERROR),
+            'status' => 'confirmed',
+            'expires_at' => $checkoutDueAt,
+            'guaranteed_until' => $checkoutDueAt,
+            'paid_committed_at' => $checkoutCommittedAt,
+            'provisioning_attempts' => 1,
+            'last_provisioning_attempt_at' => $checkoutCommittedAt,
+            'panel_identity' => $panelIdentity,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'configuration_fingerprint' =>
+                $checkoutConfiguration->fingerprint($checkoutPayload),
+            'configuration_payload' => json_encode(
+                $checkoutPayload,
+                JSON_THROW_ON_ERROR
+            ),
+            'pricing_version' => $pricingVersion,
+            'formula_version' =>
+                ReservationConfigurationService::FORMULA_VERSION,
+            'external_server_id' => 99,
+            'external_user_id' => 44,
+            'external_server_uuid' =>
+                '10000000-0000-4000-8000-000000000099',
+            'external_server_identifier' => 'server-99',
+            'last_reconciled_at' => $checkoutCompletedAt,
+            'consumed_at' => $checkoutCompletedAt,
+            'created_at' => $checkoutStartedAt,
+            'updated_at' => $checkoutCompletedAt,
+        ]);
+        DB::table('ptero_reservation_allocations')->insert([
+            'reservation_id' => $checkoutReservationId,
+            'panel_identity' => $panelIdentity,
+            'node_id' => 1,
+            'allocation_id' => $allocationId,
+            'ip' => $allocationIp,
+            'port' => $allocationPort,
+            'environment_key' => 'SERVER_PORT',
+            'is_primary' => true,
+            'released_at' => $checkoutCompletedAt,
+            'created_at' => $checkoutStartedAt,
+            'updated_at' => $checkoutCompletedAt,
+        ]);
+        DB::table('carts')->where('id', $cart->id)->delete();
 
         $remote = (object) ['server' => [
             'id' => 99,
@@ -773,8 +1001,8 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'database_limit' => 2,
             'allocation_limit' => 0,
             'backup_limit' => 3,
-            'allocation' => 123,
-            'assigned_allocation_ids' => [123],
+            'allocation' => $allocationId,
+            'assigned_allocation_ids' => [$allocationId],
         ]];
         $inventory = Mockery::mock(PterodactylInventoryService::class);
         $inventory->shouldReceive('assertExclusiveProvisioningControl')
@@ -805,6 +1033,11 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $resources->shouldReceive('verifyNodeCapacity')
             ->zeroOrMoreTimes()
             ->andReturn(true);
+        $upgrades = new UpgradeReservationService(
+            $inventory,
+            $resources
+        );
+        $this->app->instance(UpgradeReservationService::class, $upgrades);
 
         return (object) [
             'user' => $user,
@@ -816,10 +1049,11 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'select' => $select,
             'selectChild' => $selectChild,
             'remote' => $remote,
-            'upgrades' => new UpgradeReservationService(
-                $inventory,
-                $resources
-            ),
+            'upgrades' => $upgrades,
+            'checkoutReservationId' => $checkoutReservationId,
+            'checkoutInvoice' => $checkoutInvoice,
+            'checkoutPrice' => $checkoutPrice,
+            'cartItemGuardId' => $cartItemGuardId,
         ];
     }
 
@@ -901,13 +1135,14 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         int $min,
         int $max,
         int $step,
-        int $default
+        int $default,
+        bool $hidden = false
     ): ConfigOption {
         $option = ConfigOption::create([
             'name' => ucfirst($resource),
             'env_variable' => $resource,
             'type' => 'dynamic_slider',
-            'hidden' => false,
+            'hidden' => $hidden,
             'upgradable' => true,
             'metadata' => [
                 'managed_by' => 'dynamic_pterodactyl',
