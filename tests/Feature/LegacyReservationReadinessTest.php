@@ -49,7 +49,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
                 $exception->getMessage()
             );
             $this->assertStringContainsString(
-                'never infer them',
+                'never infer authority',
                 $exception->getMessage()
             );
         }

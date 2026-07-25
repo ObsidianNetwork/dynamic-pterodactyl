@@ -18,6 +18,7 @@ use App\Models\ServiceConfig;
 use App\Models\ServiceUpgrade;
 use App\Models\Server;
 use App\Models\User;
+use App\Services\Service\FulfillmentStatusTransitionService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -713,19 +714,24 @@ class UpgradeReservationServiceTest extends LaravelTestCase
                 20480
             ),
         ];
-        foreach ([
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 20480,
-        ] as $resource => $value) {
-            ServiceConfig::create([
-                'configurable_id' => $service->id,
-                'configurable_type' => Service::class,
-                'config_option_id' => $options[$resource]->id,
-                'config_value_id' => null,
-                'slider_value' => $value,
-            ]);
-        }
+        FulfillmentStatusTransitionService::run(
+            $service,
+            function () use ($service, $options): void {
+                foreach ([
+                    'memory' => 4096,
+                    'cpu' => 200,
+                    'disk' => 20480,
+                ] as $resource => $value) {
+                    ServiceConfig::create([
+                        'configurable_id' => $service->id,
+                        'configurable_type' => Service::class,
+                        'config_option_id' => $options[$resource]->id,
+                        'config_value_id' => null,
+                        'slider_value' => $value,
+                    ]);
+                }
+            }
+        );
         $select = ConfigOption::create([
             'name' => 'Template',
             'env_variable' => 'template',
