@@ -7,12 +7,19 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 ## [Unreleased]
 
 ### Added
+- Server-owned reservation identity covering cart, purchase, node, resource, pricing, and formula snapshots.
+- Atomic guest ownership transfer, service binding, panel-identity checks, provisioning leases, retry reconciliation, and consume-on-create lifecycle.
+- Migration of legacy uppercase resource keys and persisted `ServiceConfig.slider_value` support in the companion core.
 - Scheduled `AlertService::checkCapacityAlerts()` every 5 minutes via `DynamicPterodactyl.php::boot()` (dp-12).
 - `Notifications/CapacityAlertNotification` mail notification for capacity threshold breaches (dp-12).
 - Audit trail for capacity alert dispatch and reservation state transitions (`confirm`, `cancel`, `cleanupExpired`) using the shared `AuditsExtensionActions` trait (dp-12).
 - Reservation create endpoint now supports `Idempotency-Key` / `idempotency_key` dedupe with active-reservation reuse semantics.
 
 ### Changed
+- Rebased the companion Paymenter implementation onto 1.5.6 / Filament 5 / Livewire 4.
+- Reservation creation moved from the browser and public API to transactional cart create/update listeners.
+- Pterodactyl provisioning now overrides the actual `node`, `location`, `memory`, `cpu`, and `disk` fields from the bound hold.
+- CPU availability is explicitly non-authoritative; memory and disk are the hard inventory dimensions.
 - (dp-11) Authorization hardened for reservations: `StoreReservationRequest::authorize()` now verifies cart-item ownership; `ReservationController::get|cancel|extend` now use `ResourceReservationPolicy` (Filament panel access via `User::canAccessPanel()`) instead of the broken `is_admin` check; `ReservationService::cancel|extend|confirm` accept an optional `?User $actor` and authorize via the policy when supplied (defence-in-depth).
 - (dp-11) Surface reduced: deleted retired `PricingController::validate` (410 stub from dp-09) and `ReservationService::getAll()` (no callers — `queryAll()` is the live path); narrowed five internal helpers (`presentReservation`, `getActiveByIdempotencyKey`, `calculateNodeAvailability`, `createResourceOption`, `createLocationOption`) to `private`.
 - (dp-10) The extension-consumed `dynamic_slider` component now exposes the full WAI-ARIA APG attribute set, keyboard PageUp/Down/Home/End support, loading/error UI states, and a 44px touch target. No extension code changes required — these are fork-side core improvements.
@@ -22,6 +29,10 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 - Pricing preview now delegates to Paymenter core (`Plan::dynamicSliderBasePrice()` + `ConfigOption::calculateDynamicPriceDelta()`), `PricingCalculatorService` was renamed to `SliderConfigReaderService`, and `PricingConfigValidator` was retired in favor of core `DynamicSliderPricingRule`.
 
 ### Fixed
+- Removed the competing browser and cart-listener holds, stale slider idempotency reuse, URL/session token exposure, and fail-open checkout paths.
+- Holds remain pending through payment and external provisioning, closing the confirmed-before-server capacity gap.
+- Guest reservations are transferred to the authenticated customer instead of failing owner checks at checkout.
+- Dynamic option keys use the lowercase fields read by the built-in Pterodactyl provisioner.
 - Capacity-alert email delivery: replaced `Log::info('email would be sent')` stub in `AlertService::sendNotifications()` with real admin-user fan-out (dp-12).
 - Payment-time reservation confirmation now excludes the reservation itself from pending-capacity math, so exact-fit purchases can confirm successfully.
 - Reservation create requests now enforce product slider bounds and reject unconfigured products instead of persisting arbitrary resource selections.

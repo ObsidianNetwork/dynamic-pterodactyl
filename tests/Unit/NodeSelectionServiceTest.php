@@ -32,7 +32,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_selects_node_with_most_headroom(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     $this->createNodeData(1, 'Node 1', [
@@ -75,7 +75,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_skips_nodes_in_maintenance(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     $this->createNodeData(1, 'Node 1 (Maint)', [
@@ -117,7 +117,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_skips_nodes_with_insufficient_memory(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     $this->createNodeData(1, 'Low Memory Node', [
@@ -154,12 +154,12 @@ class NodeSelectionServiceTest extends LaravelTestCase
     }
 
     /**
-     * Test that nodes with insufficient CPU are skipped.
+     * CPU limits do not affect node selection without authoritative inventory.
      */
-    public function test_skips_nodes_with_insufficient_cpu(): void
+    public function test_cpu_is_not_treated_as_hard_capacity(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     $this->createNodeData(1, 'Low CPU Node', [
@@ -191,7 +191,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         ]);
 
         $this->assertNotNull($result);
-        $this->assertEquals(2, $result['node_id']);
+        $this->assertEquals(1, $result['node_id']);
     }
 
     /**
@@ -200,7 +200,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_skips_nodes_with_insufficient_disk(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     $this->createNodeData(1, 'Low Disk Node', [
@@ -241,7 +241,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_returns_null_when_no_nodes_available(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     $this->createNodeData(1, 'Full Node', [
@@ -272,7 +272,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_weighted_scoring_prefers_memory_headroom(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [
                     // Node 1: Better disk/cpu but less memory headroom
@@ -322,7 +322,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         ];
 
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'location_id' => 1,
                 'nodes' => [],
@@ -371,7 +371,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
     public function test_empty_nodes_returns_null(): void
     {
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1)
+            ->with(1, null)
             ->andReturn([
                 'nodes' => [],
                 'max_available' => [],

@@ -20,7 +20,7 @@ class AvailabilityApiTest extends LaravelTestCase
         require __DIR__ . '/../../routes/api.php';
     }
 
-    public function test_has_capacity_false_when_cpu_exhausted_but_memory_positive(): void
+    public function test_cpu_is_explicitly_not_enforced_as_capacity(): void
     {
         /** @var User $user */
         $user = User::factory()->create();
@@ -36,12 +36,13 @@ class AvailabilityApiTest extends LaravelTestCase
         $response->assertOk()->assertJson([
             'success' => true,
             'data' => [
-                'has_capacity' => false,
+                'has_capacity' => true,
                 'resource_capacity' => [
                     'memory' => true,
-                    'cpu' => false,
+                    'cpu' => null,
                     'disk' => true,
                 ],
+                'cpu_capacity_enforced' => false,
             ],
         ]);
 
@@ -68,9 +69,10 @@ class AvailabilityApiTest extends LaravelTestCase
                 'has_capacity' => true,
                 'resource_capacity' => [
                     'memory' => true,
-                    'cpu' => true,
+                    'cpu' => null,
                     'disk' => true,
                 ],
+                'cpu_capacity_enforced' => false,
             ],
         ]);
 

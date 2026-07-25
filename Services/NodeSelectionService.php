@@ -14,14 +14,21 @@ class NodeSelectionService
     /**
      * Select the best node for given resource requirements
      *
-     * Algorithm: Best-fit with headroom weighting
-     * - Memory: 50% weight (most commonly upgraded)
-     * - Disk: 35% weight (harder to migrate)
-     * - CPU: 15% weight (often unlimited/shared)
+     * Algorithm: memory/disk headroom weighting.
+     *
+     * Pterodactyl does not expose authoritative node CPU capacity, so CPU is
+     * passed through as a server limit but is never treated as hard inventory.
      */
-    public function selectBestNode(int $locationId, array $requirements): ?array
+    public function selectBestNode(
+        int $locationId,
+        array $requirements,
+        ?string $excludeReservationToken = null
+    ): ?array
     {
-        $locationData = $this->resourceService->getLocationAvailability($locationId);
+        $locationData = $this->resourceService->getLocationAvailability(
+            $locationId,
+            $excludeReservationToken
+        );
 
         $candidates = [];
 
@@ -35,31 +42,25 @@ class NodeSelectionService
             if ($node['available']['memory'] < $requirements['memory']) {
                 continue;
             }
-            if ($node['available']['cpu'] < $requirements['cpu']) {
-                continue;
-            }
             if ($node['available']['disk'] < $requirements['disk']) {
                 continue;
             }
 
             // Calculate remaining headroom after allocation
             $remainingMemory = $node['available']['memory'] - $requirements['memory'];
-            $remainingCpu = $node['available']['cpu'] - $requirements['cpu'];
             $remainingDisk = $node['available']['disk'] - $requirements['disk'];
 
-            // Weighted score: prioritize memory headroom, then disk, then CPU
-            $memoryScore = ($remainingMemory / max(1, $node['total']['memory'])) * 0.50;
-            $diskScore = ($remainingDisk / max(1, $node['total']['disk'])) * 0.35;
-            $cpuScore = ($remainingCpu / max(1, $node['total']['cpu'])) * 0.15;
+            $memoryScore = ($remainingMemory / max(1, $node['total']['memory'])) * 0.60;
+            $diskScore = ($remainingDisk / max(1, $node['total']['disk'])) * 0.40;
 
-            $score = $memoryScore + $diskScore + $cpuScore;
+            $score = $memoryScore + $diskScore;
 
             $candidates[] = [
                 'node' => $node,
                 'score' => $score,
                 'remaining' => [
                     'memory' => $remainingMemory,
-                    'cpu' => $remainingCpu,
+                    'cpu' => null,
                     'disk' => $remainingDisk,
                 ],
             ];

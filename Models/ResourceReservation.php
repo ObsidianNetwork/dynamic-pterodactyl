@@ -15,8 +15,19 @@ class ResourceReservation extends Model
         'token',
         'idempotency_key',
         'cart_item_id',
+        'cart_id',
+        'server_extension_id',
+        'panel_identity',
         'service_id',
         'user_id',
+        'product_id',
+        'plan_id',
+        'quantity',
+        'currency_code',
+        'configuration_fingerprint',
+        'configuration_payload',
+        'pricing_version',
+        'formula_version',
         'node_id',
         'location_id',
         'memory',
@@ -27,11 +38,18 @@ class ResourceReservation extends Model
         'status',
         'admin_notes',
         'expires_at',
+        'provisioning_started_at',
+        'provisioning_lease_id',
+        'consumed_at',
+        'last_provisioning_error',
     ];
 
     protected $casts = [
         'pricing_breakdown' => 'array',
+        'configuration_payload' => 'array',
         'expires_at' => 'datetime',
+        'provisioning_started_at' => 'datetime',
+        'consumed_at' => 'datetime',
         'calculated_price' => 'decimal:2',
     ];
 

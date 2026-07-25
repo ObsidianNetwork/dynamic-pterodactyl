@@ -170,7 +170,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $result = $this->service->getLocationAvailability(1, 'token-a');
 
         $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $result['nodes'][0]['reserved']);
-        $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
+        $this->assertSame(['memory' => 7168, 'cpu' => null, 'disk' => 46080], $result['nodes'][0]['available']);
+        $this->assertFalse($result['nodes'][0]['cpu_capacity_enforced']);
     }
 
     public function test_verify_availability_with_self_exclusion_succeeds_on_edge_fit(): void
@@ -541,10 +542,10 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertArrayNotHasKey('error', $snapshot);
         $this->assertCount(1, $snapshot['locations']);
         $this->assertSame([1], $snapshot['by_location'][1]['nodes']);
-        $this->assertSame(['memory' => 8192, 'cpu' => 400, 'disk' => 51200], $snapshot['nodes'][1]['totals']);
+        $this->assertSame(['memory' => 8192, 'cpu' => null, 'disk' => 51200], $snapshot['nodes'][1]['totals']);
         $this->assertSame(['memory' => 2048, 'cpu' => 100, 'disk' => 10240], $snapshot['nodes'][1]['allocated']);
-        $this->assertSame(['memory' => 6144, 'cpu' => 300, 'disk' => 40960], $snapshot['nodes'][1]['available']);
-        $this->assertSame(['memory' => 8192, 'cpu' => 400, 'disk' => 51200], $snapshot['by_location'][1]['totals']);
+        $this->assertSame(['memory' => 6144, 'cpu' => null, 'disk' => 40960], $snapshot['nodes'][1]['available']);
+        $this->assertSame(['memory' => 8192, 'cpu' => null, 'disk' => 51200], $snapshot['by_location'][1]['totals']);
         $this->assertLessThanOrEqual(4, $calls);
     }
 
@@ -572,9 +573,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertCount(5, $snapshot['nodes']);
         $this->assertSame([1, 2], $snapshot['by_location'][1]['nodes']);
         $this->assertSame([3, 4, 5], $snapshot['by_location'][2]['nodes']);
-        $this->assertSame(['memory' => 16384, 'cpu' => 800, 'disk' => 102400], $snapshot['by_location'][1]['totals']);
+        $this->assertSame(['memory' => 16384, 'cpu' => null, 'disk' => 102400], $snapshot['by_location'][1]['totals']);
         $this->assertSame(['memory' => 3072, 'cpu' => 150, 'disk' => 15360], $snapshot['by_location'][1]['allocated']);
-        $this->assertSame(['memory' => 24576, 'cpu' => 1200, 'disk' => 153600], $snapshot['by_location'][2]['totals']);
+        $this->assertSame(['memory' => 24576, 'cpu' => null, 'disk' => 153600], $snapshot['by_location'][2]['totals']);
         $this->assertSame(['memory' => 4096, 'cpu' => 200, 'disk' => 20480], $snapshot['by_location'][2]['allocated']);
         $this->assertLessThanOrEqual(4, $calls);
     }

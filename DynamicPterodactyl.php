@@ -5,9 +5,8 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl;
 use App\Attributes\ExtensionMeta;
 use App\Classes\Extension\Extension;
 use App\Events\CartItem\Created as CartItemCreated;
-use App\Events\CartItem\Deleted as CartItemDeleted;
-use App\Events\Invoice\Paid as InvoicePaid;
-use App\Events\Service\Created as ServiceCreated;
+use App\Events\CartItem\Deleting as CartItemDeleting;
+use App\Events\CartItem\Updated as CartItemUpdated;
 use App\Helpers\ExtensionHelper;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
@@ -15,8 +14,6 @@ use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemDeletedListener;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\InvoicePaidListener;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\ServiceCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
@@ -25,7 +22,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 #[ExtensionMeta(
     name: 'Dynamic Pterodactyl',
     description: 'Dynamic resource sliders (RAM/CPU/Disk), real-time availability, and 15-min reservations for Pterodactyl products.',
-    version: '3.1.0',
+    version: '4.0.0',
     author: 'Paymenter',
     url: '',
     icon: 'heroicon-o-server',
@@ -134,13 +131,10 @@ class DynamicPterodactyl extends Extension
         // Cart item created - create resource reservation
         Event::listen(CartItemCreated::class, CartItemCreatedListener::class);
 
-        // Cart item deleted - cancel reservation
-        Event::listen(CartItemDeleted::class, CartItemDeletedListener::class);
+        // Cart item edited - replace or refresh its resource reservation
+        Event::listen(CartItemUpdated::class, CartItemCreatedListener::class);
 
-        // Invoice paid - confirm reservation
-        Event::listen(InvoicePaid::class, InvoicePaidListener::class);
-
-        // Service created - log linkage (tracking only)
-        Event::listen(ServiceCreated::class, ServiceCreatedListener::class);
+        // Cancel before deletion while the cart-item relationship still exists
+        Event::listen(CartItemDeleting::class, CartItemDeletedListener::class);
     }
 }

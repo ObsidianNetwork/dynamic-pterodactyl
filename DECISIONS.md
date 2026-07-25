@@ -197,6 +197,36 @@ Architectural decisions with rationale. Check here before re-debating a settled 
 
 ---
 
+## Decisions locked 2026-07-25
+
+These decisions supersede the earlier Filament 4, browser-reservation, invoice-confirmation, and CPU-weighted node-selection decisions.
+
+### 12. Paymenter baseline
+
+The companion fork targets Paymenter 1.5.6, Filament 5, and Livewire 4. The previous 1.4.7 baseline is release-blocking because it predates applicable security fixes.
+
+### 13. Reservation ownership
+
+Exactly one server-owned reservation exists per dynamic cart item. Customer reservation endpoints, bearer tokens, session storage, Livewire token state, and browser idempotency are retired.
+
+### 14. Immutable checkout identity
+
+Every new hold stores a canonical payload and SHA-256 fingerprint covering customer, cart, Paymenter server extension, hashed panel identity, product, plan, location, node, resources, quantity, currency, calculated price, pricing version, formula version, and option metadata. The capacity reader and provisioner must resolve to the same normalized panel URL. Guest login atomically updates both row ownership and the customer identity embedded in that payload.
+
+### 15. Provisioning is the consume boundary
+
+Checkout binds and extends a pending hold; it does not confirm it. The built-in Pterodactyl provisioner leases the row, overrides the actual node/resource settings, and marks it confirmed only after the external server create succeeds.
+
+### 16. CPU is not hard Pterodactyl inventory
+
+Without an external authoritative inventory, CPU is a fingerprinted/provisioned server limit only. Node eligibility and scoring use memory and disk. Availability explicitly reports `cpu_capacity_enforced = false`.
+
+### 17. Normalized provisioner keys
+
+Dynamic option environment variables are lowercase `memory`, `cpu`, `disk`, and `location`. This is the casing consumed by the built-in Pterodactyl extension. The normalization migration is intentionally irreversible.
+
+---
+
 ## How to Propose a Change
 
 If you believe a decision should be reconsidered:
