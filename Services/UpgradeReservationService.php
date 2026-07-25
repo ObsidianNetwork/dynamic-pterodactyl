@@ -136,6 +136,8 @@ class UpgradeReservationService
                 'cart_id' => null,
                 'server_extension_id' => $upgrade->product->server_id,
                 'panel_identity' => $context['panel_identity'],
+                'node_id' => $context['node_id'],
+                'location_id' => $context['location_id'],
                 'service_id' => $upgrade->service_id,
                 'service_upgrade_id' => $upgrade->id,
                 'upgrade_guard_id' => $upgrade->id,
