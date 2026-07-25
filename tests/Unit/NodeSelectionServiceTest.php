@@ -322,7 +322,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         ];
 
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1, null)
+            ->with(1)
             ->andReturn([
                 'location_id' => 1,
                 'nodes' => [],

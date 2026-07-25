@@ -59,6 +59,7 @@ class AdminApiTest extends LaravelTestCase
     {
         $user = $this->makeRegularUser();
         $response = $this->actingAs($user)
+            ->withSession($this->loginUser($user))
             ->getJson('/api/dynamic-pterodactyl/admin/reservations');
 
         $response->assertStatus(403);
@@ -73,6 +74,7 @@ class AdminApiTest extends LaravelTestCase
         $this->makeReservation();
 
         $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
             ->getJson('/api/dynamic-pterodactyl/admin/reservations');
 
         $response->assertStatus(200);
@@ -89,6 +91,7 @@ class AdminApiTest extends LaravelTestCase
         $this->makeReservation(['status' => 'cancelled']);
 
         $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
             ->getJson('/api/dynamic-pterodactyl/admin/reservations?status=pending');
 
         $response->assertStatus(200);
@@ -103,10 +106,12 @@ class AdminApiTest extends LaravelTestCase
         $admin = $this->makeAdminUser();
         $reservation = $this->makeReservation(['status' => 'pending']);
 
-        $response = $this->actingAs($admin)->postJson(
-            '/api/dynamic-pterodactyl/admin/reservations/'.$reservation->token.'/cancel',
-            ['reason' => 'Admin cancelled for testing']
-        );
+        $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
+            ->postJson(
+                '/api/dynamic-pterodactyl/admin/reservations/'.$reservation->token.'/cancel',
+                ['reason' => 'Admin cancelled for testing']
+            );
 
         $response->assertStatus(200);
         $response->assertJson(['success' => true, 'message' => 'Reservation cancelled']);
@@ -121,10 +126,12 @@ class AdminApiTest extends LaravelTestCase
         $admin = $this->makeAdminUser();
         $reservation = $this->makeReservation(['status' => 'pending']);
 
-        $response = $this->actingAs($admin)->postJson(
-            '/api/dynamic-pterodactyl/admin/reservations/'.$reservation->token.'/cancel',
-            []
-        );
+        $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
+            ->postJson(
+                '/api/dynamic-pterodactyl/admin/reservations/'.$reservation->token.'/cancel',
+                []
+            );
 
         $response->assertStatus(422);
     }
@@ -155,6 +162,7 @@ class AdminApiTest extends LaravelTestCase
             ]);
 
         $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
             ->getJson('/api/dynamic-pterodactyl/admin/capacity');
 
         $response->assertStatus(200);
@@ -169,6 +177,7 @@ class AdminApiTest extends LaravelTestCase
     {
         $user = $this->makeRegularUser();
         $response = $this->actingAs($user)
+            ->withSession($this->loginUser($user))
             ->getJson('/api/dynamic-pterodactyl/admin/availability/1/nodes');
 
         $response->assertStatus(403);
@@ -191,6 +200,7 @@ class AdminApiTest extends LaravelTestCase
             ]);
 
         $response = $this->actingAs($admin)
+            ->withSession($this->loginUser($admin))
             ->getJson('/api/dynamic-pterodactyl/admin/availability/1/nodes');
 
         $response->assertStatus(200);

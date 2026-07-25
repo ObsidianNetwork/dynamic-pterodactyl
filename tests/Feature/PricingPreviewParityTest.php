@@ -65,7 +65,9 @@ class PricingPreviewParityTest extends LaravelTestCase
             'disk' => 20480,
         ];
 
-        $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/pricing/calculate', $payload);
+        $response = $this->actingAs($user)
+            ->withSession($this->loginUser($user))
+            ->postJson('/api/dynamic-pterodactyl/pricing/calculate', $payload);
 
         $response->assertOk()->assertJson(['success' => true]);
 
@@ -145,7 +147,9 @@ class PricingPreviewParityTest extends LaravelTestCase
             'disk'       => 20480,
         ];
 
-        $response = $this->actingAs($user)->postJson('/api/dynamic-pterodactyl/pricing/calculate', $payload);
+        $response = $this->actingAs($user)
+            ->withSession($this->loginUser($user))
+            ->postJson('/api/dynamic-pterodactyl/pricing/calculate', $payload);
 
         $response->assertStatus(422);
         $response->assertJson(['success' => false]);
