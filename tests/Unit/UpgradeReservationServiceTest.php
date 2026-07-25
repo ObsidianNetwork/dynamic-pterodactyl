@@ -158,6 +158,8 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $this->assertSame(4096, (int) $reservation->reserved_memory);
         $this->assertSame(0, (int) $reservation->reserved_cpu);
         $this->assertSame(10240, (int) $reservation->reserved_disk);
+        $this->assertSame(1, (int) $reservation->node_id);
+        $this->assertSame(1, (int) $reservation->location_id);
         $this->assertSame(99, (int) $reservation->external_server_id);
         $this->assertSame(44, (int) $reservation->external_user_id);
         $this->assertSame(
