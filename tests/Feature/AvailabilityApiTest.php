@@ -31,7 +31,9 @@ class AvailabilityApiTest extends LaravelTestCase
             'disk' => 1000,
         ]);
 
-        $response = $this->actingAs($user)->getJson('/api/dynamic-pterodactyl/availability/1');
+        $response = $this->actingAs($user)
+            ->withSession($this->loginUser($user))
+            ->getJson('/api/dynamic-pterodactyl/availability/1');
 
         $response->assertOk()->assertJson([
             'success' => true,
@@ -58,7 +60,9 @@ class AvailabilityApiTest extends LaravelTestCase
             'disk' => 1000,
         ]);
 
-        $response = $this->actingAs($user)->getJson('/api/dynamic-pterodactyl/availability/1');
+        $response = $this->actingAs($user)
+            ->withSession($this->loginUser($user))
+            ->getJson('/api/dynamic-pterodactyl/availability/1');
 
         $response->assertOk()->assertJson([
             'success' => true,

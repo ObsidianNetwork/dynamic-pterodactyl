@@ -37,6 +37,8 @@ class CartItemDeletedListenerTest extends LaravelTestCase
 
         (new CartItemDeletedListener($reservationService))
             ->handle(new Deleting($cartItem));
+
+        $this->addToAssertionCount(1);
     }
 
     public function test_bound_or_missing_hold_needs_no_cancellation_log(): void
@@ -54,5 +56,7 @@ class CartItemDeletedListenerTest extends LaravelTestCase
 
         (new CartItemDeletedListener($reservationService))
             ->handle(new Deleting($cartItem));
+
+        $this->addToAssertionCount(1);
     }
 }

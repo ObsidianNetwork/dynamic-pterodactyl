@@ -322,7 +322,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         ];
 
         $this->mockResourceService->shouldReceive('getLocationAvailability')
-            ->with(1, null)
+            ->with(1)
             ->andReturn([
                 'nodes' => [],
                 'max_available' => $expected,
