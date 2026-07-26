@@ -127,10 +127,10 @@ class ResourceReservation extends Model
     public function scopeHoldingCapacity($query)
     {
         return $query->where(function ($query) {
-            $query->where(function ($query) {
-                $query->where('status', self::STATUS_PENDING)
-                    ->where('expires_at', '>', now());
-            })->orWhere('status', self::STATUS_PAID_COMMITTED);
+            $query->where(
+                'status',
+                self::STATUS_PENDING
+            )->orWhere('status', self::STATUS_PAID_COMMITTED);
         });
     }
 
