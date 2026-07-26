@@ -995,8 +995,14 @@ class UpgradeReservationIntegrityService
             return false;
         }
 
+        // The paid-invoice transition and the capacity commitment transition
+        // share one database transaction. A committed read can therefore see
+        // either the entirely unpaid pair or the entirely paid pair, never a
+        // paid invoice attached to a still-pending reservation. Treat that
+        // split state as lifecycle drift instead of masking a failed payment
+        // handoff and continuing to quote stock.
         return $reservationStatus === 'pending'
-            ? in_array($invoiceStatus, ['pending', 'paid'], true)
+            ? $invoiceStatus === 'pending'
             : $invoiceStatus === 'paid';
     }
 }
