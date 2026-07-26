@@ -21,6 +21,7 @@ use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ReservationAllocation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
@@ -178,6 +179,7 @@ class ReservationService
             }
 
             if ($existing !== null && $this->matchesSnapshot($existing, $snapshot)) {
+                $this->assertAllocationClaimsMatch($existing);
                 $expiresAt = now()->addMinutes($this->ttlMinutes);
 
                 DB::table('ptero_resource_reservations')
@@ -586,8 +588,7 @@ class ReservationService
                     $reservation
                 );
                 $this->assertAllocationClaimsMatch(
-                    $reservation,
-                    true
+                    $reservation
                 );
             }, 5);
 
@@ -677,7 +678,7 @@ class ReservationService
             }
 
             $this->configurationService->assertServiceMatches($lockedService, $reservation);
-            $this->assertAllocationClaimsMatch($reservation, true);
+            $this->assertAllocationClaimsMatch($reservation);
 
             DB::table('ptero_resource_reservations')
                 ->where('id', $reservation->id)
@@ -743,7 +744,7 @@ class ReservationService
 
             $this->configurationService->assertServiceMatches($lockedService, $reservation);
             if ($reservation->status === ResourceReservation::STATUS_PENDING) {
-                $this->assertAllocationClaimsMatch($reservation, true);
+                $this->assertAllocationClaimsMatch($reservation);
             }
 
             if ($reservation->status === ResourceReservation::STATUS_PENDING) {
@@ -802,10 +803,7 @@ class ReservationService
                 return null;
             }
 
-            $this->assertAllocationClaimsMatch(
-                $reservation,
-                $reservation->status === ResourceReservation::STATUS_PAID_COMMITTED
-            );
+            $this->assertAllocationClaimsMatch($reservation);
 
             if ($reservation->status === 'confirmed') {
                 return $this->provisioningContext($reservation, true);
@@ -1035,6 +1033,160 @@ class ReservationService
             $this->persistFulfillmentService($lockedService);
 
             return true;
+        }, 5);
+    }
+
+    /**
+     * Return the integrity-checked checkout contract used to reconcile a
+     * cancellation after an external create may have succeeded without
+     * returning a response to Paymenter.
+     *
+     * This path is intentionally limited to an unconsumed paid commitment
+     * with no pinned external identity. It never creates or adopts a
+     * Pterodactyl customer.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function cancellationReconciliationContext(
+        int|Service $service
+    ): ?array {
+        $serviceId = $service instanceof Service
+            ? (int) $service->id
+            : $service;
+
+        return DB::transaction(function () use ($serviceId) {
+            $lockedService = Service::query()
+                ->whereKey($serviceId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $reservation = $this->checkoutCommitmentQuery($serviceId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($reservation === null) {
+                return null;
+            }
+
+            return $this->buildCancellationReconciliationContext(
+                $lockedService,
+                $reservation,
+                true
+            );
+        }, 5);
+    }
+
+    /**
+     * Persist the exact external identity only after the provisioner has
+     * matched the candidate server to cancellationReconciliationContext().
+     * Re-validate the complete signed checkout contract under the same row
+     * lock so a stale or competing cancellation worker cannot pin a different
+     * server.
+     *
+     * @param  array<string, mixed>  $externalServer
+     * @return array<string, mixed>
+     */
+    public function pinCancellationServerIdentity(
+        int|Service $service,
+        array $externalServer,
+        int $expectedExternalUserId
+    ): array {
+        $serviceId = $service instanceof Service
+            ? (int) $service->id
+            : $service;
+
+        return DB::transaction(function () use (
+            $serviceId,
+            $externalServer,
+            $expectedExternalUserId
+        ) {
+            $lockedService = Service::query()
+                ->whereKey($serviceId)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $reservation = $this->checkoutCommitmentQuery($serviceId)
+                ->lockForUpdate()
+                ->first();
+            if ($reservation === null) {
+                throw new PermanentProvisioningException(
+                    'The cancellation has no checkout commitment to reconcile.'
+                );
+            }
+
+            $context = $this->buildCancellationReconciliationContext(
+                $lockedService,
+                $reservation,
+                false
+            );
+            if ($context['provisioning_in_flight']) {
+                throw new \RuntimeException(
+                    'Provisioning is still in flight; cancellation will retry.'
+                );
+            }
+
+            $this->assertCancellationServerMatchesContext(
+                $externalServer,
+                $context,
+                $serviceId,
+                $expectedExternalUserId
+            );
+            $attributes = $externalServer['attributes'] ?? $externalServer;
+            $externalIdentity = $this->externalServerIdentity($attributes);
+            $storedIdentity = [
+                'external_server_id' => $reservation->external_server_id,
+                'external_user_id' => $reservation->external_user_id,
+                'external_server_uuid' =>
+                    $reservation->external_server_uuid,
+                'external_server_identifier' =>
+                    $reservation->external_server_identifier,
+            ];
+            $hasStoredIdentity = collect($storedIdentity)
+                ->contains(fn ($value): bool => $value !== null);
+
+            if ($hasStoredIdentity) {
+                $storedIdentityMatches =
+                    is_numeric($storedIdentity['external_server_id'])
+                    && (int) $storedIdentity['external_server_id']
+                        === $externalIdentity['external_server_id']
+                    && is_numeric($storedIdentity['external_user_id'])
+                    && (int) $storedIdentity['external_user_id']
+                        === $externalIdentity['external_user_id']
+                    && is_string(
+                        $storedIdentity['external_server_uuid']
+                    )
+                    && hash_equals(
+                        $storedIdentity['external_server_uuid'],
+                        $externalIdentity['external_server_uuid']
+                    )
+                    && is_string(
+                        $storedIdentity['external_server_identifier']
+                    )
+                    && hash_equals(
+                        $storedIdentity['external_server_identifier'],
+                        $externalIdentity[
+                            'external_server_identifier'
+                        ]
+                    );
+                if (! $storedIdentityMatches) {
+                    throw new PermanentProvisioningException(
+                        'The cancellation found a conflicting pinned Pterodactyl server identity.'
+                    );
+                }
+            } else {
+                DB::table('ptero_resource_reservations')
+                    ->where('id', $reservation->id)
+                    ->update([
+                        ...$externalIdentity,
+                        'last_reconciled_at' => now(),
+                        'provisioning_started_at' => null,
+                        'provisioning_lease_id' => null,
+                        'updated_at' => now(),
+                    ]);
+            }
+
+            return [
+                ...$context,
+                ...$externalIdentity,
+            ];
         }, 5);
     }
 
@@ -1346,37 +1498,67 @@ class ReservationService
         string $source = 'system',
         ?User $actor = null
     ): bool {
-        $reservation = $this->getByToken($token);
-        if ($reservation === null) {
+        $reservationModel = ResourceReservation::query()
+            ->where('token', $token)
+            ->first();
+        if ($reservationModel === null) {
             return false;
         }
 
         if ($actor !== null) {
-            $reservationModel = ResourceReservation::query()->where('token', $token)->first();
-            if ($reservationModel !== null) {
-                Gate::forUser($actor)->authorize('cancel', $reservationModel);
-            }
+            Gate::forUser($actor)->authorize('cancel', $reservationModel);
         }
 
-        $updated = DB::table('ptero_resource_reservations')
-            ->where('token', $token)
-            ->where('status', 'pending')
-            ->whereNull('service_id')
-            ->update([
+        $reservation = DB::transaction(function () use (
+            $token,
+            $reason
+        ): ?object {
+            $reservation = DB::table('ptero_resource_reservations')
+                ->where('token', $token)
+                ->lockForUpdate()
+                ->first();
+            if (
+                $reservation === null
+                || $reservation->status !== 'pending'
+                || $reservation->service_id !== null
+            ) {
+                return null;
+            }
+
+            $updated = DB::table('ptero_resource_reservations')
+                ->where('id', $reservation->id)
+                ->where('status', 'pending')
+                ->whereNull('service_id')
+                ->update([
                 'status' => 'cancelled',
                 'admin_notes' => $reason,
                 'updated_at' => now(),
-            ]) > 0;
-
-        if ($updated) {
-            $this->releaseAllocationClaims((int) $reservation->id);
-            $this->safeAudit('reservation_cancelled', 'resource_reservation', $reservation->id, [
-                'source' => $source,
-                'node_id' => $reservation->node_id,
             ]);
+            if ($updated !== 1) {
+                throw new \RuntimeException(
+                    'The reservation changed while cancellation was being committed.'
+                );
+            }
+
+            $this->releaseAllocationClaims((int) $reservation->id);
+
+            return $reservation;
+        }, 5);
+        if ($reservation === null) {
+            return false;
         }
 
-        return $updated;
+        $this->safeAudit(
+            'reservation_cancelled',
+            'resource_reservation',
+            $reservation->id,
+            [
+                'source' => $source,
+                'node_id' => $reservation->node_id,
+            ]
+        );
+
+        return true;
     }
 
     /**
@@ -1945,10 +2127,10 @@ class ReservationService
     public function applyCapacityHoldingScope(Builder $query): Builder
     {
         return $query->where(function (Builder $query) {
-            $query->where(function (Builder $query) {
-                $query->where('status', ResourceReservation::STATUS_PENDING)
-                    ->where('expires_at', '>', now());
-            })->orWhere('status', ResourceReservation::STATUS_PAID_COMMITTED);
+            $query->where(
+                'status',
+                ResourceReservation::STATUS_PENDING
+            )->orWhere('status', ResourceReservation::STATUS_PAID_COMMITTED);
         });
     }
 
@@ -2069,6 +2251,248 @@ class ReservationService
     }
 
     /**
+     * @param  object  $reservation
+     * @return array<string, mixed>
+     */
+    private function buildCancellationReconciliationContext(
+        Service $service,
+        object $reservation,
+        bool $requireUnpinned
+    ): array {
+        if (
+            $reservation->cancellation_requested_at === null
+            || $service->status !== Service::STATUS_CANCELLATION_PENDING
+        ) {
+            throw new PermanentProvisioningException(
+                'The service has no durable cancellation request to reconcile.'
+            );
+        }
+        if (
+            $reservation->status
+                !== ResourceReservation::STATUS_PAID_COMMITTED
+        ) {
+            throw new PermanentProvisioningException(
+                'Only an unconsumed paid commitment can use cancellation reconciliation.'
+            );
+        }
+
+        $storedIdentity = [
+            $reservation->external_server_id,
+            $reservation->external_user_id,
+            $reservation->external_server_uuid,
+            $reservation->external_server_identifier,
+        ];
+        if (
+            $requireUnpinned
+            && collect($storedIdentity)
+                ->contains(fn ($value): bool => $value !== null)
+        ) {
+            throw new PermanentProvisioningException(
+                'The cancellation already has a pinned Pterodactyl server identity.'
+            );
+        }
+
+        try {
+            $this->configurationService->assertServiceMatches(
+                $service,
+                $reservation
+            );
+            $claims = DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservation->id)
+                ->lockForUpdate()
+                ->get();
+            $payload = $this->configurationService
+                ->verifiedAllocationSnapshot($reservation, $claims);
+        } catch (
+            InvalidStockConfigurationException|\RuntimeException $exception
+        ) {
+            throw new PermanentProvisioningException(
+                $exception->getMessage(),
+                previous: $exception
+            );
+        }
+
+        $identity = (array) ($payload['provisioning_identity'] ?? []);
+        $nestId = StrictInteger::parse($identity['nest_id'] ?? null);
+        $eggId = StrictInteger::parse($identity['egg_id'] ?? null);
+        $userExternalId = $identity['user_external_id'] ?? null;
+        if (
+            $nestId === null
+            || $nestId <= 0
+            || $eggId === null
+            || $eggId <= 0
+            || ! is_string($userExternalId)
+            || $userExternalId === ''
+        ) {
+            throw new PermanentProvisioningException(
+                'The cancellation checkout contract has no valid customer or image identity.'
+            );
+        }
+
+        $provisioningInFlight =
+            $reservation->provisioning_started_at !== null
+            && Carbon::parse($reservation->provisioning_started_at)
+                ->greaterThan(
+                    now()->subMinutes(self::PROVISIONING_LEASE_MINUTES)
+                );
+
+        return [
+            'reservation_id' => (int) $reservation->id,
+            'configuration_fingerprint' =>
+                (string) $reservation->configuration_fingerprint,
+            'status' => (string) $reservation->status,
+            'panel_identity' => (string) $reservation->panel_identity,
+            'external_server_external_id' => (string) $service->id,
+            'node_id' => (int) $reservation->node_id,
+            'location_id' => (int) $reservation->location_id,
+            'memory' => (int) $reservation->memory,
+            'cpu' => (int) $reservation->cpu,
+            'disk' => (int) $reservation->disk,
+            'allocations' => array_values(
+                (array) ($payload['allocations'] ?? [])
+            ),
+            'client_allocation_limit' => 0,
+            'nest_id' => $nestId,
+            'egg_id' => $eggId,
+            'user_external_id' => $userExternalId,
+            'user_email' => $identity['user_email'] ?? null,
+            'provisioning_in_flight' => $provisioningInFlight,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $server
+     * @param  array<string, mixed>  $context
+     */
+    private function assertCancellationServerMatchesContext(
+        array $server,
+        array $context,
+        int $serviceId,
+        int $expectedExternalUserId
+    ): void {
+        $attributes = $server['attributes'] ?? $server;
+        if (! is_array($attributes)) {
+            throw new PermanentProvisioningException(
+                'Pterodactyl returned an invalid cancellation server response.'
+            );
+        }
+        $externalIdentity = $this->externalServerIdentity($attributes);
+        if (
+            $expectedExternalUserId <= 0
+            || $externalIdentity['external_user_id']
+                !== $expectedExternalUserId
+            || ! is_string($attributes['external_id'] ?? null)
+            || ! hash_equals(
+                (string) $serviceId,
+                $attributes['external_id']
+            )
+        ) {
+            throw new PermanentProvisioningException(
+                'The cancellation candidate does not belong to the reserved Paymenter customer and service.'
+            );
+        }
+
+        foreach ([
+            'node' => $context['node_id'],
+            'nest' => $context['nest_id'],
+            'egg' => $context['egg_id'],
+        ] as $field => $expected) {
+            if (
+                StrictInteger::parse($attributes[$field] ?? null) === null
+                || (int) $attributes[$field] !== (int) $expected
+            ) {
+                throw new PermanentProvisioningException(
+                    "The cancellation candidate does not match reserved {$field}."
+                );
+            }
+        }
+
+        $limits = (array) ($attributes['limits'] ?? []);
+        foreach (['memory', 'cpu', 'disk'] as $resource) {
+            if (
+                StrictInteger::parse($limits[$resource] ?? null) === null
+                || (int) $limits[$resource]
+                    !== (int) $context[$resource]
+            ) {
+                throw new PermanentProvisioningException(
+                    "The cancellation candidate does not match reserved {$resource}."
+                );
+            }
+        }
+        if (
+            StrictInteger::parse(
+                data_get($attributes, 'feature_limits.allocations')
+            ) === null
+            || (int) data_get(
+                $attributes,
+                'feature_limits.allocations'
+            ) !== 0
+        ) {
+            throw new PermanentProvisioningException(
+                'The cancellation candidate permits unreserved client allocation changes.'
+            );
+        }
+
+        $assigned = data_get(
+            $attributes,
+            'relationships.allocations.data',
+            data_get($server, 'relationships.allocations.data')
+        );
+        if (! is_array($assigned)) {
+            throw new PermanentProvisioningException(
+                'The cancellation candidate has no verifiable allocation set.'
+            );
+        }
+        $assignedIds = [];
+        foreach ($assigned as $allocation) {
+            $allocationId = is_array($allocation)
+                ? StrictInteger::parse(
+                    data_get($allocation, 'attributes.id')
+                        ?? ($allocation['id'] ?? null)
+                )
+                : null;
+            if ($allocationId === null || $allocationId <= 0) {
+                throw new PermanentProvisioningException(
+                    'The cancellation candidate has an invalid assigned allocation.'
+                );
+            }
+            $assignedIds[] = $allocationId;
+        }
+        sort($assignedIds);
+        if (count(array_unique($assignedIds)) !== count($assignedIds)) {
+            throw new PermanentProvisioningException(
+                'The cancellation candidate has duplicate assigned allocations.'
+            );
+        }
+
+        $reserved = collect($context['allocations'] ?? []);
+        $reservedIds = $reserved
+            ->map(fn (array $allocation): int =>
+                (int) ($allocation['allocation_id'] ?? 0))
+            ->sort()
+            ->values()
+            ->all();
+        $primaryIds = $reserved
+            ->filter(fn (array $allocation): bool =>
+                (bool) ($allocation['is_primary'] ?? false))
+            ->map(fn (array $allocation): int =>
+                (int) ($allocation['allocation_id'] ?? 0))
+            ->values();
+        if (
+            $reservedIds === []
+            || count(array_unique($reservedIds)) !== count($reservedIds)
+            || $primaryIds->count() !== 1
+            || StrictInteger::parse($attributes['allocation'] ?? null)
+                !== (int) $primaryIds->first()
+            || $assignedIds !== $reservedIds
+        ) {
+            throw new PermanentProvisioningException(
+                'The cancellation candidate allocation set does not exactly match the reservation.'
+            );
+        }
+    }
+
+    /**
      * @param  array{panel_identity: string, location_id: int}  $scope
      */
     private function capacityScopeKey(array $scope): string
@@ -2178,73 +2602,22 @@ class ReservationService
      * Prove that the allocation claim rows are an exact materialization of the
      * fingerprinted payload before any external request can use them.
      */
-    private function assertAllocationClaimsMatch(object $reservation, bool $requireActive): void
+    private function assertAllocationClaimsMatch(object $reservation): void
     {
-        $payload = json_decode(
-            (string) $reservation->configuration_payload,
-            true,
-            512,
-            JSON_THROW_ON_ERROR
-        );
-        if (
-            ! is_array($payload)
-            || ! hash_equals(
-                (string) $reservation->configuration_fingerprint,
-                $this->configurationService->fingerprint($payload)
-            )
-            || (string) ($payload['panel_identity'] ?? '') !== (string) $reservation->panel_identity
-            || (int) ($payload['node_id'] ?? 0) !== (int) $reservation->node_id
-            || (int) data_get($payload, 'resources.memory', 0) !== (int) $reservation->memory
-            || (int) data_get($payload, 'resources.cpu', 0) !== (int) $reservation->cpu
-            || (int) data_get($payload, 'resources.disk', 0) !== (int) $reservation->disk
-        ) {
-            throw new PermanentProvisioningException(
-                'The capacity reservation payload no longer matches its immutable fingerprint.'
-            );
-        }
-
-        $expected = collect($payload['allocations'] ?? [])
-            ->map(fn (array $allocation) => [
-                'panel_identity' => (string) $reservation->panel_identity,
-                'node_id' => (int) $reservation->node_id,
-                'allocation_id' => (int) ($allocation['allocation_id'] ?? 0),
-                'ip' => (string) ($allocation['ip'] ?? ''),
-                'port' => (int) ($allocation['port'] ?? 0),
-                'environment_key' => $allocation['environment_key'] ?? null,
-                'is_primary' => (bool) ($allocation['is_primary'] ?? false),
-            ])
-            ->sortBy('allocation_id')
-            ->values()
-            ->all();
         $claims = DB::table('ptero_reservation_allocations')
             ->where('reservation_id', $reservation->id)
             ->lockForUpdate()
             ->get();
-        $actual = $claims
-            ->map(fn ($allocation) => [
-                'panel_identity' => (string) $allocation->panel_identity,
-                'node_id' => (int) $allocation->node_id,
-                'allocation_id' => (int) $allocation->allocation_id,
-                'ip' => (string) ($allocation->ip ?? ''),
-                'port' => (int) $allocation->port,
-                'environment_key' => $allocation->environment_key,
-                'is_primary' => (bool) $allocation->is_primary,
-            ])
-            ->sortBy('allocation_id')
-            ->values()
-            ->all();
 
-        if (
-            $expected === []
-            || $expected !== $actual
-            || collect($actual)->where('is_primary', true)->count() !== 1
-            || (
-                $requireActive
-                && $claims->contains(fn ($allocation) => $allocation->released_at !== null)
-            )
-        ) {
+        try {
+            $this->configurationService->verifiedAllocationSnapshot(
+                $reservation,
+                $claims
+            );
+        } catch (InvalidStockConfigurationException $exception) {
             throw new PermanentProvisioningException(
-                'Allocation claims no longer match the immutable capacity reservation.'
+                $exception->getMessage(),
+                previous: $exception
             );
         }
     }
@@ -2257,7 +2630,7 @@ class ReservationService
         );
     }
 
-    private function releaseAllocationClaims(int $reservationId): void
+    protected function releaseAllocationClaims(int $reservationId): void
     {
         DB::table('ptero_reservation_allocations')
             ->where('reservation_id', $reservationId)

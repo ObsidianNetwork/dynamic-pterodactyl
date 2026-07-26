@@ -5,6 +5,8 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 use App\Jobs\Server\CreateJob;
 use App\Jobs\Server\SuspendJob;
 use App\Helpers\ExtensionHelper;
+use App\Models\Cart;
+use App\Models\CartItem;
 use App\Models\ConfigOption;
 use App\Models\Extension;
 use App\Models\Invoice;
@@ -31,6 +33,7 @@ use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ProductResourceConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
@@ -65,7 +68,46 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_guest_holds_transfer_with_cart_ownership(): void
     {
         $user = User::withoutEvents(fn () => User::factory()->create());
-        $this->insertReservation(cartId: 71, userId: null);
+        $reservationId = $this->insertReservation(
+            cartId: 71,
+            userId: null
+        );
+        $payload = json_decode(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('configuration_payload'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $payload['config_options'] = [[
+            'id' => 1,
+            'value' => 4096.0,
+        ]];
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'configuration_fingerprint' =>
+                    $this->configurationService->fingerprint($payload),
+                'configuration_payload' => json_encode(
+                    $payload,
+                    JSON_THROW_ON_ERROR
+                ),
+            ]);
+        $persisted = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->first();
+        $persistedPayload = json_decode(
+            $persisted->configuration_payload,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $this->assertSame(
+            $this->configurationService->fingerprint($persistedPayload),
+            $persisted->configuration_fingerprint,
+            'The immutable fingerprint must survive a JSON-column numeric round trip before ownership transfer.'
+        );
 
         $updated = $this->service()->transferCartOwnership(71, $user->id);
 
@@ -77,11 +119,77 @@ class ReservationServiceTest extends LaravelTestCase
         ]);
         $reservation = DB::table('ptero_resource_reservations')->where('cart_id', 71)->first();
         $payload = json_decode($reservation->configuration_payload, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertIsInt($payload['config_options'][0]['value']);
         $this->assertSame($user->id, $payload['customer_id']);
         $this->assertSame(
             $this->configurationService->fingerprint($payload),
             $reservation->configuration_fingerprint
         );
+    }
+
+    public function test_cart_reservation_rejects_resource_slider_added_after_checkout_render(): void
+    {
+        $product = $this->pterodactylProduct();
+        $memory = $this->resourceOption('Memory', 'memory');
+        $cpu = $this->resourceOption('CPU', 'cpu');
+        DB::table('config_option_products')->insert([
+            [
+                'product_id' => $product->id,
+                'config_option_id' => $memory->id,
+            ],
+            [
+                'product_id' => $product->id,
+                'config_option_id' => $cpu->id,
+            ],
+        ]);
+        $plan = Plan::factory()->create([
+            'priceable_id' => $product->id,
+            'priceable_type' => Product::class,
+            'type' => 'free',
+            'billing_unit' => null,
+            'billing_period' => 1,
+        ]);
+        $cart = new Cart([
+            'currency_code' => 'USD',
+        ]);
+        $cart->id = 71;
+        $cart->exists = true;
+        $cartItem = new CartItem([
+            'cart_id' => $cart->id,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'quantity' => 1,
+            'config_options' => [[
+                'option_id' => $memory->id,
+                'value' => 4096,
+            ]],
+        ]);
+        $cartItem->setRelation('cart', $cart);
+        $cartItem->setRelation('product', $product);
+        $cartItem->setRelation('plan', $plan);
+
+        $stockConfiguration = Mockery::mock(
+            ProductResourceConfigurationService::class
+        );
+        $stockConfiguration->shouldReceive('forQuote')
+            ->once()
+            ->andReturn([
+                'sliders' => [
+                    'memory' => ['config_option_id' => $memory->id],
+                    'cpu' => ['config_option_id' => $cpu->id],
+                ],
+            ]);
+        $this->app->instance(
+            ProductResourceConfigurationService::class,
+            $stockConfiguration
+        );
+
+        $this->expectException(\App\Exceptions\DisplayException::class);
+        $this->expectExceptionMessage(
+            'Reload checkout and explicitly select every resource again.'
+        );
+
+        (new ReservationConfigurationService)->forCartItem($cartItem);
     }
 
     public function test_only_one_pending_hold_may_use_a_cart_item_guard(): void
@@ -134,6 +242,48 @@ class ReservationServiceTest extends LaravelTestCase
 
         $this->expectException(QueryException::class);
         $this->insertAllocation($second, 7001);
+    }
+
+    public function test_admin_cancellation_rolls_back_status_when_allocation_release_fails(): void
+    {
+        $reservationId = $this->insertReservation();
+        $this->insertAllocation($reservationId);
+        $token = (string) DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('token');
+        $service = new class(
+            $this->nodeService,
+            $this->configurationService
+        ) extends ReservationService
+        {
+            protected function releaseAllocationClaims(
+                int $reservationId
+            ): void {
+                throw new \RuntimeException(
+                    'Injected allocation release failure.'
+                );
+            }
+        };
+
+        try {
+            $service->cancel($token, 'Atomic cancellation regression');
+            $this->fail('The injected claim release failure must abort cancellation.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame(
+                'Injected allocation release failure.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'pending',
+        ]);
+        $this->assertNull(
+            DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservationId)
+                ->value('released_at')
+        );
     }
 
     public function test_reservation_snapshot_is_built_under_the_configuration_lock(): void
@@ -991,6 +1141,170 @@ class ReservationServiceTest extends LaravelTestCase
             'status' => 'paid_committed',
             'external_server_id' => 71,
         ]);
+    }
+
+    public function test_unpinned_paid_cancellation_exposes_only_the_signed_checkout_contract(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+
+        $context = $this->service()
+            ->cancellationReconciliationContext($service);
+
+        $this->assertSame($reservationId, $context['reservation_id']);
+        $this->assertSame(
+            (string) $service->id,
+            $context['external_server_external_id']
+        );
+        $this->assertSame(
+            "paymenter-user-{$service->user_id}",
+            $context['user_external_id']
+        );
+        $this->assertSame(4, $context['node_id']);
+        $this->assertSame(4096, $context['memory']);
+        $this->assertSame(200, $context['cpu']);
+        $this->assertSame(51200, $context['disk']);
+        $this->assertSame(0, $context['client_allocation_limit']);
+        $this->assertFalse($context['provisioning_in_flight']);
+        $this->assertSame([7001], array_column(
+            $context['allocations'],
+            'allocation_id'
+        ));
+        $this->assertMatchesRegularExpression(
+            '/^[a-f0-9]{64}$/',
+            $context['configuration_fingerprint']
+        );
+    }
+
+    public function test_absent_unpinned_server_completes_paid_cancellation(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+
+        $this->assertTrue(
+            $this->service()->completeServiceCancellation($service)
+        );
+
+        $this->assertSame(
+            Service::STATUS_CANCELLED,
+            $service->fresh()->status
+        );
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'cancelled',
+        ]);
+        $this->assertNotNull(
+            DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservationId)
+                ->value('released_at')
+        );
+    }
+
+    public function test_paid_cancellation_context_marks_an_active_create_race(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now(),
+            provisioningLeaseId: 'active-create'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+
+        $context = $this->service()
+            ->cancellationReconciliationContext($service);
+
+        $this->assertTrue($context['provisioning_in_flight']);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('still in flight');
+
+        $this->service()->pinCancellationServerIdentity(
+            $service,
+            $this->cancellationServer($service->id),
+            44
+        );
+    }
+
+    public function test_timed_out_create_identity_is_pinned_idempotently_before_cancellation(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+        $server = $this->cancellationServer($service->id);
+
+        $first = $this->service()->pinCancellationServerIdentity(
+            $service,
+            $server,
+            44
+        );
+        $second = $this->service()->pinCancellationServerIdentity(
+            $service,
+            $server,
+            44
+        );
+
+        $this->assertSame(71, $first['external_server_id']);
+        $this->assertSame($first, $second);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'paid_committed',
+            'external_server_id' => 71,
+            'external_user_id' => 44,
+            'external_server_identifier' => 'created',
+        ]);
+    }
+
+    public function test_mismatched_timed_out_create_is_never_pinned(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+        $server = $this->cancellationServer($service->id);
+        $server['attributes']['limits']['disk']++;
+
+        try {
+            $this->service()->pinCancellationServerIdentity(
+                $service,
+                $server,
+                44
+            );
+            $this->fail('Expected mismatched server rejection.');
+        } catch (PermanentProvisioningException $exception) {
+            $this->assertStringContainsString(
+                'reserved disk',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertNull(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('external_server_id')
+        );
     }
 
     public function test_unpaid_cancellation_returns_product_stock_exactly_once(): void
@@ -2147,8 +2461,14 @@ class ReservationServiceTest extends LaravelTestCase
         $payload = [
             'customer_id' => $userId,
             'cart_id' => $cartId,
+            'server_extension_id' => 0,
+            'product_id' => (int) $productId,
+            'plan_id' => (int) $planId,
+            'quantity' => 1,
+            'currency_code' => 'USD',
             'panel_identity' => str_repeat('c', 64),
             'node_id' => 4,
+            'location_id' => 2,
             'resources' => [
                 'memory' => 4096,
                 'cpu' => 200,
@@ -2225,6 +2545,10 @@ class ReservationServiceTest extends LaravelTestCase
 
     private function insertAllocation(int $reservationId, int $allocationId = 7001): void
     {
+        $status = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('status');
+
         DB::table('ptero_reservation_allocations')->insert([
             'reservation_id' => $reservationId,
             'panel_identity' => str_repeat('c', 64),
@@ -2234,6 +2558,7 @@ class ReservationServiceTest extends LaravelTestCase
             'port' => 25565,
             'environment_key' => 'SERVER_PORT',
             'is_primary' => true,
+            'released_at' => $status === 'confirmed' ? now() : null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);
@@ -2250,6 +2575,42 @@ class ReservationServiceTest extends LaravelTestCase
                 'uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
                 'identifier' => 'created',
                 'user' => 44,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function cancellationServer(int $serviceId): array
+    {
+        return [
+            'attributes' => [
+                'id' => 71,
+                'uuid' =>
+                    '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'identifier' => 'created',
+                'external_id' => (string) $serviceId,
+                'user' => 44,
+                'node' => 4,
+                'nest' => 1,
+                'egg' => 2,
+                'allocation' => 7001,
+                'limits' => [
+                    'memory' => 4096,
+                    'cpu' => 200,
+                    'disk' => 51200,
+                ],
+                'feature_limits' => [
+                    'allocations' => 0,
+                ],
+                'relationships' => [
+                    'allocations' => [
+                        'data' => [[
+                            'attributes' => ['id' => 7001],
+                        ]],
+                    ],
+                ],
             ],
         ];
     }

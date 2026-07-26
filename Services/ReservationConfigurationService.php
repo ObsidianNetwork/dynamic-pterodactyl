@@ -68,6 +68,10 @@ class ReservationConfigurationService
         } catch (InvalidResourceSelectionException|InvalidStockConfigurationException $exception) {
             throw new DisplayException($exception->getMessage(), previous: $exception);
         }
+        $this->assertExplicitResourceSelections(
+            (array) ($cartItem->config_options ?? []),
+            (array) ($stockConfiguration['sliders'] ?? [])
+        );
 
         $selectedOptions = collect($cartItem->config_options ?? [])
             ->keyBy(fn ($option) => (int) data_get($option, 'option_id'));
@@ -151,6 +155,54 @@ class ReservationConfigurationService
             'allocation_requirements' => $allocationRequirements,
             'provisioning_identity' => $provisioningIdentity,
         ];
+    }
+
+    /**
+     * Quotes may use configured defaults for their first render, but a stored
+     * cart item is a billing input and must explicitly carry every active
+     * resource slider. Otherwise a slider attached after the checkout page was
+     * opened could default into the reservation while CartItem pricing omits
+     * its marginal charge.
+     *
+     * @param  array<int|string, mixed>  $submittedOptions
+     * @param  array<string, array<string, mixed>>  $sliders
+     */
+    private function assertExplicitResourceSelections(
+        array $submittedOptions,
+        array $sliders
+    ): void {
+        $submittedIds = [];
+        if (array_is_list($submittedOptions)) {
+            foreach ($submittedOptions as $selection) {
+                $optionId = StrictInteger::parse(
+                    data_get($selection, 'option_id')
+                );
+                if ($optionId !== null) {
+                    $submittedIds[$optionId] = true;
+                }
+            }
+        } else {
+            foreach (array_keys($submittedOptions) as $optionId) {
+                $optionId = StrictInteger::parse($optionId);
+                if ($optionId !== null) {
+                    $submittedIds[$optionId] = true;
+                }
+            }
+        }
+
+        foreach ($sliders as $slider) {
+            $optionId = StrictInteger::parse(
+                $slider['config_option_id'] ?? null
+            );
+            if ($optionId !== null && isset($submittedIds[$optionId])) {
+                continue;
+            }
+
+            throw new DisplayException(
+                'The product resource options changed before reservation. '
+                .'Reload checkout and explicitly select every resource again.'
+            );
+        }
     }
 
     public function requiresReservation(int $productId): bool
@@ -281,6 +333,185 @@ class ReservationConfigurationService
         return hash('sha256', $this->canonicalJson($payload));
     }
 
+    /**
+     * Prove that the allocation claim rows are the exact materialization of a
+     * signed checkout snapshot.
+     *
+     * Pending and paid commitments must still own active claims. Confirmed
+     * commitments must retain the same historical rows after their claims are
+     * released, so stock accounting can bridge stale Pterodactyl inventory
+     * without trusting a detached or rewritten allocation row.
+     *
+     * @param  iterable<object>  $claims
+     * @return array<string, mixed>
+     */
+    public function verifiedAllocationSnapshot(
+        object $reservation,
+        iterable $claims
+    ): array {
+        $payload = $reservation->configuration_payload;
+        if (is_string($payload)) {
+            try {
+                $payload = json_decode(
+                    $payload,
+                    true,
+                    512,
+                    JSON_THROW_ON_ERROR
+                );
+            } catch (\JsonException $exception) {
+                throw new InvalidStockConfigurationException(
+                    'The checkout allocation snapshot is unreadable.',
+                    previous: $exception
+                );
+            }
+        }
+
+        if (
+            ($reservation->purpose ?? null) !== 'checkout'
+            || ! is_array($payload)
+            || ! is_string($reservation->configuration_fingerprint)
+            || ! hash_equals(
+                $reservation->configuration_fingerprint,
+                $this->fingerprint($payload)
+            )
+            || (string) ($payload['panel_identity'] ?? '')
+                !== (string) $reservation->panel_identity
+            || StrictInteger::parse($payload['node_id'] ?? null) === null
+            || (int) $payload['node_id'] !== (int) $reservation->node_id
+            || StrictInteger::parse(
+                $payload['location_id'] ?? null
+            ) === null
+            || (int) $payload['location_id']
+                !== (int) $reservation->location_id
+            || StrictInteger::parse(
+                data_get($payload, 'resources.memory')
+            ) === null
+            || (int) data_get($payload, 'resources.memory')
+                !== (int) $reservation->memory
+            || StrictInteger::parse(
+                data_get($payload, 'resources.cpu')
+            ) === null
+            || (int) data_get($payload, 'resources.cpu')
+                !== (int) $reservation->cpu
+            || StrictInteger::parse(
+                data_get($payload, 'resources.disk')
+            ) === null
+            || (int) data_get($payload, 'resources.disk')
+                !== (int) $reservation->disk
+        ) {
+            throw new InvalidStockConfigurationException(
+                'The checkout allocation snapshot failed its immutable capacity integrity check.'
+            );
+        }
+
+        $rawExpected = $payload['allocations'] ?? null;
+        $requiredCount = StrictInteger::parse(
+            data_get($payload, 'allocation_requirements.required_count')
+        );
+        if (
+            ! is_array($rawExpected)
+            || $rawExpected === []
+            || $requiredCount === null
+            || $requiredCount <= 0
+            || count($rawExpected) !== $requiredCount
+        ) {
+            throw new InvalidStockConfigurationException(
+                'The checkout allocation snapshot has no valid signed allocation set.'
+            );
+        }
+
+        $expected = [];
+        foreach ($rawExpected as $allocation) {
+            if (! is_array($allocation)) {
+                throw new InvalidStockConfigurationException(
+                    'The checkout allocation snapshot has an invalid signed allocation.'
+                );
+            }
+
+            $allocationId = StrictInteger::parse(
+                $allocation['allocation_id'] ?? null
+            );
+            $port = StrictInteger::parse($allocation['port'] ?? null);
+            $ip = $allocation['ip'] ?? null;
+            $environmentKey = $allocation['environment_key'] ?? null;
+            $isPrimary = $allocation['is_primary'] ?? null;
+            if (
+                $allocationId === null
+                || $allocationId <= 0
+                || $port === null
+                || $port <= 0
+                || $port > 65535
+                || ! is_string($ip)
+                || trim($ip) === ''
+                || (
+                    $environmentKey !== null
+                    && ! is_string($environmentKey)
+                )
+                || ! is_bool($isPrimary)
+            ) {
+                throw new InvalidStockConfigurationException(
+                    'The checkout allocation snapshot has an invalid signed allocation.'
+                );
+            }
+
+            $expected[] = [
+                'panel_identity' => (string) $reservation->panel_identity,
+                'node_id' => (int) $reservation->node_id,
+                'allocation_id' => $allocationId,
+                'ip' => $ip,
+                'port' => $port,
+                'environment_key' => $environmentKey,
+                'is_primary' => $isPrimary,
+            ];
+        }
+        usort(
+            $expected,
+            fn (array $left, array $right): int =>
+                $left['allocation_id'] <=> $right['allocation_id']
+        );
+
+        $claimRows = collect($claims)->values();
+        $actual = $claimRows
+            ->map(fn (object $allocation): array => [
+                'panel_identity' => (string) $allocation->panel_identity,
+                'node_id' => (int) $allocation->node_id,
+                'allocation_id' => (int) $allocation->allocation_id,
+                'ip' => (string) ($allocation->ip ?? ''),
+                'port' => (int) $allocation->port,
+                'environment_key' => $allocation->environment_key,
+                'is_primary' => (bool) $allocation->is_primary,
+            ])
+            ->sortBy('allocation_id')
+            ->values()
+            ->all();
+        $allocationIds = array_column($actual, 'allocation_id');
+        $status = (string) ($reservation->status ?? '');
+        $releaseStateIsValid = match ($status) {
+            'pending', 'paid_committed' => ! $claimRows->contains(
+                fn (object $allocation): bool =>
+                    $allocation->released_at !== null
+            ),
+            'confirmed' => ! $claimRows->contains(
+                fn (object $allocation): bool =>
+                    $allocation->released_at === null
+            ),
+            default => false,
+        };
+
+        if (
+            $expected !== $actual
+            || count(array_unique($allocationIds)) !== count($allocationIds)
+            || collect($actual)->where('is_primary', true)->count() !== 1
+            || ! $releaseStateIsValid
+        ) {
+            throw new InvalidStockConfigurationException(
+                'Allocation claims no longer match the immutable checkout reservation.'
+            );
+        }
+
+        return $payload;
+    }
+
     private function canonicalMoney(mixed $unitPrice, int $quantity): string
     {
         if (
@@ -356,19 +587,41 @@ class ReservationConfigurationService
             'node_id' => (int) $reservation->node_id,
         ];
         $payloadIdentity = [
-            'customer_id' => (int) ($payload['customer_id'] ?? 0),
-            'server_extension_id' => (int) ($payload['server_extension_id'] ?? 0),
+            'customer_id' => StrictInteger::parse(
+                $payload['customer_id'] ?? null
+            ),
+            'server_extension_id' => StrictInteger::parse(
+                $payload['server_extension_id'] ?? null
+            ),
             'panel_identity' => (string) ($payload['panel_identity'] ?? ''),
-            'product_id' => (int) ($payload['product_id'] ?? 0),
-            'plan_id' => (int) ($payload['plan_id'] ?? 0),
-            'quantity' => (int) ($payload['quantity'] ?? 0),
+            'product_id' => StrictInteger::parse(
+                $payload['product_id'] ?? null
+            ),
+            'plan_id' => StrictInteger::parse(
+                $payload['plan_id'] ?? null
+            ),
+            'quantity' => StrictInteger::parse(
+                $payload['quantity'] ?? null
+            ),
             'currency_code' => strtoupper((string) ($payload['currency_code'] ?? '')),
-            'user_id' => (int) ($payload['customer_id'] ?? 0),
-            'memory' => (int) data_get($payload, 'resources.memory', 0),
-            'cpu' => (int) data_get($payload, 'resources.cpu', 0),
-            'disk' => (int) data_get($payload, 'resources.disk', 0),
-            'location' => (int) ($payload['location_id'] ?? 0),
-            'node_id' => (int) ($payload['node_id'] ?? 0),
+            'user_id' => StrictInteger::parse(
+                $payload['customer_id'] ?? null
+            ),
+            'memory' => StrictInteger::parse(
+                data_get($payload, 'resources.memory')
+            ),
+            'cpu' => StrictInteger::parse(
+                data_get($payload, 'resources.cpu')
+            ),
+            'disk' => StrictInteger::parse(
+                data_get($payload, 'resources.disk')
+            ),
+            'location' => StrictInteger::parse(
+                $payload['location_id'] ?? null
+            ),
+            'node_id' => StrictInteger::parse(
+                $payload['node_id'] ?? null
+            ),
         ];
         $serviceIdentity = [
             'service_id' => (int) $service->id,
@@ -390,6 +643,8 @@ class ReservationConfigurationService
         if (
             $reservationIdentity !== $payloadIdentity
             || $serviceIdentity !== $expectedServiceIdentity
+            || (int) $reservation->quantity !== 1
+            || (int) $service->quantity !== 1
         ) {
             throw new \RuntimeException(
                 'The service identity does not match its immutable capacity reservation.'

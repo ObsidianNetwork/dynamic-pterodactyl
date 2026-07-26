@@ -10,6 +10,12 @@ use Illuminate\Support\Str;
 
 class PterodactylInventoryService
 {
+    /**
+     * A corrupt or hostile paginator must not make inventory reads unbounded.
+     * At 100 resources per request this still permits a 10,000-row snapshot.
+     */
+    private const MAX_PAGINATION_PAGES = 100;
+
     private string $apiUrl;
 
     private string $apiKey;
@@ -97,7 +103,7 @@ class PterodactylInventoryService
     }
 
     /**
-     * Pterodactyl 1.11 does not allow location_id as a NodeController filter.
+     * Pterodactyl does not allow location_id as a NodeController filter.
      * Read every page and apply the location constraint locally.
      *
      * @return list<array<string, mixed>>
@@ -130,7 +136,7 @@ class PterodactylInventoryService
             if (! is_array($allocated)) {
                 throw new \RuntimeException(
                     'Pterodactyl node inventory is missing allocated_resources. '
-                    .'Grant the application key node read permission and use Pterodactyl 1.11 or newer.'
+                    .'Grant the application key node read permission and use Pterodactyl 1.12.3 or newer.'
                 );
             }
 
@@ -233,14 +239,13 @@ class PterodactylInventoryService
                 $featureLimits['allocations'] ?? null,
                 'server.feature_limits.allocations'
             );
-            $allocationResources = $resource['relationships']['allocations']['data']
-                ?? null;
-            if (! is_array($allocationResources) || ! array_is_list($allocationResources)) {
-                throw new \RuntimeException(
-                    'Pterodactyl server inventory is missing the allocations relationship. '
-                    .'Grant the application key allocation read permission.'
-                );
-            }
+            $allocationResources = $this->relationshipData(
+                $resource,
+                $attributes,
+                'server',
+                'allocations',
+                'Grant the application key allocation read permission.'
+            );
             $assignedAllocationIds = array_map(function (array $allocation): int {
                 $allocationAttributes = $this->attributes($allocation, 'allocation');
 
@@ -367,14 +372,14 @@ class PterodactylInventoryService
      */
     private function availableNodeAllocations(array $nodeResource): array
     {
-        $resources = $nodeResource['relationships']['allocations']['data']
-            ?? null;
-        if (! is_array($resources) || ! array_is_list($resources)) {
-            throw new \RuntimeException(
-                'Pterodactyl node inventory is missing the allocations relationship. '
-                .'Grant the application key allocation read permission.'
-            );
-        }
+        $attributes = $this->attributes($nodeResource, 'node');
+        $resources = $this->relationshipData(
+            $nodeResource,
+            $attributes,
+            'node',
+            'allocations',
+            'Grant the application key allocation read permission.'
+        );
 
         $parsed = [];
         foreach ($resources as $resource) {
@@ -514,14 +519,12 @@ class PterodactylInventoryService
             $attributes['allocation'] ?? null,
             'server.allocation'
         );
-        $allocationResources = $payload['relationships']['allocations']['data']
-            ?? $attributes['relationships']['allocations']['data']
-            ?? null;
-        if (! is_array($allocationResources) || ! array_is_list($allocationResources)) {
-            throw new \RuntimeException(
-                'Pterodactyl server inventory is missing the allocations relationship.'
-            );
-        }
+        $allocationResources = $this->relationshipData(
+            $payload,
+            $attributes,
+            'server',
+            'allocations'
+        );
         $assignedAllocationIds = array_map(function (array $allocation): int {
             $allocationAttributes = $this->attributes($allocation, 'allocation');
 
@@ -669,8 +672,16 @@ class PterodactylInventoryService
     {
         $page = 1;
         $resources = [];
+        $resourceIdentities = [];
+        $paginationSnapshot = null;
 
         while (true) {
+            if ($page > self::MAX_PAGINATION_PAGES) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination exceeds the safe page limit.'
+                );
+            }
+
             $payload = $this->get($path, [
                 ...$query,
                 'page' => $page,
@@ -682,15 +693,7 @@ class PterodactylInventoryService
                 throw new \RuntimeException('Pterodactyl returned an invalid paginated resource payload.');
             }
 
-            $resources = array_merge($resources, $data);
             $pagination = $payload['meta']['pagination'] ?? null;
-
-            // Fractal includes pagination metadata. Accepting a missing block as
-            // one page also supports stock Pterodactyl's small relationship
-            // responses without silently skipping an advertised next page.
-            if ($pagination === null) {
-                break;
-            }
             if (! is_array($pagination)) {
                 throw new \RuntimeException('Pterodactyl returned invalid pagination metadata.');
             }
@@ -699,22 +702,172 @@ class PterodactylInventoryService
                 $pagination['current_page'] ?? null,
                 'pagination.current_page'
             );
-            $totalPages = $this->nonNegativeInteger(
-                $pagination['total_pages'] ?? null,
-                'pagination.total_pages'
+            $total = $this->nonNegativeInteger(
+                $pagination['total'] ?? null,
+                'pagination.total'
             );
+            $perPage = $this->positiveInteger(
+                $pagination['per_page'] ?? null,
+                'pagination.per_page'
+            );
+            $totalPages = $this->paginationLastPage($pagination);
+            $dataCount = count($data);
 
-            if ($totalPages === 0 || $currentPage >= $totalPages) {
+            if (array_key_exists('count', $pagination)) {
+                $advertisedCount = $this->nonNegativeInteger(
+                    $pagination['count'],
+                    'pagination.count'
+                );
+                if ($advertisedCount !== $dataCount) {
+                    throw new \RuntimeException(
+                        'Pterodactyl pagination count does not match the page payload.'
+                    );
+                }
+            }
+
+            $calculatedPages = max(
+                1,
+                intdiv($total, $perPage) + ($total % $perPage === 0 ? 0 : 1)
+            );
+            if ($totalPages !== $calculatedPages) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination total is inconsistent with its page bounds.'
+                );
+            }
+            if (
+                $currentPage !== $page
+                || $currentPage > $totalPages
+            ) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination skipped, repeated, or returned an unexpected page.'
+                );
+            }
+            if ($totalPages > self::MAX_PAGINATION_PAGES) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination exceeds the safe page limit.'
+                );
+            }
+
+            $pageSnapshot = [
+                'total' => $total,
+                'per_page' => $perPage,
+                'total_pages' => $totalPages,
+            ];
+            if ($paginationSnapshot === null) {
+                $paginationSnapshot = $pageSnapshot;
+            } elseif ($paginationSnapshot !== $pageSnapshot) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination metadata changed during the inventory read.'
+                );
+            }
+
+            $expectedCount = $currentPage < $totalPages
+                ? $perPage
+                : $total - (($totalPages - 1) * $perPage);
+            if ($dataCount !== $expectedCount) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination page size is inconsistent with its total.'
+                );
+            }
+
+            foreach ($data as $resource) {
+                $identity = $this->paginatedResourceIdentity($resource);
+                if (isset($resourceIdentities[$identity])) {
+                    throw new \RuntimeException(
+                        'Pterodactyl pagination returned a duplicate resource.'
+                    );
+                }
+
+                $resourceIdentities[$identity] = true;
+                $resources[] = $resource;
+            }
+
+            if (count($resources) > $total) {
+                throw new \RuntimeException(
+                    'Pterodactyl pagination returned more resources than advertised.'
+                );
+            }
+
+            if ($currentPage === $totalPages) {
+                if (count($resources) !== $total) {
+                    throw new \RuntimeException(
+                        'Pterodactyl pagination ended before the advertised total.'
+                    );
+                }
+
                 break;
             }
-            if ($currentPage < $page) {
-                throw new \RuntimeException('Pterodactyl pagination did not advance.');
-            }
 
-            $page = $currentPage + 1;
+            $page++;
         }
 
         return $resources;
+    }
+
+    /**
+     * Pterodactyl's Fractal serializer calls the final page `total_pages`.
+     * Accept `last_page` as a compatible paginator alias, but never accept
+     * conflicting values when an intermediary supplies both.
+     *
+     * @param  array<string, mixed>  $pagination
+     */
+    private function paginationLastPage(array $pagination): int
+    {
+        $totalPages = array_key_exists('total_pages', $pagination)
+            ? $this->positiveInteger(
+                $pagination['total_pages'],
+                'pagination.total_pages'
+            )
+            : null;
+        $lastPage = array_key_exists('last_page', $pagination)
+            ? $this->positiveInteger(
+                $pagination['last_page'],
+                'pagination.last_page'
+            )
+            : null;
+
+        if ($totalPages === null && $lastPage === null) {
+            throw new \RuntimeException(
+                'Pterodactyl pagination is missing the final page.'
+            );
+        }
+        if (
+            $totalPages !== null
+            && $lastPage !== null
+            && $totalPages !== $lastPage
+        ) {
+            throw new \RuntimeException(
+                'Pterodactyl pagination contains conflicting final pages.'
+            );
+        }
+
+        return $totalPages ?? $lastPage;
+    }
+
+    private function paginatedResourceIdentity(mixed $resource): string
+    {
+        if (! is_array($resource)) {
+            throw new \RuntimeException(
+                'Pterodactyl returned an invalid paginated resource.'
+            );
+        }
+
+        $object = $resource['object'] ?? null;
+        $attributes = $resource['attributes'] ?? null;
+        if (
+            ! is_string($object)
+            || trim($object) === ''
+            || ! is_array($attributes)
+        ) {
+            throw new \RuntimeException(
+                'Pterodactyl returned an invalid paginated resource identity.'
+            );
+        }
+
+        return trim($object).':'.$this->positiveInteger(
+            $attributes['id'] ?? null,
+            'paginated_resource.id'
+        );
     }
 
     private function get(string $path, array $query): array
@@ -774,6 +927,44 @@ class PterodactylInventoryService
         }
 
         return $attributes;
+    }
+
+    /**
+     * Pterodactyl's Fractal serializer merges included resources into the
+     * transformed data before wrapping it in `attributes`. Accept the legacy
+     * root-level shape only when the official nested relationship container is
+     * absent; never let a conflicting root value override stock API data.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function relationshipData(
+        array $resource,
+        array $attributes,
+        string $object,
+        string $relationship,
+        string $remediation = ''
+    ): array {
+        $relationships = array_key_exists('relationships', $attributes)
+            ? $attributes['relationships']
+            : ($resource['relationships'] ?? null);
+        $relationshipResource = is_array($relationships)
+            ? ($relationships[$relationship] ?? null)
+            : null;
+        $data = is_array($relationshipResource)
+            ? ($relationshipResource['data'] ?? null)
+            : null;
+
+        if (! is_array($data) || ! array_is_list($data)) {
+            $message = "Pterodactyl {$object} inventory is missing the "
+                ."{$relationship} relationship.";
+            if ($remediation !== '') {
+                $message .= ' '.$remediation;
+            }
+
+            throw new \RuntimeException($message);
+        }
+
+        return $data;
     }
 
     private function positiveInteger(mixed $value, string $field): int

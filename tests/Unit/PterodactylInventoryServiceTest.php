@@ -53,17 +53,18 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
             parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
             $this->assertArrayNotHasKey('filter', $query);
             $this->assertSame('allocations', $query['include'] ?? null);
+            $this->assertSame('100', $query['per_page'] ?? null);
             $page = (int) ($query['page'] ?? 1);
+            $data = $page === 1
+                ? [$this->nodeResource(10, 1), $this->nodeResource(20, 2)]
+                : [$this->nodeResource(30, 1)];
 
-            return Http::response([
-                'data' => $page === 1
-                    ? [$this->nodeResource(10, 1), $this->nodeResource(20, 2)]
-                    : [$this->nodeResource(30, 1)],
-                'meta' => ['pagination' => [
-                    'current_page' => $page,
-                    'total_pages' => 2,
-                ]],
-            ]);
+            return Http::response($this->paginatedPayload(
+                $data,
+                currentPage: $page,
+                total: 3,
+                perPage: 2
+            ));
         });
 
         $nodes = $this->inventory->nodesInLocation(1);
@@ -90,17 +91,242 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         Http::assertSentCount(2);
     }
 
+    public function test_last_page_alias_is_accepted_as_a_complete_termination_proof(): void
+    {
+        $payload = $this->paginatedPayload([
+            $this->locationResource(1),
+        ]);
+        $payload['meta']['pagination']['last_page'] =
+            $payload['meta']['pagination']['total_pages'];
+        unset(
+            $payload['meta']['pagination']['count'],
+            $payload['meta']['pagination']['total_pages']
+        );
+
+        Http::fake([
+            '*' => Http::response($payload),
+        ]);
+
+        $this->assertSame([1], array_column(
+            $this->inventory->locations(),
+            'id'
+        ));
+    }
+
+    public function test_missing_pagination_metadata_fails_inventory_closed(): void
+    {
+        Http::fake([
+            '*' => Http::response([
+                'data' => [$this->locationResource(1)],
+            ]),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid pagination metadata');
+
+        $this->inventory->locations();
+    }
+
+    public function test_incomplete_pagination_metadata_fails_inventory_closed(): void
+    {
+        $payload = $this->paginatedPayload([
+            $this->locationResource(1),
+        ]);
+        unset($payload['meta']['pagination']['total']);
+
+        Http::fake([
+            '*' => Http::response($payload),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('pagination.total');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_a_skipped_first_page(): void
+    {
+        Http::fake([
+            '*' => Http::response($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 2,
+                total: 2,
+                perPage: 1
+            )),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('skipped, repeated, or returned an unexpected page');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_a_repeated_page(): void
+    {
+        Http::fakeSequence()
+            ->push($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 1,
+                total: 2,
+                perPage: 1
+            ))
+            ->push($this->paginatedPayload(
+                [$this->locationResource(2)],
+                currentPage: 1,
+                total: 2,
+                perPage: 1
+            ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('skipped, repeated, or returned an unexpected page');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_changed_totals_between_pages(): void
+    {
+        Http::fakeSequence()
+            ->push($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 1,
+                total: 2,
+                perPage: 1
+            ))
+            ->push($this->paginatedPayload(
+                [$this->locationResource(2)],
+                currentPage: 2,
+                total: 3,
+                perPage: 1
+            ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('metadata changed during the inventory read');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_duplicate_resources_across_pages(): void
+    {
+        Http::fakeSequence()
+            ->push($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 1,
+                total: 2,
+                perPage: 1
+            ))
+            ->push($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 2,
+                total: 2,
+                perPage: 1
+            ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('duplicate resource');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_a_short_non_final_page(): void
+    {
+        Http::fake([
+            '*' => Http::response($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 1,
+                total: 3,
+                perPage: 2
+            )),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('page size is inconsistent');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_an_incorrect_advertised_count(): void
+    {
+        $payload = $this->paginatedPayload([
+            $this->locationResource(1),
+        ]);
+        $payload['meta']['pagination']['count'] = 0;
+
+        Http::fake([
+            '*' => Http::response($payload),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('count does not match');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_conflicting_final_page_fields(): void
+    {
+        $payload = $this->paginatedPayload([
+            $this->locationResource(1),
+        ]);
+        $payload['meta']['pagination']['last_page'] = 2;
+
+        Http::fake([
+            '*' => Http::response($payload),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('conflicting final pages');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_rejects_a_final_page_inconsistent_with_total(): void
+    {
+        $payload = $this->paginatedPayload([
+            $this->locationResource(1),
+        ]);
+        $payload['meta']['pagination']['total_pages'] = 2;
+
+        Http::fake([
+            '*' => Http::response($payload),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('total is inconsistent');
+
+        $this->inventory->locations();
+    }
+
+    public function test_pagination_enforces_a_safe_page_limit_before_following_pages(): void
+    {
+        Http::fake([
+            '*' => Http::response($this->paginatedPayload(
+                [$this->locationResource(1)],
+                currentPage: 1,
+                total: 1001,
+                perPage: 1
+            )),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('safe page limit');
+
+        try {
+            $this->inventory->locations();
+        } finally {
+            Http::assertSentCount(1);
+        }
+    }
+
     public function test_locations_use_stock_application_api_shape(): void
     {
         Http::fake([
-            '*' => Http::response(['data' => [[
+            '*' => Http::response($this->paginatedPayload([[
                 'object' => 'location',
                 'attributes' => [
                     'id' => 1,
                     'short' => 'mel',
                     'long' => 'Melbourne',
                 ],
-            ]]]),
+            ]])),
         ]);
 
         $this->assertSame([[
@@ -113,11 +339,11 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
     public function test_free_allocation_reports_when_its_ip_is_already_assigned(): void
     {
         $node = $this->nodeResource(10, 1);
-        $node['relationships']['allocations']['data'][] =
+        $node['attributes']['relationships']['allocations']['data'][] =
             $this->allocationResource(10002, true);
 
         Http::fake([
-            '*' => Http::response(['data' => [$node]]),
+            '*' => Http::response($this->paginatedPayload([$node])),
         ]);
 
         $allocations = $this->inventory->nodes()[0]['available_allocations'];
@@ -158,31 +384,32 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
 
             if (str_contains($request->url(), '/api/application/servers')) {
                 $this->assertSame('allocations', $query['include'] ?? null);
+                $data = $page === 1
+                    ? [$this->serverResource(44, 10, 4096, 200, 20480, 501)]
+                    : [$this->serverResource(45, 10, 2048, 100, 10240, 502)];
 
-                return Http::response([
-                    'data' => $page === 1
-                        ? [$this->serverResource(44, 10, 4096, 200, 20480, 501)]
-                        : [$this->serverResource(45, 10, 2048, 100, 10240, 502)],
-                    'meta' => ['pagination' => [
-                        'current_page' => $page,
-                        'total_pages' => 2,
-                    ]],
-                ]);
+                return Http::response($this->paginatedPayload(
+                    $data,
+                    currentPage: $page,
+                    total: 2,
+                    perPage: 1
+                ));
             }
 
             if (str_contains($request->url(), '/nodes/10/allocations')) {
-                return Http::response([
-                    'data' => $page === 1
-                        ? [
-                            $this->allocationResource(501, true),
-                            $this->allocationResource(502, false),
-                        ]
-                        : [$this->allocationResource(503, false)],
-                    'meta' => ['pagination' => [
-                        'current_page' => $page,
-                        'total_pages' => 2,
-                    ]],
-                ]);
+                $data = $page === 1
+                    ? [
+                        $this->allocationResource(501, true),
+                        $this->allocationResource(502, false),
+                    ]
+                    : [$this->allocationResource(503, false)];
+
+                return Http::response($this->paginatedPayload(
+                    $data,
+                    currentPage: $page,
+                    total: 3,
+                    perPage: 2
+                ));
             }
 
             return Http::response([], 404);
@@ -221,7 +448,7 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         unset($node['attributes']['memory_overallocate']);
 
         Http::fake([
-            '*' => Http::response(['data' => [$node]]),
+            '*' => Http::response($this->paginatedPayload([$node])),
         ]);
 
         $this->expectException(\RuntimeException::class);
@@ -236,7 +463,7 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         $node['attributes']['memory'] = '999999999999999999999999999999';
 
         Http::fake([
-            '*' => Http::response(['data' => [$node]]),
+            '*' => Http::response($this->paginatedPayload([$node])),
         ]);
 
         $this->expectException(\RuntimeException::class);
@@ -251,7 +478,7 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         $server['attributes']['feature_limits']['allocations'] = 2;
 
         Http::fake([
-            '*' => Http::response(['data' => [$server]]),
+            '*' => Http::response($this->paginatedPayload([$server])),
         ]);
 
         $inventory = $this->inventory->serversForNodes([10])[10][0];
@@ -264,10 +491,89 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
     public function test_missing_server_allocation_relationship_fails_inventory_closed(): void
     {
         $server = $this->serverResource(44, 10, 4096, 200, 20480, 501);
-        unset($server['relationships']);
+        unset($server['attributes']['relationships']);
 
         Http::fake([
-            '*' => Http::response(['data' => [$server]]),
+            '*' => Http::response($this->paginatedPayload([$server])),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('allocations relationship');
+
+        $this->inventory->serversForNodes([10]);
+    }
+
+    public function test_official_nested_relationships_override_legacy_root_values(): void
+    {
+        $node = $this->nodeResource(10, 1);
+        $node['relationships']['allocations']['data'] = [];
+        $server = $this->serverResource(44, 10, 4096, 200, 20480, 501);
+        $server['relationships']['allocations']['data'] = [];
+
+        Http::fake(function ($request) use ($node, $server) {
+            if (str_contains($request->url(), '/api/application/nodes')) {
+                return Http::response($this->paginatedPayload([$node]));
+            }
+
+            return Http::response($this->paginatedPayload([$server]));
+        });
+
+        $this->assertSame(
+            [10001],
+            array_column(
+                $this->inventory->nodes()[0]['available_allocations'],
+                'id'
+            )
+        );
+        $this->assertSame(
+            [501],
+            $this->inventory->serversForNodes([10])[10][0][
+                'assigned_allocation_ids'
+            ]
+        );
+    }
+
+    public function test_legacy_root_relationships_remain_an_explicit_fallback(): void
+    {
+        $node = $this->nodeResource(10, 1);
+        $node['relationships'] = $node['attributes']['relationships'];
+        unset($node['attributes']['relationships']);
+        $server = $this->serverResource(44, 10, 4096, 200, 20480, 501);
+        $server['relationships'] = $server['attributes']['relationships'];
+        unset($server['attributes']['relationships']);
+
+        Http::fake(function ($request) use ($node, $server) {
+            if (str_contains($request->url(), '/api/application/nodes')) {
+                return Http::response($this->paginatedPayload([$node]));
+            }
+
+            return Http::response($this->paginatedPayload([$server]));
+        });
+
+        $this->assertSame(
+            [10001],
+            array_column(
+                $this->inventory->nodes()[0]['available_allocations'],
+                'id'
+            )
+        );
+        $this->assertSame(
+            [501],
+            $this->inventory->serversForNodes([10])[10][0][
+                'assigned_allocation_ids'
+            ]
+        );
+    }
+
+    public function test_malformed_official_relationship_is_not_masked_by_root_fallback(): void
+    {
+        $server = $this->serverResource(44, 10, 4096, 200, 20480, 501);
+        $server['relationships'] = $server['attributes']['relationships'];
+        $server['attributes']['relationships']['allocations']['data'] =
+            'not-a-list';
+
+        Http::fake([
+            '*' => Http::response($this->paginatedPayload([$server])),
         ]);
 
         $this->expectException(\RuntimeException::class);
@@ -282,7 +588,7 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         unset($server['attributes']['uuid']);
 
         Http::fake([
-            '*' => Http::response(['data' => [$server]]),
+            '*' => Http::response($this->paginatedPayload([$server])),
         ]);
 
         $this->expectException(\RuntimeException::class);
@@ -307,13 +613,17 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
                 );
                 $nodeIncludes[] = $query['include'] ?? null;
 
-                return Http::response(['data' => [$this->nodeResource(10, 1)]]);
+                return Http::response($this->paginatedPayload([
+                    $this->nodeResource(10, 1),
+                ]));
             }
             if (str_ends_with(parse_url($request->url(), PHP_URL_PATH), '/servers')) {
-                return Http::response(['data' => []]);
+                return Http::response($this->paginatedPayload([]));
             }
             if (str_contains($request->url(), '/nodes/10/allocations')) {
-                return Http::response(['data' => [$this->allocationResource(502, false)]]);
+                return Http::response($this->paginatedPayload([
+                    $this->allocationResource(502, false),
+                ]));
             }
 
             return Http::response([], 404);
@@ -346,6 +656,49 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         $inventory->assertExclusiveProvisioningControl();
     }
 
+    /**
+     * @param  list<array<string, mixed>>  $data
+     * @return array<string, mixed>
+     */
+    private function paginatedPayload(
+        array $data,
+        int $currentPage = 1,
+        ?int $total = null,
+        int $perPage = 100
+    ): array {
+        $total ??= count($data);
+        $totalPages = max(
+            1,
+            intdiv($total, $perPage) + ($total % $perPage === 0 ? 0 : 1)
+        );
+
+        return [
+            'data' => $data,
+            'meta' => [
+                'pagination' => [
+                    'total' => $total,
+                    'count' => count($data),
+                    'per_page' => $perPage,
+                    'current_page' => $currentPage,
+                    'total_pages' => $totalPages,
+                    'links' => [],
+                ],
+            ],
+        ];
+    }
+
+    private function locationResource(int $id): array
+    {
+        return [
+            'object' => 'location',
+            'attributes' => [
+                'id' => $id,
+                'short' => 'loc-'.$id,
+                'long' => 'Location '.$id,
+            ],
+        ];
+    }
+
     private function nodeResource(int $id, int $locationId): array
     {
         return [
@@ -366,14 +719,14 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
                     'memory' => 1024,
                     'disk' => 2048,
                 ],
-            ],
-            'relationships' => [
-                'allocations' => [
-                    'data' => [
-                        $this->allocationResource(
-                            ($id * 1000) + 1,
-                            false
-                        ),
+                'relationships' => [
+                    'allocations' => [
+                        'data' => [
+                            $this->allocationResource(
+                                ($id * 1000) + 1,
+                                false
+                            ),
+                        ],
                     ],
                 ],
             ],
@@ -416,15 +769,15 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
                     'io' => 500,
                     'threads' => null,
                 ],
-            ],
-            'relationships' => [
-                'allocations' => [
-                    'data' => [[
-                        'object' => 'allocation',
-                        'attributes' => [
-                            'id' => $allocation,
-                        ],
-                    ]],
+                'relationships' => [
+                    'allocations' => [
+                        'data' => [[
+                            'object' => 'allocation',
+                            'attributes' => [
+                                'id' => $allocation,
+                            ],
+                        ]],
+                    ],
                 ],
             ],
         ];

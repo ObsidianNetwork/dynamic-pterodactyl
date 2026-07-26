@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
 use Illuminate\Support\Facades\DB;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\NodeCapacityPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 
@@ -10,9 +11,20 @@ class ResourceCalculationService
 {
     private ?PterodactylInventoryService $inventory;
 
-    public function __construct(?PterodactylInventoryService $inventory = null)
-    {
+    private ReservationConfigurationService $configuration;
+
+    private UpgradeReservationIntegrityService $upgradeIntegrity;
+
+    public function __construct(
+        ?PterodactylInventoryService $inventory = null,
+        ?ReservationConfigurationService $configuration = null,
+        ?UpgradeReservationIntegrityService $upgradeIntegrity = null
+    ) {
         $this->inventory = $inventory;
+        $this->configuration = $configuration
+            ?? new ReservationConfigurationService;
+        $this->upgradeIntegrity = $upgradeIntegrity
+            ?? new UpgradeReservationIntegrityService;
     }
 
     /**
@@ -432,16 +444,13 @@ class ResourceCalculationService
         if (collect($servers)->contains(
             fn (array $server): bool => (int) (
                 $server['allocation_limit'] ?? 0
-            ) > 1
+            ) > 0
         )) {
-            // In Pterodactyl 1.11, a customer can delete any non-primary
-            // allocation whenever allocation_limit is nonzero, then add a
-            // replacement once the assigned count falls below that limit.
-            // A limit above one can therefore consume a port that Paymenter
-            // promised to an unpaid seven-day commitment even when the server
-            // initially has no allocation headroom. Dynamic servers use zero;
-            // a legacy primary-only server with a total limit of one is safe.
-            $reasons[] = 'customer_allocation_headroom';
+            // Exact port guarantees require Paymenter to be the only allocation
+            // authority. Any nonzero client allocation limit enables the
+            // customer-managed allocation workflow, even if the currently
+            // assigned set has no immediate headroom.
+            $reasons[] = 'customer_allocation_management';
         }
         if ($availableAllocations === []) {
             $reasons[] = 'no_available_allocation';
@@ -591,12 +600,12 @@ class ResourceCalculationService
             )
             ->whereIn('reservations.node_id', $nodeIds)
             ->where(function ($query): void {
-                $query->where(function ($query): void {
-                    $query->where(
-                        'reservations.status',
-                        ResourceReservation::STATUS_PENDING
-                    )->where('reservations.expires_at', '>', now());
-                })->orWhere(
+                // A pending row keeps holding stock until cleanup atomically
+                // changes its status and releases its allocation claims.
+                $query->where(
+                    'reservations.status',
+                    ResourceReservation::STATUS_PENDING
+                )->orWhere(
                     'reservations.status',
                     ResourceReservation::STATUS_PAID_COMMITTED
                 )->orWhere(function ($query): void {
@@ -628,7 +637,6 @@ class ResourceCalculationService
             'reservations.external_server_id',
             'reservations.external_server_uuid',
             'reservations.external_server_identifier',
-            'reservations.configuration_payload',
             'reservations.memory',
             'reservations.cpu',
             'reservations.disk',
@@ -693,8 +701,10 @@ class ResourceCalculationService
 
     /**
      * A completed upgrade supersedes the checkout vector and every older
-     * upgrade for the same service. Completion time is authoritative; the
-     * immutable row ID breaks a same-timestamp tie.
+     * upgrade for the same service. Upgrades are created serially under the
+     * one-active-upgrade guard, so the immutable ServiceUpgrade identity is
+     * authoritative. Reservation timestamps are operational metadata and
+     * must not be able to move an older target ahead of a newer one.
      *
      * @param  list<object>  $expectations
      */
@@ -706,23 +716,16 @@ class ResourceCalculationService
         ));
         $candidates = $upgrades === [] ? $expectations : $upgrades;
 
-        usort($candidates, function (object $left, object $right): int {
-            $leftTime = strtotime((string) (
-                $left->consumed_at
-                ?? $left->updated_at
-                ?? $left->created_at
-                ?? ''
-            )) ?: 0;
-            $rightTime = strtotime((string) (
-                $right->consumed_at
-                ?? $right->updated_at
-                ?? $right->created_at
-                ?? ''
-            )) ?: 0;
-
-            return [$leftTime, (int) $left->id]
-                <=> [$rightTime, (int) $right->id];
-        });
+        usort(
+            $candidates,
+            fn (object $left, object $right): int => [
+                (int) ($left->service_upgrade_id ?? 0),
+                (int) $left->id,
+            ] <=> [
+                (int) ($right->service_upgrade_id ?? 0),
+                (int) $right->id,
+            ]
+        );
 
         return $candidates[array_key_last($candidates)];
     }
@@ -800,18 +803,10 @@ class ResourceCalculationService
         $identifiers = [];
 
         foreach ($expectations as $expectation) {
-            $payload = is_array($expectation->configuration_payload ?? null)
-                ? $expectation->configuration_payload
-                : json_decode(
-                    (string) ($expectation->configuration_payload ?? ''),
-                    true
-                );
-            $id = (int) (
-                $expectation->external_server_id
-                ?? (is_array($payload)
-                    ? ($payload['external_server_id'] ?? 0)
-                    : 0)
-            );
+            // External server identity is materialized only after the
+            // Pterodactyl response is reconciled. Never infer it from mutable
+            // or unsigned JSON when calculating confirmed stock overlays.
+            $id = (int) ($expectation->external_server_id ?? 0);
             if ($id > 0) {
                 $ids[$id] = true;
             }
@@ -902,47 +897,51 @@ class ResourceCalculationService
             return [];
         }
 
-        $query = DB::table('ptero_reservation_allocations as allocations')
-            ->join(
-                'ptero_resource_reservations as reservations',
-                'reservations.id',
-                '=',
-                'allocations.reservation_id'
-            )
+        // Start from commitments and join every claim by reservation identity
+        // only. Claim-side panel, node, and release fields are evidence to
+        // validate, never query filters. Validate all active commitments before
+        // narrowing to this panel/node so drift cannot move itself out of view.
+        $rows = DB::table('ptero_resource_reservations as reservations')
             ->leftJoin(
                 'services',
                 'services.id',
                 '=',
                 'reservations.service_id'
             )
-            ->where(
-                'reservations.panel_identity',
-                $this->inventory()->panelIdentity()
+            ->leftJoin(
+                'ptero_reservation_allocations as allocations',
+                'allocations.reservation_id',
+                '=',
+                'reservations.id'
             )
-            ->whereColumn(
-                'allocations.panel_identity',
-                'reservations.panel_identity'
+            ->leftJoin(
+                'service_upgrades as upgrades',
+                'upgrades.id',
+                '=',
+                'reservations.service_upgrade_id'
             )
-            ->whereIn('allocations.node_id', $nodeIds)
+            ->leftJoin(
+                'products as upgrade_products',
+                'upgrade_products.id',
+                '=',
+                'upgrades.product_id'
+            )
+            ->leftJoin(
+                'invoices as upgrade_invoices',
+                'upgrade_invoices.id',
+                '=',
+                'upgrades.invoice_id'
+            )
             ->where(function ($query): void {
-                $query->where(function ($query): void {
-                    $query->whereNull('allocations.released_at')
-                        ->where(function ($query): void {
-                            $query->where(function ($query): void {
-                                $query->where(
-                                    'reservations.status',
-                                    ResourceReservation::STATUS_PENDING
-                                )->where(
-                                    'reservations.expires_at',
-                                    '>',
-                                    now()
-                                );
-                            })->orWhere(
-                                'reservations.status',
-                                ResourceReservation::STATUS_PAID_COMMITTED
-                            );
-                        });
-                })->orWhere(function ($query): void {
+                // TTL expiry alone is not a state transition. Keep the row
+                // conservative until cleanup releases stock in one transaction.
+                $query->where(
+                    'reservations.status',
+                    ResourceReservation::STATUS_PENDING
+                )->orWhere(
+                    'reservations.status',
+                    ResourceReservation::STATUS_PAID_COMMITTED
+                )->orWhere(function ($query): void {
                     $query->where(
                         'reservations.status',
                         ResourceReservation::STATUS_CONFIRMED
@@ -954,78 +953,256 @@ class ResourceCalculationService
                                 'cancelled'
                             );
                     });
+                })->orWhere(function ($query): void {
+                    // Terminal rows must not retain a database allocation
+                    // claim. Include them solely to fail closed until cleanup.
+                    $query->whereNotNull('allocations.id')
+                        ->whereNull('allocations.released_at');
                 });
-            });
-
-        if ($excludeReservationToken !== null) {
-            $query->where('reservations.token', '!=', $excludeReservationToken);
-        }
-
-        return $query
+            })
             ->get([
-                'allocations.node_id',
-                'allocations.allocation_id',
-                'allocations.ip',
-                'allocations.released_at',
+                'reservations.id as reservation_id',
+                'reservations.token',
+                'reservations.purpose',
+                'reservations.panel_identity',
+                'reservations.service_id',
+                'reservations.service_upgrade_id',
+                'reservations.upgrade_guard_id',
+                'reservations.server_extension_id',
+                'reservations.invoice_id',
+                'reservations.user_id',
+                'reservations.product_id',
+                'reservations.plan_id',
+                'reservations.quantity',
+                'reservations.currency_code',
+                'reservations.node_id',
+                'reservations.location_id',
+                'reservations.memory',
+                'reservations.cpu',
+                'reservations.disk',
+                'reservations.reserved_memory',
+                'reservations.reserved_cpu',
+                'reservations.reserved_disk',
+                'reservations.external_server_id',
+                'reservations.external_user_id',
+                'reservations.external_server_uuid',
+                'reservations.external_server_identifier',
+                'reservations.calculated_price',
+                'reservations.pricing_version',
+                'reservations.formula_version',
+                'reservations.expires_at',
+                'reservations.consumed_at',
                 'reservations.status',
+                'reservations.configuration_fingerprint',
                 'reservations.configuration_payload',
                 'services.status as service_status',
-            ])
-            ->groupBy('node_id')
-            ->map(function ($rows): array {
-                $holdingOrActive = $rows->filter(
-                    fn ($row): bool => in_array(
-                        $row->status,
-                        [
-                            ResourceReservation::STATUS_PENDING,
-                            ResourceReservation::STATUS_PAID_COMMITTED,
-                            ResourceReservation::STATUS_CONFIRMED,
-                        ],
-                        true
-                    )
+                'services.user_id as service_user_id',
+                'services.product_id as service_product_id',
+                'services.plan_id as service_plan_id',
+                'services.quantity as service_quantity',
+                'services.currency_code as service_currency_code',
+                'allocations.id as claim_row_id',
+                'allocations.panel_identity as claim_panel_identity',
+                'allocations.node_id as claim_node_id',
+                'allocations.allocation_id',
+                'allocations.ip',
+                'allocations.port',
+                'allocations.environment_key',
+                'allocations.is_primary',
+                'allocations.released_at',
+                'upgrades.id as upgrade_id',
+                'upgrades.service_id as upgrade_service_id',
+                'upgrades.product_id as upgrade_product_id',
+                'upgrades.plan_id as upgrade_plan_id',
+                'upgrades.invoice_id as upgrade_invoice_id',
+                'upgrades.status as upgrade_status',
+                'upgrades.active_service_guard_id as upgrade_active_service_guard_id',
+                'upgrades.source_snapshot as upgrade_source_snapshot',
+                'upgrades.target_snapshot as upgrade_target_snapshot',
+                'upgrades.source_fingerprint as upgrade_source_fingerprint',
+                'upgrades.target_fingerprint as upgrade_target_fingerprint',
+                'upgrades.quoted_amount as upgrade_quoted_amount',
+                'upgrades.currency_code as upgrade_currency_code',
+                'upgrade_products.server_id as upgrade_product_server_id',
+                'upgrade_invoices.status as upgrade_invoice_status',
+                'upgrade_invoices.user_id as upgrade_invoice_user_id',
+                'upgrade_invoices.currency_code as upgrade_invoice_currency_code',
+            ]);
+
+        if ($rows->isEmpty()) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($rows->groupBy('reservation_id') as $reservationRows) {
+            $reservation = $reservationRows->first();
+            $claims = $reservationRows
+                ->filter(
+                    fn (object $row): bool =>
+                        $row->claim_row_id !== null
+                )
+                ->map(fn (object $row): object => (object) [
+                    'reservation_id' => (int) $row->reservation_id,
+                    'panel_identity' =>
+                        (string) $row->claim_panel_identity,
+                    'node_id' => (int) $row->claim_node_id,
+                    'allocation_id' => (int) $row->allocation_id,
+                    'ip' => $row->ip,
+                    'port' => (int) $row->port,
+                    'environment_key' => $row->environment_key,
+                    'is_primary' => (bool) $row->is_primary,
+                    'released_at' => $row->released_at,
+                ])
+                ->values();
+            $isActive = $reservation->status
+                === ResourceReservation::STATUS_PENDING
+                || $reservation->status
+                === ResourceReservation::STATUS_PAID_COMMITTED
+                || (
+                    $reservation->status
+                        === ResourceReservation::STATUS_CONFIRMED
+                    && $reservation->service_status !== 'cancelled'
                 );
-                $dedicated = $rows->filter(function ($row): bool {
-                    $payload = json_decode(
-                        (string) $row->configuration_payload,
-                        true
+            if (! $isActive) {
+                throw new InvalidStockConfigurationException(
+                    'A terminal capacity commitment still owns an unreleased allocation claim.'
+                );
+            }
+
+            $payload = null;
+            if ($reservation->purpose === 'checkout') {
+                $payload = $this->configuration
+                    ->verifiedAllocationSnapshot($reservation, $claims);
+            } elseif ($reservation->purpose === 'upgrade') {
+                if ($claims->isNotEmpty()) {
+                    throw new InvalidStockConfigurationException(
+                        'A resource upgrade unexpectedly owns checkout allocation claims.'
                     );
+                }
+                $this->upgradeIntegrity->verifiedSnapshot(
+                    (object) [
+                        'id' => $reservation->upgrade_id,
+                        'service_id' =>
+                            $reservation->upgrade_service_id,
+                        'product_id' =>
+                            $reservation->upgrade_product_id,
+                        'plan_id' =>
+                            $reservation->upgrade_plan_id,
+                        'invoice_id' =>
+                            $reservation->upgrade_invoice_id,
+                        'status' => $reservation->upgrade_status,
+                        'active_service_guard_id' =>
+                            $reservation
+                                ->upgrade_active_service_guard_id,
+                        'source_snapshot' =>
+                            $reservation->upgrade_source_snapshot,
+                        'target_snapshot' =>
+                            $reservation->upgrade_target_snapshot,
+                        'source_fingerprint' =>
+                            $reservation->upgrade_source_fingerprint,
+                        'target_fingerprint' =>
+                            $reservation->upgrade_target_fingerprint,
+                        'quoted_amount' =>
+                            $reservation->upgrade_quoted_amount,
+                        'currency_code' =>
+                            $reservation->upgrade_currency_code,
+                        'service_user_id' =>
+                            $reservation->service_user_id,
+                        'service_product_id' =>
+                            $reservation->service_product_id,
+                        'service_plan_id' =>
+                            $reservation->service_plan_id,
+                        'service_quantity' =>
+                            $reservation->service_quantity,
+                        'service_currency_code' =>
+                            $reservation->service_currency_code,
+                        'product_server_id' =>
+                            $reservation->upgrade_product_server_id,
+                        'invoice_status' =>
+                            $reservation->upgrade_invoice_status,
+                        'invoice_user_id' =>
+                            $reservation->upgrade_invoice_user_id,
+                        'invoice_currency_code' =>
+                            $reservation->upgrade_invoice_currency_code,
+                    ],
+                    $reservation
+                );
+            } else {
+                throw new InvalidStockConfigurationException(
+                    'An active capacity commitment has an unknown purpose.'
+                );
+            }
 
-                    return is_array($payload)
-                        && data_get(
-                            $payload,
-                            'allocation_requirements.dedicated_ip'
-                        ) === true;
-                });
+            if (
+                ! hash_equals(
+                    (string) $reservation->panel_identity,
+                    $this->inventory()->panelIdentity()
+                )
+                || ! in_array(
+                    (int) $reservation->node_id,
+                    $nodeIds,
+                    true
+                )
+            ) {
+                continue;
+            }
 
-                return [
-                    'ids' => $holdingOrActive
-                    ->pluck('allocation_id')
-                    ->map(fn ($id): int => (int) $id)
-                    ->unique()
-                    ->values()
-                    ->all(),
-                    'ips' => $holdingOrActive
-                    ->pluck('ip')
-                    ->filter(fn ($ip): bool => is_string($ip) && $ip !== '')
-                    ->map(fn (string $ip): string => $this->canonicalIp($ip))
-                    ->unique()
-                    ->values()
-                    ->all(),
-                    'blocked_ips' => $dedicated
-                        ->pluck('ip')
-                        ->filter(
-                            fn ($ip): bool => is_string($ip) && $ip !== ''
-                        )
-                        ->map(
-                            fn (string $ip): string =>
-                                $this->canonicalIp($ip)
-                        )
-                        ->unique()
-                        ->values()
-                        ->all(),
-                ];
-            })
-            ->all();
+            // Self-exclusion changes arithmetic only. The excluded commitment
+            // must still pass integrity checks before the UI may reuse its
+            // capacity during a cart edit.
+            if (
+                $excludeReservationToken !== null
+                && hash_equals(
+                    (string) $reservation->token,
+                    $excludeReservationToken
+                )
+            ) {
+                continue;
+            }
+            if ($reservation->purpose !== 'checkout') {
+                continue;
+            }
+
+            $nodeId = (int) $reservation->node_id;
+            $result[$nodeId] ??= [
+                'ids' => [],
+                'ips' => [],
+                'blocked_ips' => [],
+            ];
+            $dedicated = data_get(
+                $payload,
+                'allocation_requirements.dedicated_ip'
+            ) === true;
+            foreach ($claims as $claim) {
+                $allocationId = (int) $claim->allocation_id;
+                $ip = (string) ($claim->ip ?? '');
+                $result[$nodeId]['ids'][$allocationId] = $allocationId;
+                if ($ip === '') {
+                    continue;
+                }
+                $canonicalIp = $this->canonicalIp($ip);
+                $result[$nodeId]['ips'][$canonicalIp] = $canonicalIp;
+                if ($dedicated) {
+                    $result[$nodeId]['blocked_ips'][$canonicalIp]
+                        = $canonicalIp;
+                }
+            }
+        }
+
+        foreach ($result as &$claims) {
+            $claims['ids'] = array_values($claims['ids']);
+            $claims['ips'] = array_values($claims['ips']);
+            $claims['blocked_ips'] = array_values(
+                $claims['blocked_ips']
+            );
+            sort($claims['ids'], SORT_NUMERIC);
+            sort($claims['ips'], SORT_STRING);
+            sort($claims['blocked_ips'], SORT_STRING);
+        }
+        unset($claims);
+
+        return $result;
     }
 
     private function canonicalIp(string $ip): string

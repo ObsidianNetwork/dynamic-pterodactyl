@@ -104,7 +104,12 @@ class ResourceQuoteController
         }
 
         return ResourceReservation::query()
-            ->pending()
+            // Stock accounting keeps an expired pending row authoritative
+            // until the cart mutation atomically retires it and releases its
+            // allocation claims. Let the owning cart exclude that same row
+            // while re-quoting so it can reach the cleanup/replacement
+            // transaction instead of deadlocking behind its own stale hold.
+            ->where('status', ResourceReservation::STATUS_PENDING)
             ->where('cart_item_id', $item->id)
             ->value('token');
     }

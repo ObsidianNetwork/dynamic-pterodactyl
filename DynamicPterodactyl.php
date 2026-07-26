@@ -18,6 +18,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\LegacyReservationReadinessService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\UpgradeReservationService;
 
@@ -70,6 +71,22 @@ class DynamicPterodactyl extends Extension
                 'description' => 'How long resource reservations are held during checkout',
                 'default' => 15,
                 'validation' => 'integer|min:5|max:60',
+            ],
+            [
+                'name' => 'quote_rate_limit_per_ip',
+                'label' => 'Quote rate limit per customer IP',
+                'type' => 'number',
+                'description' => 'Maximum checkout and upgrade stock quotes accepted from one IP address per minute.',
+                'default' => 10,
+                'validation' => 'integer|min:1|max:60',
+            ],
+            [
+                'name' => 'quote_rate_limit_global',
+                'label' => 'Global quote rate limit',
+                'type' => 'number',
+                'description' => 'Maximum checkout and upgrade stock quotes accepted for this Pterodactyl panel per minute across all customers.',
+                'default' => 60,
+                'validation' => 'integer|min:1|max:240',
             ],
             [
                 'name' => 'exclusive_provisioning_control',
@@ -126,6 +143,7 @@ class DynamicPterodactyl extends Extension
     public function boot(): void
     {
         Gate::policy(ResourceReservation::class, ResourceReservationPolicy::class);
+        app(QuoteRateLimiterService::class)->register();
 
         // Register routes
         require __DIR__ . '/routes/api.php';

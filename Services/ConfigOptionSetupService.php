@@ -188,6 +188,15 @@ class ConfigOptionSetupService
             'pricing' => $pricing,
         ];
 
+        // Pterodactyl interprets zero RAM, CPU, or disk as an unlimited
+        // resource. Dynamic stock must never allow a customer-selectable zero
+        // minimum to bypass the finite inventory contract.
+        if ($metadata['min'] <= 0) {
+            throw new \InvalidArgumentException(
+                ucfirst($resourceType).' minimum must be greater than zero.'
+            );
+        }
+
         $errors = [];
         (new DynamicSliderMetadataRule())->validate(
             'metadata',

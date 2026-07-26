@@ -13,16 +13,24 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\UpgradeQ
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 
 // Customer stock quote — guest-safe, CSRF-protected, and intentionally does
 // not expose node identity or other infrastructure detail.
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'throttle:30,1'])->group(function () {
+Route::prefix('api/dynamic-pterodactyl')->middleware([
+    'web',
+    'throttle:'.QuoteRateLimiterService::NAME,
+])->group(function () {
     Route::post('/products/{product}/resource-quote', ResourceQuoteController::class)
         ->whereNumber('product');
 });
 
 // Existing-service stock quotes are authenticated and customer-owned.
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
+Route::prefix('api/dynamic-pterodactyl')->middleware([
+    'web',
+    'auth',
+    'throttle:'.QuoteRateLimiterService::NAME,
+])->group(function () {
     Route::post('/services/{service}/upgrade-quote', UpgradeQuoteController::class);
 });
 
