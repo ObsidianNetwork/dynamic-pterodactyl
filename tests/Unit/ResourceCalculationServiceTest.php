@@ -899,7 +899,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'pending',
             ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
             expiresAt: now()->subMinute(),
-            purpose: 'checkout'
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 501,
+                'ip' => '192.0.2.5',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]
         );
 
         $node = $this->service()->getLocationAvailability(1)['nodes'][0];

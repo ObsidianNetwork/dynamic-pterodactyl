@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Exceptions\PermanentProvisioningException;
 use App\Jobs\Server\CreateJob;
 use App\Jobs\Server\SuspendJob;
 use App\Helpers\ExtensionHelper;
@@ -2067,14 +2068,31 @@ class ReservationServiceTest extends LaravelTestCase
     {
         Queue::fake();
         $service = $this->makeBillableService(Service::STATUS_SUSPENDED);
-        $this->insertReservation(
-            serviceId: $service->id,
-            userId: $service->user_id,
-            status: 'confirmed'
+        DB::table('services')->where('id', $service->id)->update([
+            'price' => '10.00',
+        ]);
+        $service = $service->fresh();
+        $this->insertConfirmedCheckoutCommitment($service);
+        $renewalInvoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => $service->currency_code,
+            'due_at' => $service->expires_at,
+        ]);
+        $renewalInvoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => $service->price,
+            'quantity' => $service->quantity,
+            'description' => 'Dynamic service renewal',
+        ]);
+
+        app(MarkInvoicePaidService::class)->handle($renewalInvoice);
+
+        $this->assertSame(
+            Invoice::STATUS_PAID,
+            $renewalInvoice->fresh()->status
         );
-
-        app(RenewServiceService::class)->handle($service);
-
         $this->assertSame(Service::STATUS_ACTIVE, $service->fresh()->status);
     }
 
@@ -2562,6 +2580,68 @@ class ReservationServiceTest extends LaravelTestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+    }
+
+    private function insertConfirmedCheckoutCommitment(
+        Service $service
+    ): int {
+        $checkoutInvoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PAID,
+            'currency_code' => $service->currency_code,
+            'due_at' => now()->subMonth(),
+        ]);
+        $checkoutInvoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => $service->price,
+            'quantity' => $service->quantity,
+            'description' => 'Original dynamic checkout',
+        ]);
+
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $checkoutInvoice->id,
+            userId: $service->user_id,
+            status: ResourceReservation::STATUS_CONFIRMED,
+            consumedAt: now()->subMonth(),
+            productId: $service->product_id,
+            planId: $service->plan_id
+        );
+        $serverExtensionId = (int) Product::query()
+            ->whereKey($service->product_id)
+            ->value('server_id');
+        $payload = json_decode(
+            (string) DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('configuration_payload'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $payload['server_extension_id'] = $serverExtensionId;
+
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'server_extension_id' => $serverExtensionId,
+                'configuration_payload' => json_encode(
+                    $payload,
+                    JSON_THROW_ON_ERROR
+                ),
+                'configuration_fingerprint' =>
+                    $this->configurationService->fingerprint($payload),
+                'paid_committed_at' => now()->subMonth(),
+                'external_server_id' => 71,
+                'external_user_id' => 44,
+                'external_server_uuid' =>
+                    '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'external_server_identifier' => 'created',
+                'updated_at' => now(),
+            ]);
+        $this->insertAllocation($reservationId);
+
+        return $reservationId;
     }
 
     /**
