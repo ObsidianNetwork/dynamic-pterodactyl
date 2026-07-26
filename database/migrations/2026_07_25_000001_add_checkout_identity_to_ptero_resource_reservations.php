@@ -36,11 +36,13 @@ return new class extends Migration
                 ->after('cart_item_guard_id');
         });
 
-        // Every pre-migration pending row came from one of the two superseded
-        // token flows and lacks the immutable identity needed for safe use.
-        // Active carts will acquire a fresh hold on edit or checkout.
+        // Unbound pre-migration holds came from superseded token flows and lack
+        // immutable identity. A service-bound row may already back an invoice;
+        // never retire that commitment before the readiness gate can stop the
+        // upgrade and require explicit operator reconciliation.
         DB::table('ptero_resource_reservations')
             ->where('status', 'pending')
+            ->whereNull('service_id')
             ->whereNull('configuration_fingerprint')
             ->update([
                 'status' => 'cancelled',
