@@ -1521,6 +1521,34 @@ return new class
                 ),
                 ExtensionHelper::getServiceProperties($service)
             );
+            // MariaDB hydrates DECIMAL slider values as strings while SQLite
+            // commonly returns integers. Restore their exact stored integer
+            // representation before comparing the live service with its
+            // signed target. Do not apply today's mutable min/max/step rules
+            // to a historical upgrade that has already completed.
+            foreach ($service->configs as $config) {
+                $option = $config->configOption;
+                if (
+                    $option === null
+                    || ! $option->isDynamicSlider()
+                    || $config->slider_value === null
+                ) {
+                    continue;
+                }
+                $key = strtolower((string) (
+                    $option->env_variable ?: $option->name
+                ));
+                if (! in_array($key, ['memory', 'cpu', 'disk'], true)) {
+                    continue;
+                }
+                $numericValue = StrictInteger::parseStoredDecimal(
+                    $config->slider_value
+                );
+                if ($numericValue === null) {
+                    return null;
+                }
+                $properties[$key] = $numericValue;
+            }
         } catch (\Throwable) {
             return null;
         }

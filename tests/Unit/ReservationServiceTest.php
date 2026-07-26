@@ -2100,8 +2100,22 @@ class ReservationServiceTest extends LaravelTestCase
             $payment->fresh()->status
         );
         $this->assertSame(
+            number_format(
+                (float) $renewalInvoice->fresh()->total,
+                2,
+                '.',
+                ''
+            ),
+            number_format((float) $payment->fresh()->amount, 2, '.', '')
+        );
+        $paidInvoice = $renewalInvoice->fresh();
+        $this->assertNull(
+            $paidInvoice->payment_attention_required_at,
+            (string) $paidInvoice->payment_attention_reason
+        );
+        $this->assertSame(
             Invoice::STATUS_PAID,
-            $renewalInvoice->fresh()->status
+            $paidInvoice->status
         );
         $this->assertSame(Service::STATUS_ACTIVE, $service->fresh()->status);
     }
@@ -2630,11 +2644,19 @@ class ReservationServiceTest extends LaravelTestCase
             JSON_THROW_ON_ERROR
         );
         $payload['server_extension_id'] = $serverExtensionId;
+        $checkoutPrice = number_format(
+            (float) $service->price,
+            2,
+            '.',
+            ''
+        );
+        $payload['calculated_price'] = $checkoutPrice;
 
         DB::table('ptero_resource_reservations')
             ->where('id', $reservationId)
             ->update([
                 'server_extension_id' => $serverExtensionId,
+                'calculated_price' => $checkoutPrice,
                 'configuration_payload' => json_encode(
                     $payload,
                     JSON_THROW_ON_ERROR
