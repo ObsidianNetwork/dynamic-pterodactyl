@@ -6,9 +6,13 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
+use PHPUnit\Framework\Attributes\DataProvider;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\NodeCapacityPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PterodactylInventoryService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\UpgradeReservationIntegrityService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ResourceCalculationServiceTest extends LaravelTestCase
@@ -139,7 +143,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         }
     }
 
-    public function test_customer_allocation_claims_make_node_ineligible_even_without_headroom(): void
+    public function test_any_customer_allocation_capability_makes_node_ineligible(): void
     {
         $this->createCpuPolicy();
         $node = $this->service(servers: [[
@@ -148,14 +152,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'memory' => 1024,
             'cpu' => 100,
             'disk' => 10240,
-            'allocation_limit' => 2,
-            'assigned_allocation_ids' => [501, 502],
+            'allocation_limit' => 1,
+            'assigned_allocation_ids' => [501],
             'allocation_headroom' => 0,
         ]])->getLocationAvailability(1)['nodes'][0];
 
         $this->assertFalse($node['eligible']);
         $this->assertContains(
-            'customer_allocation_headroom',
+            'customer_allocation_management',
             $node['ineligible_reasons']
         );
     }
@@ -224,12 +228,12 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'memory' => 2048,
             'cpu' => 100,
             'disk' => 10240,
-        ]);
+        ], purpose: 'checkout');
         $this->insertReservation('paid-other', 'paid_committed', [
             'memory' => 1024,
             'cpu' => 50,
             'disk' => 5120,
-        ], expiresAt: now()->subDay());
+        ], expiresAt: now()->subDay(), purpose: 'checkout');
 
         $node = $this->service()
             ->getLocationAvailability(1, 'pending-self')['nodes'][0];
@@ -243,26 +247,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_upgrade_holds_count_only_positive_reserved_deltas(): void
     {
         $this->createCpuPolicy();
-        DB::table('ptero_resource_reservations')->insert([
-            'purpose' => 'upgrade',
-            'token' => 'upgrade-delta',
-            'panel_identity' => self::PANEL_IDENTITY,
-            'node_id' => 5,
-            'location_id' => 1,
+        $this->insertUpgradeReservation(
+            'upgrade-delta',
+            'pending',
+            ['memory' => 6144, 'cpu' => 300, 'disk' => 40960],
             // Target values must not be double-counted as newly reserved stock.
-            'memory' => 8192,
-            'cpu' => 400,
-            'disk' => 51200,
-            'reserved_memory' => 2048,
-            'reserved_cpu' => 100,
-            'reserved_disk' => 10240,
-            'calculated_price' => 9.99,
-            'pricing_breakdown' => json_encode([]),
-            'status' => 'pending',
-            'expires_at' => now()->addMinutes(15),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 51200],
+            ['memory' => 2048, 'cpu' => 100, 'disk' => 10240]
+        );
 
         $node = $this->service()->getLocationAvailability(1)['nodes'][0];
 
@@ -271,6 +263,54 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'cpu' => 100,
             'disk' => 10240,
         ], $node['reserved']);
+    }
+
+    public function test_upgrade_delta_row_drift_fails_stock_closed(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertUpgradeReservation(
+            'upgrade-delta-drift',
+            'pending',
+            ['memory' => 6144, 'cpu' => 300, 'disk' => 40960],
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 51200],
+            ['memory' => 2048, 'cpu' => 100, 'disk' => 10240]
+        );
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update(['reserved_memory' => 0]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'upgrade capacity snapshot failed its immutable integrity check'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    public function test_upgrade_invoice_lifecycle_drift_fails_stock_closed(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertUpgradeReservation(
+            'upgrade-invoice-drift',
+            'pending',
+            ['memory' => 6144, 'cpu' => 300, 'disk' => 40960],
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 51200],
+            ['memory' => 2048, 'cpu' => 100, 'disk' => 10240]
+        );
+        $invoiceId = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('invoice_id');
+        $this->assertNotNull($invoiceId);
+        DB::table('invoices')
+            ->where('id', $invoiceId)
+            ->update(['status' => \App\Models\Invoice::STATUS_PAID]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'upgrade capacity snapshot failed its immutable integrity check'
+        );
+
+        $this->service()->getLocationAvailability(1);
     }
 
     public function test_confirmed_checkout_stays_overlaid_until_same_snapshot_proves_target(): void
@@ -285,7 +325,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $reservationId = $this->insertReservation(
             'confirmed-checkout-overlay',
             'confirmed',
-            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480]
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            purpose: 'checkout'
         );
         DB::table('ptero_resource_reservations')
             ->where('id', $reservationId)
@@ -334,7 +375,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $checkoutId = $this->insertReservation(
             'confirmed-checkout-before-upgrade',
             'confirmed',
-            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480]
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            purpose: 'checkout'
         );
         DB::table('ptero_resource_reservations')
             ->where('id', $checkoutId)
@@ -347,24 +389,16 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'external_server_identifier' => 'server-81',
                 'consumed_at' => now()->subHour(),
             ]);
-        $upgradeId = $this->insertReservation(
+        $this->insertUpgradeReservation(
             'confirmed-upgrade-target',
             'confirmed',
-            ['memory' => 8192, 'cpu' => 400, 'disk' => 40960]
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 40960],
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            service: $serviceRecord,
+            externalServerId: 81,
+            consumedAt: now()
         );
-        DB::table('ptero_resource_reservations')
-            ->where('id', $upgradeId)
-            ->update([
-                'purpose' => 'upgrade',
-                'service_id' => $serviceRecord->id,
-                'configuration_payload' => json_encode([
-                    'external_server_id' => 81,
-                ]),
-                'reserved_memory' => 4096,
-                'reserved_cpu' => 200,
-                'reserved_disk' => 20480,
-                'consumed_at' => now(),
-            ]);
 
         $reflected = $this->service(servers: [[
             'id' => 81,
@@ -398,7 +432,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         );
     }
 
-    public function test_multiple_confirmed_upgrades_keep_only_latest_target(): void
+    public function test_multiple_confirmed_upgrades_use_immutable_upgrade_order_not_mutable_timestamps(): void
     {
         $this->createCpuPolicy();
         $serviceRecord = \App\Models\Service::factory()->create([
@@ -408,53 +442,42 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'status' => \App\Models\Service::STATUS_ACTIVE,
         ]);
 
-        foreach ([
-            [
-                'token' => 'confirmed-base',
-                'purpose' => 'checkout',
-                'resources' => [4096, 200, 20480],
+        $checkoutId = $this->insertReservation(
+            'confirmed-base',
+            'confirmed',
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            purpose: 'checkout'
+        );
+        DB::table('ptero_resource_reservations')
+            ->where('id', $checkoutId)
+            ->update([
+                'service_id' => $serviceRecord->id,
+                'external_server_id' => 81,
+                'external_server_uuid' =>
+                    '10000000-0000-4000-8000-000000000081',
+                'external_server_identifier' => 'server-81',
                 'consumed_at' => now()->subHours(2),
-            ],
-            [
-                'token' => 'confirmed-upgrade-eight',
-                'purpose' => 'upgrade',
-                'resources' => [8192, 400, 40960],
-                'consumed_at' => now()->subHour(),
-            ],
-            [
-                'token' => 'confirmed-upgrade-six',
-                'purpose' => 'upgrade',
-                'resources' => [6144, 300, 30720],
-                'consumed_at' => now(),
-            ],
-        ] as $expectation) {
-            [$memory, $cpu, $disk] = $expectation['resources'];
-            $reservationId = $this->insertReservation(
-                $expectation['token'],
-                'confirmed',
-                compact('memory', 'cpu', 'disk')
-            );
-            DB::table('ptero_resource_reservations')
-                ->where('id', $reservationId)
-                ->update([
-                    'purpose' => $expectation['purpose'],
-                    'service_id' => $serviceRecord->id,
-                    'external_server_id' =>
-                        $expectation['purpose'] === 'checkout' ? 81 : null,
-                    'external_server_uuid' =>
-                        $expectation['purpose'] === 'checkout'
-                            ? '10000000-0000-4000-8000-000000000081'
-                            : null,
-                    'external_server_identifier' =>
-                        $expectation['purpose'] === 'checkout'
-                            ? 'server-81'
-                            : null,
-                    'configuration_payload' => json_encode([
-                        'external_server_id' => 81,
-                    ]),
-                    'consumed_at' => $expectation['consumed_at'],
-                ]);
-        }
+            ]);
+        $this->insertUpgradeReservation(
+            'confirmed-upgrade-eight',
+            'confirmed',
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 40960],
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            service: $serviceRecord,
+            externalServerId: 81,
+            consumedAt: now()
+        );
+        $this->insertUpgradeReservation(
+            'confirmed-upgrade-six',
+            'confirmed',
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 40960],
+            ['memory' => 6144, 'cpu' => 300, 'disk' => 40960],
+            ['memory' => 0, 'cpu' => 0, 'disk' => 0],
+            service: $serviceRecord,
+            externalServerId: 81,
+            consumedAt: now()->subDay()
+        );
 
         $node = $this->service(servers: [[
             'id' => 81,
@@ -464,7 +487,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'node' => 5,
             'memory' => 6144,
             'cpu' => 300,
-            'disk' => 30720,
+            'disk' => 40960,
         ]])->getLocationAvailability(1)['nodes'][0];
 
         $this->assertSame(
@@ -485,7 +508,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $checkoutId = $this->insertReservation(
             'identity-checkout',
             'confirmed',
-            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480]
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            purpose: 'checkout'
         );
         DB::table('ptero_resource_reservations')
             ->where('id', $checkoutId)
@@ -495,21 +519,16 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'external_server_id' => 81,
                 'consumed_at' => now()->subHour(),
             ]);
-        $upgradeId = $this->insertReservation(
+        $this->insertUpgradeReservation(
             'identity-upgrade',
             'confirmed',
-            ['memory' => 8192, 'cpu' => 400, 'disk' => 40960]
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            ['memory' => 8192, 'cpu' => 400, 'disk' => 40960],
+            ['memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            service: $serviceRecord,
+            externalServerId: 82,
+            consumedAt: now()
         );
-        DB::table('ptero_resource_reservations')
-            ->where('id', $upgradeId)
-            ->update([
-                'purpose' => 'upgrade',
-                'service_id' => $serviceRecord->id,
-                'configuration_payload' => json_encode([
-                    'external_server_id' => 82,
-                ]),
-                'consumed_at' => now(),
-            ]);
 
         $node = $this->service(servers: [[
             'id' => 82,
@@ -566,7 +585,15 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $reservationId = $this->insertReservation(
             'confirmed-allocation-claim',
             'confirmed',
-            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240]
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 501,
+                'ip' => '192.0.2.5',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]
         );
         DB::table('ptero_resource_reservations')
             ->where('id', $reservationId)
@@ -575,19 +602,6 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'external_server_id' => 81,
                 'consumed_at' => now(),
             ]);
-        DB::table('ptero_reservation_allocations')->insert([
-            'reservation_id' => $reservationId,
-            'panel_identity' => self::PANEL_IDENTITY,
-            'node_id' => 5,
-            'allocation_id' => 501,
-            'ip' => '192.0.2.5',
-            'port' => 25565,
-            'is_primary' => true,
-            'released_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
         $node = $this->service(allocations: [
             ['id' => 501, 'ip' => '192.0.2.5', 'port' => 25565],
             ['id' => 502, 'ip' => '192.0.2.6', 'port' => 25566],
@@ -602,22 +616,19 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_locally_reserved_allocation_is_removed_from_panel_unassigned_inventory(): void
     {
         $this->createCpuPolicy();
-        $reservationId = $this->insertReservation('allocation-hold', 'pending', [
-            'memory' => 1024,
-            'cpu' => 100,
-            'disk' => 10240,
-        ]);
-        DB::table('ptero_reservation_allocations')->insert([
-            'reservation_id' => $reservationId,
-            'panel_identity' => self::PANEL_IDENTITY,
-            'node_id' => 5,
-            'allocation_id' => 502,
-            'ip' => '192.0.2.5',
-            'port' => 25566,
-            'is_primary' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $this->insertReservation(
+            'allocation-hold',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 502,
+                'ip' => '192.0.2.5',
+                'port' => 25566,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]
+        );
 
         $service = $this->service(allocations: [
             ['id' => 501, 'ip' => '192.0.2.5', 'port' => 25565],
@@ -645,19 +656,16 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $reservationId = $this->insertReservation(
             'ipv6-allocation-hold',
             'pending',
-            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240]
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 601,
+                'ip' => '2001:db8::1',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]
         );
-        DB::table('ptero_reservation_allocations')->insert([
-            'reservation_id' => $reservationId,
-            'panel_identity' => self::PANEL_IDENTITY,
-            'node_id' => 5,
-            'allocation_id' => 601,
-            'ip' => '2001:db8::1',
-            'port' => 25565,
-            'is_primary' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
 
         $node = $this->service(allocations: [[
             'id' => 602,
@@ -671,29 +679,20 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_pending_dedicated_hold_removes_its_whole_ip_from_all_stock(): void
     {
         $this->createCpuPolicy();
-        $reservationId = $this->insertReservation(
+        $this->insertReservation(
             'dedicated-allocation-hold',
             'pending',
-            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240]
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 502,
+                'ip' => '192.0.2.5',
+                'port' => 25566,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ],
+            dedicatedIp: true
         );
-        DB::table('ptero_resource_reservations')
-            ->where('id', $reservationId)
-            ->update([
-                'configuration_payload' => json_encode([
-                    'allocation_requirements' => ['dedicated_ip' => true],
-                ]),
-            ]);
-        DB::table('ptero_reservation_allocations')->insert([
-            'reservation_id' => $reservationId,
-            'panel_identity' => self::PANEL_IDENTITY,
-            'node_id' => 5,
-            'allocation_id' => 502,
-            'ip' => '192.0.2.5',
-            'port' => 25566,
-            'is_primary' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
         $service = $this->service(allocations: [
             ['id' => 501, 'ip' => '192.0.2.5', 'port' => 25565],
             ['id' => 502, 'ip' => '192.0.2.5', 'port' => 25566],
@@ -714,6 +713,291 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         );
     }
 
+    public function test_tampered_dedicated_ip_claim_fails_stock_closed(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            'tampered-dedicated-allocation-hold',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 502,
+                'ip' => '192.0.2.5',
+                'port' => 25566,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ],
+            dedicatedIp: true
+        );
+        $tampered = json_decode(
+            (string) DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('configuration_payload'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $tampered['allocation_requirements']['dedicated_ip'] = false;
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'configuration_payload' => json_encode(
+                    $tampered,
+                    JSON_THROW_ON_ERROR
+                ),
+            ]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'allocation snapshot failed its immutable capacity integrity check'
+        );
+
+        $this->service(allocations: [
+            ['id' => 501, 'ip' => '192.0.2.5', 'port' => 25565],
+            ['id' => 502, 'ip' => '192.0.2.5', 'port' => 25566],
+        ])->getLocationAvailability(1);
+    }
+
+    public function test_missing_checkout_allocation_claim_fails_stock_closed_even_when_self_excluded(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            'missing-self-claim',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout'
+        );
+        DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $reservationId)
+            ->delete();
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Allocation claims no longer match the immutable checkout reservation'
+        );
+
+        $this->service()->getLocationAvailability(
+            1,
+            'missing-self-claim'
+        );
+    }
+
+    #[DataProvider('allocationClaimDriftCases')]
+    public function test_each_checkout_allocation_tuple_field_is_verified(
+        string $field,
+        mixed $value
+    ): void {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            "claim-drift-{$field}",
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 502,
+                'ip' => '192.0.2.5',
+                'port' => 25566,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]
+        );
+        DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $reservationId)
+            ->update([$field => $value]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Allocation claims no longer match the immutable checkout reservation'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    public function test_extra_checkout_allocation_claim_fails_stock_closed(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            'extra-claim',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout'
+        );
+        DB::table('ptero_reservation_allocations')->insert([
+            'reservation_id' => $reservationId,
+            'panel_identity' => self::PANEL_IDENTITY,
+            'node_id' => 5,
+            'allocation_id' => 991001,
+            'ip' => '192.0.2.99',
+            'port' => 29999,
+            'environment_key' => 'QUERY_PORT',
+            'is_primary' => false,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Allocation claims no longer match the immutable checkout reservation'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    #[DataProvider('activeClaimStatuses')]
+    public function test_pending_and_paid_claims_must_remain_unreleased(
+        string $status
+    ): void {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            "released-{$status}",
+            $status,
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            expiresAt: $status === 'paid_committed'
+                ? now()->subDay()
+                : now()->addDay(),
+            purpose: 'checkout'
+        );
+        DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $reservationId)
+            ->update(['released_at' => now()]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Allocation claims no longer match the immutable checkout reservation'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    public function test_confirmed_claim_must_be_released_before_stock_can_be_quoted(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            'confirmed-unreleased',
+            'confirmed',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout'
+        );
+        DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $reservationId)
+            ->update(['released_at' => null]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'Allocation claims no longer match the immutable checkout reservation'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    public function test_expired_pending_commitment_stays_counted_until_atomic_cleanup(): void
+    {
+        $this->createCpuPolicy();
+        $this->insertReservation(
+            'pending-awaiting-cleanup',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            expiresAt: now()->subMinute(),
+            purpose: 'checkout'
+        );
+
+        $node = $this->service()->getLocationAvailability(1)['nodes'][0];
+
+        $this->assertSame(
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            $node['reserved']
+        );
+        $this->assertSame([], $node['available_allocations']);
+    }
+
+    public function test_materialized_terminal_commitment_with_unreleased_claim_fails_stock_closed(): void
+    {
+        $this->createCpuPolicy();
+        $this->insertReservation(
+            'expired-unreleased',
+            'expired',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            expiresAt: now()->subMinute(),
+            purpose: 'checkout'
+        );
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'terminal capacity commitment still owns an unreleased allocation claim'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    public function test_upgrade_commitment_cannot_own_checkout_allocation_claims(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            'upgrade-with-claim',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'upgrade'
+        );
+        DB::table('ptero_reservation_allocations')->insert([
+            'reservation_id' => $reservationId,
+            'panel_identity' => self::PANEL_IDENTITY,
+            'node_id' => 5,
+            'allocation_id' => 991002,
+            'ip' => '192.0.2.100',
+            'port' => 30000,
+            'environment_key' => 'SERVER_PORT',
+            'is_primary' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'resource upgrade unexpectedly owns checkout allocation claims'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
+    public function test_signed_required_allocation_count_must_match_claim_set(): void
+    {
+        $this->createCpuPolicy();
+        $reservationId = $this->insertReservation(
+            'required-count-drift',
+            'pending',
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout'
+        );
+        $payload = json_decode(
+            (string) DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('configuration_payload'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $payload['allocation_requirements']['required_count'] = 2;
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'configuration_payload' => json_encode(
+                    $payload,
+                    JSON_THROW_ON_ERROR
+                ),
+                'configuration_fingerprint' =>
+                    (new ReservationConfigurationService)
+                        ->fingerprint($payload),
+            ]);
+
+        $this->expectException(InvalidStockConfigurationException::class);
+        $this->expectExceptionMessage(
+            'no valid signed allocation set'
+        );
+
+        $this->service()->getLocationAvailability(1);
+    }
+
     public function test_confirmed_dedicated_server_blocks_ip_until_service_is_cancelled(): void
     {
         $this->createCpuPolicy();
@@ -726,28 +1010,22 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $reservationId = $this->insertReservation(
             'confirmed-dedicated',
             'confirmed',
-            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240]
+            ['memory' => 1024, 'cpu' => 100, 'disk' => 10240],
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 501,
+                'ip' => '192.0.2.5',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ],
+            dedicatedIp: true
         );
         DB::table('ptero_resource_reservations')
             ->where('id', $reservationId)
             ->update([
                 'service_id' => $serviceRecord->id,
-                'configuration_payload' => json_encode([
-                    'allocation_requirements' => ['dedicated_ip' => true],
-                ]),
             ]);
-        DB::table('ptero_reservation_allocations')->insert([
-            'reservation_id' => $reservationId,
-            'panel_identity' => self::PANEL_IDENTITY,
-            'node_id' => 5,
-            'allocation_id' => 501,
-            'ip' => '192.0.2.5',
-            'port' => 25565,
-            'is_primary' => true,
-            'released_at' => now(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
         $stock = $this->service(allocations: [
             ['id' => 502, 'ip' => '192.0.2.5', 'port' => 25566],
             ['id' => 503, 'ip' => '192.0.2.6', 'port' => 25565],
@@ -776,23 +1054,20 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_holds_from_another_panel_do_not_reduce_colliding_node_or_allocation_stock(): void
     {
         $this->createCpuPolicy();
-        $reservationId = $this->insertReservation(
+        $this->insertReservation(
             'other-panel-hold',
             'pending',
             ['memory' => 2048, 'cpu' => 100, 'disk' => 10240],
-            panelIdentity: str_repeat('f', 64)
+            panelIdentity: str_repeat('f', 64),
+            purpose: 'checkout',
+            allocation: [
+                'allocation_id' => 501,
+                'ip' => '192.0.2.5',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]
         );
-        DB::table('ptero_reservation_allocations')->insert([
-            'reservation_id' => $reservationId,
-            'panel_identity' => str_repeat('f', 64),
-            'node_id' => 5,
-            'allocation_id' => 501,
-            'ip' => '192.0.2.5',
-            'port' => 25565,
-            'is_primary' => true,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
 
         $node = $this->service()->getLocationAvailability(1)['nodes'][0];
 
@@ -905,16 +1180,335 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         ]);
     }
 
+    /**
+     * @return array<string, array{string, mixed}>
+     */
+    public static function allocationClaimDriftCases(): array
+    {
+        return [
+            'panel' => ['panel_identity', str_repeat('f', 64)],
+            'node' => ['node_id', 6],
+            'allocation' => ['allocation_id', 503],
+            'ip' => ['ip', '192.0.2.6'],
+            'port' => ['port', 25567],
+            'environment' => ['environment_key', 'QUERY_PORT'],
+            'primary' => ['is_primary', false],
+        ];
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function activeClaimStatuses(): array
+    {
+        return [
+            'pending' => ['pending'],
+            'paid committed' => ['paid_committed'],
+        ];
+    }
+
+    private function insertUpgradeReservation(
+        string $token,
+        string $status,
+        array $source,
+        array $target,
+        array $delta,
+        ?\App\Models\Service $service = null,
+        int $externalServerId = 81,
+        mixed $consumedAt = null
+    ): int {
+        if (
+            $service === null
+            || $service->product_id === null
+            || $service->plan_id === null
+        ) {
+            $product = \App\Models\Product::factory()->create();
+            $plan = \App\Models\Plan::factory()->create([
+                'priceable_id' => $product->id,
+                'priceable_type' => \App\Models\Product::class,
+            ]);
+            $service ??= \App\Models\Service::factory()->create([
+                'user_id' => User::factory()->create()->id,
+            ]);
+            DB::table('services')->where('id', $service->id)->update([
+                'product_id' => $product->id,
+                'plan_id' => $plan->id,
+                'quantity' => 1,
+                'currency_code' => 'USD',
+            ]);
+            $service->refresh();
+        }
+        $product = \App\Models\Product::query()
+            ->findOrFail($service->product_id);
+        $server = $product->server;
+        if ($server?->extension !== 'Pterodactyl') {
+            $server = \App\Models\Server::query()->create([
+                'name' => "Pterodactyl Upgrade {$token}",
+                'extension' => 'Pterodactyl',
+                'type' => 'server',
+                'enabled' => true,
+            ]);
+            DB::table('products')
+                ->where('id', $service->product_id)
+                ->update(['server_id' => $server->id]);
+        }
+        $sourceSnapshot = [
+            'service_id' => (int) $service->id,
+            'product_id' => (int) $service->product_id,
+            'plan_id' => (int) $service->plan_id,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'properties' => [
+                ...$source,
+                'location' => 1,
+            ],
+            'billing_anchor' => [],
+        ];
+        $targetSnapshot = [
+            'service_id' => (int) $service->id,
+            'product_id' => (int) $service->product_id,
+            'plan_id' => (int) $service->plan_id,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'properties' => [
+                ...$target,
+                'location' => 1,
+            ],
+            'recurring_price' => '0.00',
+            'billing_anchor' => [],
+        ];
+        $invoice = \App\Models\Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => match ($status) {
+                'pending' => \App\Models\Invoice::STATUS_PENDING,
+                'paid_committed',
+                'confirmed' => \App\Models\Invoice::STATUS_PAID,
+                default => throw new \InvalidArgumentException(
+                    "Unsupported upgrade reservation status {$status}."
+                ),
+            },
+            'currency_code' => 'USD',
+        ]);
+        $sourceFingerprint = $this->serviceUpgradeSnapshotFingerprint(
+            $sourceSnapshot
+        );
+        $targetFingerprint = $this->serviceUpgradeSnapshotFingerprint(
+            $targetSnapshot
+        );
+        $upgradeId = DB::table('service_upgrades')->insertGetId([
+            'service_id' => $service->id,
+            'product_id' => $service->product_id,
+            'plan_id' => $service->plan_id,
+            'invoice_id' => $invoice->id,
+            'status' => match ($status) {
+                'confirmed' => 'completed',
+                'paid_committed' => 'paid_committed',
+                'pending' => 'awaiting_payment',
+                default => throw new \InvalidArgumentException(
+                    "Unsupported upgrade reservation status {$status}."
+                ),
+            },
+            'active_service_guard_id' => $status === 'confirmed'
+                ? null
+                : $service->id,
+            'type' => 'config_options',
+            'source_snapshot' => json_encode(
+                $sourceSnapshot,
+                JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION
+            ),
+            'target_snapshot' => json_encode(
+                $targetSnapshot,
+                JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION
+            ),
+            'source_fingerprint' => $sourceFingerprint,
+            'target_fingerprint' => $targetFingerprint,
+            'quoted_amount' => '9.90',
+            'currency_code' => 'USD',
+            'credit_amount' => 0,
+            'provisioning_attempts' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $payload = [
+            'service_upgrade_id' => $upgradeId,
+            'source_fingerprint' => $sourceFingerprint,
+            'target_fingerprint' => $targetFingerprint,
+            'panel_identity' => self::PANEL_IDENTITY,
+            'node_id' => 5,
+            'location_id' => 1,
+            'external_server_id' => $externalServerId,
+            'external_server_uuid' =>
+                sprintf(
+                    '10000000-0000-4000-8000-%012d',
+                    $externalServerId
+                ),
+            'external_server_identifier' =>
+                "server-{$externalServerId}",
+            'external_server_external_id' => (string) $service->id,
+            'external_user_id' => 44,
+            'user_external_id' =>
+                "paymenter-user-{$service->user_id}",
+            'user_email' => (string) $service->user->email,
+            'nest_id' => 1,
+            'egg_id' => 2,
+            'preserved_build' => [
+                'swap' => 0,
+                'io' => 500,
+                'threads' => null,
+                'databases' => 0,
+                'allocations' => 0,
+                'backups' => 0,
+            ],
+            'allocation_id' => 501,
+            'assigned_allocation_ids' => [501],
+            'source' => $source,
+            'target' => $target,
+            'delta' => $delta,
+        ];
+        $upgrade = (object) [
+            'id' => $upgradeId,
+            'service_id' => $service->id,
+            'source_fingerprint' => $sourceFingerprint,
+            'target_fingerprint' => $targetFingerprint,
+            'quoted_amount' => '9.90',
+            'currency_code' => 'USD',
+        ];
+
+        return DB::table('ptero_resource_reservations')->insertGetId([
+            'purpose' => 'upgrade',
+            'token' => $token,
+            'service_id' => $service->id,
+            'service_upgrade_id' => $upgradeId,
+            'upgrade_guard_id' => $status === 'confirmed'
+                ? null
+                : $upgradeId,
+            'server_extension_id' => $server->id,
+            'invoice_id' => $invoice->id,
+            'user_id' => $service->user_id,
+            'product_id' => $service->product_id,
+            'plan_id' => $service->plan_id,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'panel_identity' => self::PANEL_IDENTITY,
+            'configuration_fingerprint' =>
+                (new UpgradeReservationIntegrityService)
+                    ->fingerprint($upgrade, $payload),
+            'configuration_payload' => json_encode(
+                $payload,
+                JSON_THROW_ON_ERROR
+            ),
+            'pricing_version' =>
+                (new UpgradeReservationIntegrityService)
+                    ->pricingVersion($upgrade),
+            'formula_version' => 'dynamic-upgrade-v1',
+            'node_id' => 5,
+            'location_id' => 1,
+            'memory' => $target['memory'],
+            'cpu' => $target['cpu'],
+            'disk' => $target['disk'],
+            'reserved_memory' => $delta['memory'],
+            'reserved_cpu' => $delta['cpu'],
+            'reserved_disk' => $delta['disk'],
+            'external_server_id' => $externalServerId,
+            'external_user_id' => 44,
+            'external_server_uuid' =>
+                $payload['external_server_uuid'],
+            'external_server_identifier' =>
+                $payload['external_server_identifier'],
+            'calculated_price' => '9.90',
+            'pricing_breakdown' => json_encode(
+                [],
+                JSON_THROW_ON_ERROR
+            ),
+            'status' => $status,
+            'expires_at' => now()->addDay(),
+            'consumed_at' => $consumedAt,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function serviceUpgradeSnapshotFingerprint(
+        array $snapshot
+    ): string {
+        $canonicalize = function (array $value) use (
+            &$canonicalize
+        ): array {
+            foreach ($value as $key => $item) {
+                if (is_array($item)) {
+                    $value[$key] = $canonicalize($item);
+                }
+            }
+            if (! array_is_list($value)) {
+                ksort($value);
+            }
+
+            return $value;
+        };
+
+        return hash('sha256', json_encode(
+            $canonicalize($snapshot),
+            JSON_THROW_ON_ERROR
+                | JSON_PRESERVE_ZERO_FRACTION
+                | JSON_UNESCAPED_SLASHES
+        ));
+    }
+
     private function insertReservation(
         string $token,
         string $status,
         array $resources,
         mixed $expiresAt = null,
-        string $panelIdentity = self::PANEL_IDENTITY
+        string $panelIdentity = self::PANEL_IDENTITY,
+        string $purpose = 'checkout',
+        ?array $allocation = null,
+        bool $dedicatedIp = false
     ): int {
-        return DB::table('ptero_resource_reservations')->insertGetId([
+        if (! in_array($purpose, ['checkout', 'upgrade'], true)) {
+            throw new \InvalidArgumentException(
+                'The test reservation purpose is invalid.'
+            );
+        }
+
+        $allocation ??= [
+            'allocation_id' =>
+                100000 + (int) sprintf('%u', crc32($token)),
+            'ip' => '198.51.100.10',
+            'port' =>
+                20000 + ((int) sprintf('%u', crc32($token)) % 40000),
+            'environment_key' => 'SERVER_PORT',
+            'is_primary' => true,
+        ];
+        $payload = $purpose === 'checkout'
+            ? [
+                'panel_identity' => $panelIdentity,
+                'node_id' => 5,
+                'location_id' => 1,
+                'resources' => $resources,
+                'allocation_requirements' => [
+                    'required_count' => 1,
+                    'dedicated_ip' => $dedicatedIp,
+                ],
+                'allocations' => [$allocation],
+            ]
+            : [];
+
+        $reservationId = DB::table(
+            'ptero_resource_reservations'
+        )->insertGetId([
+            'purpose' => $purpose,
             'token' => $token,
             'panel_identity' => $panelIdentity,
+            'configuration_fingerprint' =>
+                (new ReservationConfigurationService)
+                    ->fingerprint($payload),
+            'configuration_payload' => json_encode(
+                $payload,
+                JSON_THROW_ON_ERROR
+            ),
             'node_id' => 5,
             'location_id' => 1,
             'memory' => $resources['memory'],
@@ -927,5 +1521,23 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        if ($purpose === 'checkout') {
+            DB::table('ptero_reservation_allocations')->insert([
+                'reservation_id' => $reservationId,
+                'panel_identity' => $panelIdentity,
+                'node_id' => 5,
+                'allocation_id' => $allocation['allocation_id'],
+                'ip' => $allocation['ip'],
+                'port' => $allocation['port'],
+                'environment_key' => $allocation['environment_key'],
+                'is_primary' => $allocation['is_primary'],
+                'released_at' => $status === 'confirmed' ? now() : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return $reservationId;
     }
 }

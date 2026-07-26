@@ -20,12 +20,14 @@ use App\Models\ServiceUpgrade;
 use App\Models\Server;
 use App\Models\User;
 use App\Services\Service\CapacityServiceCreationCoordinator;
+use App\Services\ServiceUpgrade\ServiceUpgradeService;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidResourceSelectionException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\NodeCapacityPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PterodactylInventoryService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
@@ -216,6 +218,34 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $this->assertSame(23552, $quote['bounds']['memory']['max']);
     }
 
+    public function test_zero_resource_minimum_cannot_become_an_unlimited_upgrade(): void
+    {
+        $fixture = $this->fixture();
+        $metadata = (array) $fixture->options['memory']->metadata;
+        $metadata['min'] = 0;
+        $metadata['default'] = 0;
+        DB::table('config_options')
+            ->where('id', $fixture->options['memory']->id)
+            ->update([
+                'metadata' => json_encode(
+                    $metadata,
+                    JSON_THROW_ON_ERROR
+                ),
+            ]);
+
+        $this->expectException(
+            InvalidStockConfigurationException::class
+        );
+        $this->expectExceptionMessage(
+            'Memory min value must be a positive whole number.'
+        );
+
+        $fixture->upgrades->quoteForService(
+            $fixture->service,
+            $this->selection($fixture)
+        );
+    }
+
     public function test_upgrade_reserves_only_positive_delta_but_keeps_full_target(): void
     {
         $fixture = $this->fixture();
@@ -244,6 +274,180 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'server-99',
             $reservation->external_server_identifier
         );
+    }
+
+    public function test_second_slider_upgrade_uses_current_service_without_rewriting_checkout_identity(): void
+    {
+        Queue::fake();
+        $fixture = $this->fixture();
+        $checkoutBefore = DB::table('ptero_resource_reservations')
+            ->where('id', $fixture->checkoutReservationId)
+            ->first([
+                'configuration_payload',
+                'configuration_fingerprint',
+                'product_id',
+                'plan_id',
+            ]);
+        [$firstUpgrade, $firstInvoice] = $this->upgrade($fixture);
+        $firstReservation = $fixture->upgrades->reserveForUpgrade(
+            $firstUpgrade,
+            $firstInvoice->due_at
+        );
+        DB::table('invoices')
+            ->where('id', $firstInvoice->id)
+            ->update(['status' => Invoice::STATUS_PAID]);
+        $fixture->upgrades->commitPaidUpgrade(
+            $firstUpgrade,
+            $firstInvoice->fresh()
+        );
+        $provisioningUpgrade = app(ServiceUpgradeService::class)
+            ->beginProvisioning($firstUpgrade->fresh());
+        $contract = $fixture->upgrades->beginProvisioning(
+            $provisioningUpgrade
+        );
+        $fixture->remote->server['memory'] = 8192;
+        $fixture->remote->server['cpu'] = 100;
+        $fixture->remote->server['disk'] = 30720;
+
+        app(ServiceUpgradeService::class)->complete(
+            $provisioningUpgrade,
+            $contract['provisioning_lease_id']
+        );
+
+        $this->assertSame(
+            ServiceUpgrade::STATUS_COMPLETED,
+            $firstUpgrade->fresh()->status
+        );
+        $this->assertSame(
+            'confirmed',
+            $firstReservation->fresh()->status
+        );
+        $checkoutAfterFirst = DB::table(
+            'ptero_resource_reservations'
+        )
+            ->where('id', $fixture->checkoutReservationId)
+            ->first([
+                'configuration_payload',
+                'configuration_fingerprint',
+                'product_id',
+                'plan_id',
+            ]);
+        $this->assertEquals($checkoutBefore, $checkoutAfterFirst);
+
+        $fixture->service->refresh();
+        [$secondUpgrade, $secondInvoice] = $this->upgrade($fixture);
+        foreach ([
+            'memory' => 12288,
+            'cpu' => 200,
+            'disk' => 40960,
+        ] as $resource => $value) {
+            $secondUpgrade->configs()
+                ->where(
+                    'config_option_id',
+                    $fixture->options[$resource]->id
+                )
+                ->update(['slider_value' => $value]);
+        }
+        $this->recaptureUpgrade($secondUpgrade);
+
+        $secondReservation = $fixture->upgrades->reserveForUpgrade(
+            $secondUpgrade->fresh(),
+            $secondInvoice->due_at
+        );
+        $payload = (array) $secondReservation->configuration_payload;
+
+        $this->assertSame([
+            'memory' => 8192,
+            'cpu' => 100,
+            'disk' => 30720,
+        ], $payload['source']);
+        $this->assertSame([
+            'memory' => 12288,
+            'cpu' => 200,
+            'disk' => 40960,
+        ], $payload['target']);
+        $this->assertSame(
+            $fixture->product->id,
+            $secondUpgrade->fresh()->product_id
+        );
+        $this->assertSame(
+            $fixture->plan->id,
+            $secondUpgrade->fresh()->plan_id
+        );
+        $checkoutAfterSecond = DB::table(
+            'ptero_resource_reservations'
+        )
+            ->where('id', $fixture->checkoutReservationId)
+            ->first([
+                'configuration_payload',
+                'configuration_fingerprint',
+                'product_id',
+                'plan_id',
+            ]);
+        $this->assertEquals($checkoutBefore, $checkoutAfterSecond);
+    }
+
+    public function test_real_upgrade_reservation_is_accepted_by_stock_calculation_across_decimal_drivers(): void
+    {
+        $fixture = $this->fixture();
+        NodeCapacityPolicy::create([
+            'panel_identity' =>
+                hash('sha256', 'https://panel.example'),
+            'node_uuid' => 'node-1',
+            'node_id' => 1,
+            'location_id' => 1,
+            'cpu_capacity_percent' => 800,
+            'cpu_overcommit_bps' => 10000,
+            'enabled' => true,
+        ]);
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+
+        $node = [
+            'id' => 1,
+            'uuid' => 'node-1',
+            'name' => 'Node 1',
+            'fqdn' => 'node-1.example.com',
+            'public' => true,
+            'maintenance_mode' => false,
+            'location_id' => 1,
+            'memory' => 32768,
+            'disk' => 512000,
+            'memory_overallocate' => 0,
+            'disk_overallocate' => 0,
+            'allocated_resources' => [
+                'memory' => 4096,
+                'disk' => 20480,
+            ],
+        ];
+        $fixture->inventory->shouldReceive('nodesInLocation')
+            ->once()
+            ->with(1)
+            ->andReturn([$node]);
+        $fixture->inventory->shouldReceive('serversForNodes')
+            ->once()
+            ->with([1])
+            ->andReturn([1 => [$fixture->remote->server]]);
+        $fixture->inventory->shouldReceive(
+            'availableAllocationsForNode'
+        )->once()->with(1)->andReturn([[
+            'id' => 9001,
+            'ip' => '192.0.2.250',
+            'port' => 25566,
+        ]]);
+
+        $availability = (new ResourceCalculationService(
+            $fixture->inventory
+        ))->getLocationAvailability(1);
+
+        $this->assertSame([
+            'memory' => 4096,
+            'cpu' => 0,
+            'disk' => 10240,
+        ], $availability['nodes'][0]['reserved']);
     }
 
     public function test_unchanged_resource_vector_is_not_an_upgrade(): void
@@ -341,6 +545,10 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             $upgrade,
             $invoice->due_at
         );
+        DB::table('invoices')->where('id', $invoice->id)->update([
+            'status' => Invoice::STATUS_PAID,
+        ]);
+        $invoice->refresh();
 
         $this->assertTrue(
             $fixture->upgrades->commitPaidUpgrade($upgrade, $invoice)
@@ -428,6 +636,10 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             $upgrade,
             $invoice->due_at
         );
+        DB::table('invoices')->where('id', $invoice->id)->update([
+            'status' => Invoice::STATUS_PAID,
+        ]);
+        $invoice->refresh();
         $fixture->upgrades->commitPaidUpgrade($upgrade, $invoice);
 
         $payload = (array) $reservation->fresh()->configuration_payload;
@@ -492,6 +704,151 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         );
         $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->fresh()->status);
         $this->assertSame('cancelled', $reservation->fresh()->status);
+    }
+
+    public function test_live_target_config_drift_is_rejected_before_payment(): void
+    {
+        $fixture = $this->fixture();
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $reservation = $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+        DB::table('service_configs')
+            ->where('configurable_type', ServiceUpgrade::class)
+            ->where('configurable_id', $upgrade->id)
+            ->where(
+                'config_option_id',
+                $fixture->options['memory']->id
+            )
+            ->update(['slider_value' => 16384]);
+
+        $failure = $fixture->upgrades->preflightPaidUpgrade(
+            $upgrade,
+            $invoice
+        );
+
+        $this->assertStringContainsString(
+            'immutable integrity',
+            strtolower((string) $failure)
+        );
+        $this->assertSame(
+            ServiceUpgrade::STATUS_CANCELLED,
+            $upgrade->fresh()->status
+        );
+        $this->assertSame('cancelled', $reservation->fresh()->status);
+    }
+
+    public function test_hidden_slider_cannot_detach_existing_capacity_commitment(): void
+    {
+        Queue::fake();
+        $fixture = $this->fixture();
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $reservation = $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+        DB::table('config_options')
+            ->whereIn('id', collect($fixture->options)->pluck('id'))
+            ->update(['hidden' => true]);
+        DB::table('invoices')->where('id', $invoice->id)->update([
+            'status' => Invoice::STATUS_PAID,
+        ]);
+        $invoice->refresh();
+
+        $this->assertTrue(
+            $fixture->upgrades->commitPaidUpgrade($upgrade, $invoice)
+        );
+        $this->assertSame(
+            'paid_committed',
+            $reservation->fresh()->status
+        );
+        $this->assertSame(
+            ServiceUpgrade::STATUS_PAID_COMMITTED,
+            $upgrade->fresh()->status
+        );
+    }
+
+    public function test_server_extension_drift_is_rejected_before_payment(): void
+    {
+        $fixture = $this->fixture();
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $reservation = $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+        DB::table('extensions')
+            ->where('id', $fixture->server->id)
+            ->update(['extension' => 'DifferentServer']);
+
+        $failure = $fixture->upgrades->preflightPaidUpgrade(
+            $upgrade,
+            $invoice
+        );
+
+        $this->assertStringContainsString(
+            'immutable integrity',
+            strtolower((string) $failure)
+        );
+        $this->assertSame(
+            ServiceUpgrade::STATUS_CANCELLED,
+            $upgrade->fresh()->status
+        );
+        $this->assertSame('cancelled', $reservation->fresh()->status);
+    }
+
+    public function test_completion_rechecks_live_target_inside_core_transaction(): void
+    {
+        Queue::fake();
+        $fixture = $this->fixture();
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $reservation = $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+        DB::table('invoices')->where('id', $invoice->id)->update([
+            'status' => Invoice::STATUS_PAID,
+        ]);
+        $invoice->refresh();
+        $fixture->upgrades->commitPaidUpgrade($upgrade, $invoice);
+        $provisioningUpgrade = app(ServiceUpgradeService::class)
+            ->beginProvisioning($upgrade->fresh());
+        $contract = $fixture->upgrades->beginProvisioning(
+            $provisioningUpgrade
+        );
+        DB::table('service_configs')
+            ->where('configurable_type', ServiceUpgrade::class)
+            ->where('configurable_id', $upgrade->id)
+            ->where(
+                'config_option_id',
+                $fixture->options['memory']->id
+            )
+            ->update(['slider_value' => 16384]);
+
+        try {
+            DB::transaction(
+                fn () => $fixture->upgrades->completeProvisioning(
+                    $provisioningUpgrade,
+                    $contract['provisioning_lease_id']
+                )
+            );
+            $this->fail(
+                'Expected completion-time target drift to fail closed.'
+            );
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'immutable integrity',
+                strtolower($exception->getMessage())
+            );
+        }
+
+        $this->assertSame(
+            'paid_committed',
+            $reservation->fresh()->status
+        );
+        $this->assertNotNull(
+            $reservation->fresh()->provisioning_lease_id
+        );
     }
 
     public function test_tampered_invoice_line_is_cancelled_before_paid_transition(): void
@@ -1057,6 +1414,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'selectChild' => $selectChild,
             'selectAlternate' => $selectAlternate,
             'remote' => $remote,
+            'inventory' => $inventory,
             'upgrades' => $upgrades,
             'checkoutReservationId' => $checkoutReservationId,
             'checkoutInvoice' => $checkoutInvoice,

@@ -10,6 +10,8 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\StockUnavailableException;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimitConfigurationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceQuoteService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
@@ -21,6 +23,11 @@ class ResourceQuoteApiTest extends LaravelTestCase
     {
         parent::setUp();
 
+        (new QuoteRateLimiterService(
+            new QuoteRateLimitConfigurationService([
+                'pterodactyl_url' => 'https://panel.example.com',
+            ])
+        ))->register();
         require __DIR__.'/../../routes/api.php';
     }
 
@@ -132,6 +139,72 @@ class ResourceQuoteApiTest extends LaravelTestCase
         $this->assertStringNotContainsString('panel-internal', $response->getContent());
     }
 
+    public function test_customer_quote_route_enforces_the_per_ip_budget(): void
+    {
+        $this->registerQuoteLimiter(
+            perIp: 1,
+            global: 10,
+            panelUrl: 'https://per-ip-rate-limit.example.com'
+        );
+        $product = $this->quoteableProduct();
+        $quotes = Mockery::mock(ResourceQuoteService::class);
+        $quotes->shouldReceive('quote')
+            ->once()
+            ->andReturn([
+                'available' => true,
+                'adjusted' => false,
+                'selection' => [
+                    'memory' => 4096,
+                    'cpu' => 200,
+                    'disk' => 51200,
+                ],
+                'bounds' => [],
+            ]);
+        $this->app->instance(ResourceQuoteService::class, $quotes);
+        $endpoint =
+            "/api/dynamic-pterodactyl/products/{$product->id}/resource-quote";
+
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.10'])
+            ->postJson($endpoint, ['config_options' => []])
+            ->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.10'])
+            ->postJson($endpoint, ['config_options' => []])
+            ->assertStatus(429);
+    }
+
+    public function test_customer_quote_route_enforces_the_panel_global_budget(): void
+    {
+        $this->registerQuoteLimiter(
+            perIp: 10,
+            global: 1,
+            panelUrl: 'https://global-rate-limit.example.com'
+        );
+        $product = $this->quoteableProduct();
+        $quotes = Mockery::mock(ResourceQuoteService::class);
+        $quotes->shouldReceive('quote')
+            ->once()
+            ->andReturn([
+                'available' => true,
+                'adjusted' => false,
+                'selection' => [
+                    'memory' => 4096,
+                    'cpu' => 200,
+                    'disk' => 51200,
+                ],
+                'bounds' => [],
+            ]);
+        $this->app->instance(ResourceQuoteService::class, $quotes);
+        $endpoint =
+            "/api/dynamic-pterodactyl/products/{$product->id}/resource-quote";
+
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.20'])
+            ->postJson($endpoint, ['config_options' => []])
+            ->assertOk();
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.21'])
+            ->postJson($endpoint, ['config_options' => []])
+            ->assertStatus(429);
+    }
+
     public function test_owned_cart_item_quote_excludes_its_current_hold(): void
     {
         $product = $this->quoteableProduct();
@@ -170,6 +243,62 @@ class ResourceQuoteApiTest extends LaravelTestCase
                 Mockery::on(fn (Product $resolved): bool => $resolved->is($product)),
                 [],
                 'owned-cart-hold'
+            )
+            ->andReturn([
+                'available' => true,
+                'adjusted' => false,
+                'selection' => ['memory' => 4096, 'cpu' => 200, 'disk' => 51200],
+                'bounds' => [],
+            ]);
+        $this->app->instance(ResourceQuoteService::class, $quotes);
+
+        $this->withCredentials()
+            ->withCookie('cart', $cart->ulid)
+            ->postJson(
+                "/api/dynamic-pterodactyl/products/{$product->id}/resource-quote",
+                ['config_options' => [], 'cart_item_id' => $cartItemId]
+            )
+            ->assertOk();
+    }
+
+    public function test_owned_expired_cart_hold_is_excluded_until_cart_mutation_retires_it(): void
+    {
+        $product = $this->quoteableProduct();
+        $cart = Cart::create(['currency_code' => 'USD']);
+        $cartItemId = DB::table('cart_items')->insertGetId([
+            'cart_id' => $cart->id,
+            'product_id' => $product->id,
+            'plan_id' => $product->plans()->value('id'),
+            'config_options' => json_encode([]),
+            'checkout_config' => json_encode([]),
+            'quantity' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('ptero_resource_reservations')->insert([
+            'token' => 'owned-expired-cart-hold',
+            'cart_item_id' => $cartItemId,
+            'cart_item_guard_id' => $cartItemId,
+            'node_id' => 5,
+            'location_id' => 1,
+            'memory' => 4096,
+            'cpu' => 200,
+            'disk' => 51200,
+            'calculated_price' => 0,
+            'pricing_breakdown' => json_encode([]),
+            'status' => 'pending',
+            'expires_at' => now()->subMinute(),
+            'created_at' => now()->subMinutes(16),
+            'updated_at' => now()->subMinutes(16),
+        ]);
+
+        $quotes = Mockery::mock(ResourceQuoteService::class);
+        $quotes->shouldReceive('quote')
+            ->once()
+            ->with(
+                Mockery::on(fn (Product $resolved): bool => $resolved->is($product)),
+                [],
+                'owned-expired-cart-hold'
             )
             ->andReturn([
                 'available' => true,
@@ -313,5 +442,19 @@ class ResourceQuoteApiTest extends LaravelTestCase
         ]);
 
         return $product;
+    }
+
+    private function registerQuoteLimiter(
+        int $perIp = 10,
+        int $global = 60,
+        string $panelUrl = 'https://panel.example.com'
+    ): void {
+        (new QuoteRateLimiterService(
+            new QuoteRateLimitConfigurationService([
+                'pterodactyl_url' => $panelUrl,
+                'quote_rate_limit_per_ip' => $perIp,
+                'quote_rate_limit_global' => $global,
+            ])
+        ))->register();
     }
 }

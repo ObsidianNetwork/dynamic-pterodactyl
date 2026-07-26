@@ -157,14 +157,14 @@ class SetupWizard extends Page implements HasForms
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(1),
                                             TextInput::make('memory_max')
                                                 ->label('Max')
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(64),
                                             TextInput::make('memory_step')
                                                 ->label('Step')
@@ -178,7 +178,7 @@ class SetupWizard extends Page implements HasForms
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(4),
                                         ]),
                                 ]),
@@ -198,14 +198,14 @@ class SetupWizard extends Page implements HasForms
                                                 ->suffix('cores')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(1),
                                             TextInput::make('cpu_max')
                                                 ->label('Max')
                                                 ->suffix('cores')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(8),
                                             TextInput::make('cpu_step')
                                                 ->label('Step')
@@ -218,7 +218,7 @@ class SetupWizard extends Page implements HasForms
                                                 ->suffix('cores')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(2),
                                         ]),
                                 ]),
@@ -238,14 +238,14 @@ class SetupWizard extends Page implements HasForms
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(10),
                                             TextInput::make('disk_max')
                                                 ->label('Max')
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(500),
                                             TextInput::make('disk_step')
                                                 ->label('Step')
@@ -259,7 +259,7 @@ class SetupWizard extends Page implements HasForms
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0)
+                                                ->minValue(0.0001)
                                                 ->default(50),
                                         ]),
                                 ]),

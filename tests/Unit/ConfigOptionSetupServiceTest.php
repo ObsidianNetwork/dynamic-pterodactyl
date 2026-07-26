@@ -173,6 +173,28 @@ class ConfigOptionSetupServiceTest extends LaravelTestCase
         );
     }
 
+    public function test_zero_resource_minimum_is_rejected_before_it_can_mean_unlimited(): void
+    {
+        $product = $this->eligibleProduct();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Memory minimum must be greater than zero.'
+        );
+
+        app(ConfigOptionSetupService::class)->createDynamicSliderOptions(
+            $product->id,
+            [
+                'pricing_model' => 'linear',
+                'memory_min' => 0,
+                'memory_rate' => 1,
+                'cpu_rate' => 1,
+                'disk_rate' => 1,
+            ],
+            [['id' => 1, 'short' => 'nyc', 'long' => 'New York']]
+        );
+    }
+
     public function test_scaled_value_overflow_is_rejected(): void
     {
         $product = $this->eligibleProduct();

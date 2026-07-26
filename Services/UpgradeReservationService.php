@@ -11,6 +11,7 @@ use App\Models\Service;
 use App\Models\ServiceUpgrade;
 use App\Services\Invoice\CancelInvoiceService;
 use App\Services\Invoice\CapacityInvoicePaymentService;
+use App\Services\ServiceUpgrade\CapacityUpgradeReservationIdentity;
 use App\Services\ServiceUpgrade\ServiceUpgradeService;
 use App\Support\PanelEndpointIdentity;
 use App\Support\StrictInteger;
@@ -25,10 +26,15 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Models\UpgradeReservation;
 
 class UpgradeReservationService
 {
+    private readonly UpgradeReservationIntegrityService $integrity;
+
     public function __construct(
         private readonly PterodactylInventoryService $inventory,
-        private readonly ResourceCalculationService $resources
+        private readonly ResourceCalculationService $resources,
+        ?UpgradeReservationIntegrityService $integrity = null
     ) {
+        $this->integrity = $integrity
+            ?? new UpgradeReservationIntegrityService;
     }
 
     /**
@@ -83,6 +89,7 @@ class UpgradeReservationService
                         'The paid upgrade commitment does not match this configuration.'
                     );
                 }
+                $this->integrity->verifiedSnapshot($upgrade, $existing);
 
                 return $existing;
             }
@@ -149,10 +156,8 @@ class UpgradeReservationService
                 'currency_code' => strtoupper((string) $upgrade->currency_code),
                 'configuration_fingerprint' => $fingerprint,
                 'configuration_payload' => $payload,
-                'pricing_version' => hash('sha256', json_encode([
-                    'quoted_amount' => (string) $upgrade->quoted_amount,
-                    'currency_code' => strtoupper((string) $upgrade->currency_code),
-                ], JSON_THROW_ON_ERROR)),
+                'pricing_version' =>
+                    $this->integrity->pricingVersion($upgrade),
                 'formula_version' => 'dynamic-upgrade-v1',
                 // Full target values are provisioning truth.
                 'memory' => $context['target']['memory'],
@@ -183,13 +188,16 @@ class UpgradeReservationService
             if ($existing !== null) {
                 $existing->fill($values);
                 $existing->save();
-
-                return $existing->fresh();
+                $saved = $existing->fresh();
+            } else {
+                $saved = UpgradeReservation::create(array_merge($values, [
+                    'token' => Str::random(64),
+                ]))->fresh();
             }
 
-            return UpgradeReservation::create(array_merge($values, [
-                'token' => Str::random(64),
-            ]));
+            $this->integrity->verifiedSnapshot($upgrade, $saved);
+
+            return $saved;
         }, 5);
     }
 
@@ -234,17 +242,16 @@ class UpgradeReservationService
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($reservation->status === 'paid_committed') {
-                app(ServiceUpgradeService::class)->markPaidCommitted($lockedUpgrade);
-
-                return;
-            }
-            if ($reservation->status !== 'pending') {
+            $alreadyPaid = $reservation->status === 'paid_committed';
+            if (! $alreadyPaid && $reservation->status !== 'pending') {
                 throw new DisplayException(
                     'The upgrade capacity commitment is no longer payable.'
                 );
             }
-            if ($reservation->guaranteed_until?->isPast()) {
+            if (
+                ! $alreadyPaid
+                && $reservation->guaranteed_until?->isPast()
+            ) {
                 throw new DisplayException(
                     'The upgrade capacity guarantee has expired.'
                 );
@@ -268,6 +275,14 @@ class UpgradeReservationService
                 );
             }
             if (
+                $lockedInvoice !== null
+                && $lockedInvoice->status !== Invoice::STATUS_PAID
+            ) {
+                throw new \RuntimeException(
+                    'The upgrade invoice is not paid.'
+                );
+            }
+            if (
                 $lockedInvoice === null
                 && ((float) $lockedUpgrade->quoted_amount > 0
                     || $lockedUpgrade->invoice_id !== null)
@@ -287,12 +302,14 @@ class UpgradeReservationService
                 }
             }
 
-            $reservation->forceFill([
-                'status' => 'paid_committed',
-                'invoice_id' => $lockedInvoice?->id,
-                'paid_committed_at' => now(),
-                'last_provisioning_error' => null,
-            ])->save();
+            if (! $alreadyPaid) {
+                $reservation->forceFill([
+                    'status' => 'paid_committed',
+                    'invoice_id' => $lockedInvoice?->id,
+                    'paid_committed_at' => now(),
+                    'last_provisioning_error' => null,
+                ])->save();
+            }
 
             app(ServiceUpgradeService::class)->markPaidCommitted($lockedUpgrade);
         }, 5);
@@ -301,9 +318,9 @@ class UpgradeReservationService
     }
 
     /**
-     * Run before the invoice coordinator opens its paid transaction. Invalid
-     * commitments are persisted first, then surfaced to the caller so a
-     * gateway cannot turn an expired or drifted upgrade into a paid invoice.
+     * Run while the invoice coordinator holds its paid transaction open.
+     * Invalid commitments are persisted and surfaced without throwing so
+     * external payment evidence and the needs-attention state commit together.
      */
     public function preflightPaidUpgrade(
         ServiceUpgrade $upgrade,
@@ -682,6 +699,11 @@ class UpgradeReservationService
         ServiceUpgrade $upgrade,
         ?string $leaseId
     ): void {
+        if (DB::transactionLevel() === 0) {
+            throw new \RuntimeException(
+                'Upgrade completion requires the core completion transaction.'
+            );
+        }
         if ($leaseId === null || $leaseId === '') {
             throw new \RuntimeException('An upgrade provisioning lease is required.');
         }
@@ -693,15 +715,31 @@ class UpgradeReservationService
             ->firstOrFail();
 
         if ($reservation->status === 'confirmed') {
+            if ($upgrade->status !== ServiceUpgrade::STATUS_COMPLETED) {
+                throw new \RuntimeException(
+                    'The confirmed capacity commitment has no completed core upgrade.'
+                );
+            }
+
             return;
         }
         if (
+            $upgrade->status !== ServiceUpgrade::STATUS_PROVISIONING
+            ||
             $reservation->status !== 'paid_committed'
             || ! hash_equals((string) $reservation->provisioning_lease_id, $leaseId)
         ) {
             throw new \RuntimeException(
                 'The upgrade provisioning lease is stale or invalid.'
             );
+        }
+        if (
+            ($integrityFailure = $this->reservationIntegrityError(
+                $upgrade,
+                $reservation
+            )) !== null
+        ) {
+            throw new \RuntimeException($integrityFailure);
         }
 
         $reservation->forceFill([
@@ -1334,9 +1372,9 @@ class UpgradeReservationService
     {
         $numeric = StrictInteger::parse($value)
             ?? StrictInteger::parseStoredDecimal($value);
-        if ($numeric === null || $numeric < 0) {
+        if ($numeric === null || $numeric <= 0) {
             throw new InvalidStockConfigurationException(
-                "The {$label} value must be a non-negative whole number."
+                "The {$label} value must be a positive whole number."
             );
         }
 
@@ -1349,11 +1387,6 @@ class UpgradeReservationService
             $option->getMetadata($key),
             "{$option->name} {$key}"
         );
-        if ($key === 'step' && $value <= 0) {
-            throw new InvalidStockConfigurationException(
-                "{$option->name} step must be positive."
-            );
-        }
 
         return $value;
     }
@@ -1362,96 +1395,27 @@ class UpgradeReservationService
         ServiceUpgrade $upgrade,
         array $context
     ): string {
-        return hash('sha256', json_encode([
-            'upgrade_id' => (int) $upgrade->id,
-            'source_fingerprint' => (string) $upgrade->source_fingerprint,
-            'target_fingerprint' => (string) $upgrade->target_fingerprint,
-            'panel_identity' => $context['panel_identity'],
-            'node_id' => $context['node_id'],
-            'location_id' => $context['location_id'],
-            'external_server_id' => $context['external_server_id'],
-            'external_server_uuid' => $context['external_server_uuid'],
-            'external_server_identifier' =>
-                $context['external_server_identifier'],
-            'external_server_external_id' =>
-                $context['external_server_external_id'],
-            'external_user_id' => $context['external_user_id'],
-            'user_external_id' => $context['user_external_id'],
-            'user_email' => $context['user_email'],
-            'nest_id' => $context['nest_id'],
-            'egg_id' => $context['egg_id'],
-            'preserved_build' => $context['preserved_build'],
-            'allocation_id' => $context['allocation_id'],
-            'assigned_allocation_ids' => $context['assigned_allocation_ids'],
-            'source' => $context['source'],
-            'target' => $context['target'],
-            'delta' => $context['delta'],
-            'quoted_amount' => (string) $upgrade->quoted_amount,
-            'currency_code' => strtoupper((string) $upgrade->currency_code),
-        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        return $this->integrity->fingerprint($upgrade, $context);
     }
 
     private function reservationIntegrityError(
         ServiceUpgrade $upgrade,
         UpgradeReservation $reservation
     ): ?string {
-        $payload = $reservation->configuration_payload;
-        if (! is_array($payload)) {
-            return 'The paid upgrade reservation failed its immutable integrity check.';
-        }
-
         try {
-            $fingerprint = $this->reservationFingerprint($upgrade, $payload);
+            $upgrade->load([
+                'service.product.server.settings',
+                'service.product.settings',
+                'service.configs.configOption',
+                'service.configs.configValue',
+                'product.server.settings',
+                'product.settings',
+                'configs.configOption',
+                'configs.configValue',
+            ]);
+            $this->assertProductPanel($upgrade->service);
+            $this->integrity->verifiedSnapshot($upgrade, $reservation);
         } catch (\Throwable) {
-            return 'The paid upgrade reservation failed its immutable integrity check.';
-        }
-        $target = $payload['target'] ?? null;
-        $delta = $payload['delta'] ?? null;
-        if (
-            ! is_array($target)
-            || ! is_array($delta)
-            || ! is_string($reservation->configuration_fingerprint)
-            || ! hash_equals(
-                $reservation->configuration_fingerprint,
-                $fingerprint
-            )
-            || (int) $reservation->service_id
-                !== (int) $upgrade->service_id
-            || (int) $reservation->service_upgrade_id
-                !== (int) $upgrade->id
-            || (int) ($payload['service_upgrade_id'] ?? 0)
-                !== (int) $upgrade->id
-            || (string) ($payload['source_fingerprint'] ?? '')
-                !== (string) $upgrade->source_fingerprint
-            || (string) ($payload['target_fingerprint'] ?? '')
-                !== (string) $upgrade->target_fingerprint
-            || (string) ($payload['panel_identity'] ?? '')
-                !== (string) $reservation->panel_identity
-            || (int) ($payload['node_id'] ?? 0)
-                !== (int) $reservation->node_id
-            || (int) ($payload['location_id'] ?? 0)
-                !== (int) $reservation->location_id
-            || (int) ($payload['external_server_id'] ?? 0)
-                !== (int) $reservation->external_server_id
-            || (int) ($payload['external_user_id'] ?? 0)
-                !== (int) $reservation->external_user_id
-            || (string) ($payload['external_server_uuid'] ?? '')
-                !== (string) $reservation->external_server_uuid
-            || (string) ($payload['external_server_identifier'] ?? '')
-                !== (string) $reservation->external_server_identifier
-            || (int) ($target['memory'] ?? -1)
-                !== (int) $reservation->memory
-            || (int) ($target['cpu'] ?? -1)
-                !== (int) $reservation->cpu
-            || (int) ($target['disk'] ?? -1)
-                !== (int) $reservation->disk
-            || (int) ($delta['memory'] ?? -1)
-                !== (int) $reservation->reserved_memory
-            || (int) ($delta['cpu'] ?? -1)
-                !== (int) $reservation->reserved_cpu
-            || (int) ($delta['disk'] ?? -1)
-                !== (int) $reservation->reserved_disk
-        ) {
             return 'The paid upgrade reservation failed its immutable integrity check.';
         }
 
@@ -1460,8 +1424,8 @@ class UpgradeReservationService
 
     private function usesDynamicCapacity(ServiceUpgrade $upgrade): bool
     {
-        return $upgrade->service->product->usesDynamicResources()
-            || $upgrade->product->usesDynamicResources();
+        return app(CapacityUpgradeReservationIdentity::class)
+            ->requiresCoordinator($upgrade);
     }
 
     /**
