@@ -891,6 +891,48 @@ class LegacyReservationReadinessTest extends LaravelTestCase
         $this->addToAssertionCount(1);
     }
 
+    public function test_completed_upgrade_remains_ready_after_slider_policy_changes(): void
+    {
+        $reservationId = $this->insertCompleteUpgradeReservation();
+        $this->completeUpgrade($reservationId, applyTarget: true);
+        $serviceId = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('service_id');
+        $this->assertNotNull($serviceId);
+        $optionId = DB::table('service_configs')
+            ->join(
+                'config_options',
+                'config_options.id',
+                '=',
+                'service_configs.config_option_id'
+            )
+            ->where('service_configs.configurable_type', Service::class)
+            ->where('service_configs.configurable_id', $serviceId)
+            ->where('config_options.env_variable', 'memory')
+            ->value('config_options.id');
+        $this->assertNotNull($optionId);
+        $option = ConfigOption::query()->findOrFail((int) $optionId);
+        $metadata = (array) $option->metadata;
+        $metadata['min'] = 9000;
+        $metadata['step'] = 2048;
+        $metadata['default'] = 9000;
+        $option->metadata = $metadata;
+        $option->save();
+
+        try {
+            $option->fresh()->normalizeDynamicSliderValue(8192);
+            $this->fail(
+                'Expected the historical target to violate the new slider policy.'
+            );
+        } catch (\InvalidArgumentException) {
+            $this->addToAssertionCount(1);
+        }
+
+        (new LegacyReservationReadinessService)->assertReady();
+
+        $this->addToAssertionCount(1);
+    }
+
     public function test_upgrade_source_and_target_billing_anchors_must_match(): void
     {
         $reservationId = $this->insertCompleteUpgradeReservation();
