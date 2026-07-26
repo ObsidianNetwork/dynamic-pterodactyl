@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
+use App\Models\Invoice;
 use App\Models\ServiceUpgrade;
 use App\Support\StrictDecimal;
 use App\Support\StrictInteger;
@@ -80,6 +81,50 @@ class UpgradeReservationIntegrityService
     public function verifiedSnapshot(
         object $upgrade,
         object $reservation
+    ): array {
+        return $this->verifySnapshot($upgrade, $reservation, null);
+    }
+
+    /**
+     * Verify the one transient lifecycle pair that exists while the locked
+     * paid-invoice transaction atomically commits its capacity reservation.
+     *
+     * @return array<string, mixed>
+     */
+    public function verifiedSnapshotForPaidCommit(
+        object $upgrade,
+        object $reservation,
+        Invoice $paidInvoice
+    ): array {
+        $invoiceId = StrictInteger::parse($paidInvoice->id ?? null);
+        if (
+            $invoiceId === null
+            || $invoiceId <= 0
+            || $paidInvoice->status !== Invoice::STATUS_PAID
+            || StrictInteger::parse($upgrade->invoice_id ?? null)
+                !== $invoiceId
+            || StrictInteger::parse($reservation->invoice_id ?? null)
+                !== $invoiceId
+        ) {
+            throw new InvalidStockConfigurationException(
+                'The paid upgrade invoice failed its atomic transition proof.'
+            );
+        }
+
+        return $this->verifySnapshot(
+            $upgrade,
+            $reservation,
+            $invoiceId
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function verifySnapshot(
+        object $upgrade,
+        object $reservation,
+        ?int $atomicPaidInvoiceId
     ): array {
         $payload = $reservation->configuration_payload;
         if (is_string($payload)) {
@@ -399,7 +444,8 @@ class UpgradeReservationIntegrityService
                 $invoiceUserId,
                 $invoiceCurrency,
                 $serviceUserId,
-                $serviceCurrency
+                $serviceCurrency,
+                $atomicPaidInvoiceId
             )
             || $productServerId === null
             || $reservationServerId !== $productServerId
@@ -980,7 +1026,8 @@ class UpgradeReservationIntegrityService
         ?int $invoiceUserId,
         string $invoiceCurrency,
         ?int $serviceUserId,
-        string $serviceCurrency
+        string $serviceCurrency,
+        ?int $atomicPaidInvoiceId
     ): bool {
         if (! $positiveQuote) {
             return $invoiceId === null;
@@ -995,14 +1042,15 @@ class UpgradeReservationIntegrityService
             return false;
         }
 
-        // The paid-invoice transition and the capacity commitment transition
-        // share one database transaction. A committed read can therefore see
-        // either the entirely unpaid pair or the entirely paid pair, never a
-        // paid invoice attached to a still-pending reservation. Treat that
-        // split state as lifecycle drift instead of masking a failed payment
-        // handoff and continuing to quote stock.
-        return $reservationStatus === 'pending'
-            ? $invoiceStatus === 'pending'
-            : $invoiceStatus === 'paid';
+        if ($reservationStatus === 'pending') {
+            return $invoiceStatus === 'pending'
+                || (
+                    $invoiceStatus === 'paid'
+                    && $atomicPaidInvoiceId !== null
+                    && $invoiceId === $atomicPaidInvoiceId
+                );
+        }
+
+        return $invoiceStatus === 'paid';
     }
 }

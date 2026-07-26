@@ -563,6 +563,40 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         );
     }
 
+    public function test_paid_commit_transition_does_not_bypass_invoice_line_proof(): void
+    {
+        $fixture = $this->fixture();
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $reservation = $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+        DB::table('invoice_items')
+            ->where('id', $invoice->items()->firstOrFail()->id)
+            ->update(['price' => 1]);
+        DB::table('invoices')->where('id', $invoice->id)->update([
+            'status' => Invoice::STATUS_PAID,
+        ]);
+
+        try {
+            $fixture->upgrades->commitPaidUpgrade(
+                $upgrade,
+                $invoice->fresh()
+            );
+            $this->fail(
+                'Expected the paid commit to reject a tampered invoice line.'
+            );
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'invoice line',
+                strtolower($exception->getMessage())
+            );
+        }
+
+        $this->assertSame('pending', $reservation->fresh()->status);
+        $this->assertNull($reservation->fresh()->paid_committed_at);
+    }
+
     public function test_dynamic_upgrade_rejects_non_resource_configuration_change(): void
     {
         $fixture = $this->fixture();
