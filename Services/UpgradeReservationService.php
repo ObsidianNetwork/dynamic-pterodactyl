@@ -257,14 +257,6 @@ class UpgradeReservationService
                 );
             }
             if (
-                ($integrityFailure = $this->reservationIntegrityError(
-                    $lockedUpgrade,
-                    $reservation
-                )) !== null
-            ) {
-                throw new PermanentProvisioningException($integrityFailure);
-            }
-            if (
                 $lockedInvoice !== null
                 && $lockedUpgrade->invoice_id !== null
                 && (int) $lockedUpgrade->invoice_id
@@ -300,6 +292,15 @@ class UpgradeReservationService
                 if ($invoiceMismatch !== null) {
                     throw new \RuntimeException($invoiceMismatch);
                 }
+            }
+            if (
+                ($integrityFailure = $this->reservationIntegrityError(
+                    $lockedUpgrade,
+                    $reservation,
+                    ! $alreadyPaid ? $lockedInvoice : null
+                )) !== null
+            ) {
+                throw new PermanentProvisioningException($integrityFailure);
             }
 
             if (! $alreadyPaid) {
@@ -1400,7 +1401,8 @@ class UpgradeReservationService
 
     private function reservationIntegrityError(
         ServiceUpgrade $upgrade,
-        UpgradeReservation $reservation
+        UpgradeReservation $reservation,
+        ?Invoice $paidCommitInvoice = null
     ): ?string {
         try {
             $upgrade->load([
@@ -1414,7 +1416,15 @@ class UpgradeReservationService
                 'configs.configValue',
             ]);
             $this->assertProductPanel($upgrade->service);
-            $this->integrity->verifiedSnapshot($upgrade, $reservation);
+            if ($paidCommitInvoice !== null) {
+                $this->integrity->verifiedSnapshotForPaidCommit(
+                    $upgrade,
+                    $reservation,
+                    $paidCommitInvoice
+                );
+            } else {
+                $this->integrity->verifiedSnapshot($upgrade, $reservation);
+            }
         } catch (\Throwable) {
             return 'The paid upgrade reservation failed its immutable integrity check.';
         }

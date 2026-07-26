@@ -2,6 +2,7 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Enums\InvoiceTransactionStatus;
 use App\Exceptions\PermanentProvisioningException;
 use App\Jobs\Server\CreateJob;
 use App\Jobs\Server\SuspendJob;
@@ -2087,8 +2088,17 @@ class ReservationServiceTest extends LaravelTestCase
             'description' => 'Dynamic service renewal',
         ]);
 
-        app(MarkInvoicePaidService::class)->handle($renewalInvoice);
+        $payment = ExtensionHelper::addPayment(
+            $renewalInvoice,
+            null,
+            $service->price,
+            transactionId: 'paid-renewal-reactivation'
+        );
 
+        $this->assertSame(
+            InvoiceTransactionStatus::Succeeded,
+            $payment->fresh()->status
+        );
         $this->assertSame(
             Invoice::STATUS_PAID,
             $renewalInvoice->fresh()->status
