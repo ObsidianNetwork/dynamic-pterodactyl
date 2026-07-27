@@ -732,7 +732,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         );
 
         $this->assertStringContainsString(
-            'immutable integrity',
+            'changed after the upgrade was quoted',
             strtolower((string) $failure)
         );
         $this->assertSame(

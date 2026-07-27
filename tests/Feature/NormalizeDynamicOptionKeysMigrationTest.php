@@ -197,7 +197,7 @@ class NormalizeDynamicOptionKeysMigrationTest extends LaravelTestCase
         );
         DB::table('config_options')
             ->where('id', $options['cpu']->id)
-            ->update(['metadata' => '{"resource_type":']);
+            ->update(['metadata' => '[]']);
 
         try {
             $this->runMigration();
