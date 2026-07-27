@@ -1443,7 +1443,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'service_id' => $service->id,
             'product_id' => $service->product_id,
             'plan_id' => $service->plan_id,
-            'invoice_id' => $invoice->id,
+            'invoice_id' => null,
             'status' => 'awaiting_payment',
             'active_service_guard_id' => $service->id,
             'type' => 'config_options',
@@ -1492,6 +1492,8 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'reference_id' => $upgrade->id,
             'reference_type' => ServiceUpgrade::class,
         ]);
+        $upgrade->invoice_id = $invoice->id;
+        ServiceUpgradeMutationCoordinator::save($upgrade);
         $sourceFingerprint = (string) $upgrade->source_fingerprint;
         $targetFingerprint = (string) $upgrade->target_fingerprint;
         $upgradeId = (int) $upgrade->id;
