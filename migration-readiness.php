@@ -353,7 +353,7 @@ return new class
             );
         }
 
-        throw new \RuntimeException(
+        throw new RuntimeException(
             'Dynamic Pterodactyl cannot finish upgrading because its dynamic '
             .'stock schema or fulfillment proofs are incomplete: '
             .implode('; ', $details)
@@ -588,8 +588,7 @@ return new class
         }
         usort(
             $expected,
-            fn (array $left, array $right): int =>
-                $left['allocation_id'] <=> $right['allocation_id']
+            fn (array $left, array $right): int => $left['allocation_id'] <=> $right['allocation_id']
         );
 
         $claims = DB::table('ptero_reservation_allocations')
@@ -618,12 +617,10 @@ return new class
             || (
                 $reservation->status === 'confirmed'
                     ? $claims->contains(
-                        fn (object $allocation): bool =>
-                            $allocation->released_at === null
+                        fn (object $allocation): bool => $allocation->released_at === null
                     )
                     : $claims->contains(
-                        fn (object $allocation): bool =>
-                            $allocation->released_at !== null
+                        fn (object $allocation): bool => $allocation->released_at !== null
                     )
             )
         ) {
@@ -868,7 +865,7 @@ return new class
                 $currentProduct = $upgrade->service?->product;
                 $targetProduct = $upgrade->product;
                 if ($currentProduct === null || $targetProduct === null) {
-                    throw new \RuntimeException(
+                    throw new RuntimeException(
                         'The active upgrade product identity is missing.'
                     );
                 }
@@ -898,7 +895,7 @@ return new class
                             $upgrade
                         )
                     );
-            } catch (\Throwable) {
+            } catch (Throwable) {
                 $dynamic = true;
                 $classificationFailed = true;
             }
@@ -1196,7 +1193,7 @@ return new class
             $panelIdentity = PanelEndpointIdentity::hash(
                 trim((string) ($settings['host'] ?? ''))
             );
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
 
@@ -1362,7 +1359,7 @@ return new class
                 'calculated_price' => $reservationAmount,
                 'config_options' => $configOptions,
             ]);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
 
@@ -1429,11 +1426,11 @@ return new class
             $selected[$resource] = $value;
             $optionIds[$optionId] = $resource;
         }
+
         return ! (
             $selected === []
             || collect($selected)->contains(
-                fn (int $value, string $resource): bool =>
-                    $value !== $payloadResources[$resource]
+                fn (int $value, string $resource): bool => $value !== $payloadResources[$resource]
             )
         );
     }
@@ -1446,7 +1443,7 @@ return new class
             $amount = $this->normalizedMoney(
                 $reservation->calculated_price ?? null
             );
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
         if ($amount[0] === '-') {
@@ -1491,7 +1488,7 @@ return new class
 
         try {
             $lineAmount = $this->normalizedMoney($item->price);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
 
@@ -1549,7 +1546,7 @@ return new class
                 }
                 $properties[$key] = $numericValue;
             }
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
 
@@ -1751,7 +1748,7 @@ return new class
                     'invoice',
                 ])
                 ->find($upgradeId);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
         if ($upgrade === null || $upgrade->service === null) {
@@ -1950,7 +1947,7 @@ return new class
                 ['pending', 'paid_committed'],
                 true
             ) || $upgrade->sourceStillMatches();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
 
@@ -2168,7 +2165,7 @@ return new class
                 512,
                 JSON_THROW_ON_ERROR
             );
-        } catch (\JsonException) {
+        } catch (JsonException) {
             return null;
         }
 
@@ -2188,7 +2185,7 @@ return new class
                     | JSON_PRESERVE_ZERO_FRACTION
                     | JSON_UNESCAPED_SLASHES
             ));
-        } catch (\JsonException) {
+        } catch (JsonException) {
             return null;
         }
     }
@@ -2426,21 +2423,15 @@ return new class
         return hash('sha256', json_encode(
             $this->canonicalizeUpgradeSnapshot([
                 'upgrade_id' => (int) $upgrade->id,
-                'source_fingerprint' =>
-                    (string) $upgrade->source_fingerprint,
-                'target_fingerprint' =>
-                    (string) $upgrade->target_fingerprint,
+                'source_fingerprint' => (string) $upgrade->source_fingerprint,
+                'target_fingerprint' => (string) $upgrade->target_fingerprint,
                 'panel_identity' => $payload['panel_identity'],
                 'node_id' => $payload['node_id'],
                 'location_id' => $payload['location_id'],
-                'external_server_id' =>
-                    $payload['external_server_id'],
-                'external_server_uuid' =>
-                    $payload['external_server_uuid'],
-                'external_server_identifier' =>
-                    $payload['external_server_identifier'],
-                'external_server_external_id' =>
-                    $payload['external_server_external_id'],
+                'external_server_id' => $payload['external_server_id'],
+                'external_server_uuid' => $payload['external_server_uuid'],
+                'external_server_identifier' => $payload['external_server_identifier'],
+                'external_server_external_id' => $payload['external_server_external_id'],
                 'external_user_id' => $payload['external_user_id'],
                 'user_external_id' => $payload['user_external_id'],
                 'user_email' => $payload['user_email'],
@@ -2448,16 +2439,14 @@ return new class
                 'egg_id' => $payload['egg_id'],
                 'preserved_build' => $payload['preserved_build'],
                 'allocation_id' => $payload['allocation_id'],
-                'assigned_allocation_ids' =>
-                    $payload['assigned_allocation_ids'],
+                'assigned_allocation_ids' => $payload['assigned_allocation_ids'],
                 'source' => $payload['source'],
                 'target' => $payload['target'],
                 'delta' => $payload['delta'],
                 'quoted_amount' => $this->normalizedMoney(
                     $upgrade->quoted_amount
                 ),
-                'currency_code' =>
-                    strtoupper((string) $upgrade->currency_code),
+                'currency_code' => strtoupper((string) $upgrade->currency_code),
             ]),
             JSON_THROW_ON_ERROR
                 | JSON_PRESERVE_ZERO_FRACTION
@@ -2472,8 +2461,7 @@ return new class
             'quoted_amount' => $this->normalizedMoney(
                 $upgrade->quoted_amount
             ),
-            'currency_code' =>
-                strtoupper((string) $upgrade->currency_code),
+            'currency_code' => strtoupper((string) $upgrade->currency_code),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
     }
 
@@ -2514,7 +2502,7 @@ return new class
 
         try {
             $lineAmount = $this->normalizedMoney($item->price);
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
 
@@ -2553,7 +2541,7 @@ return new class
                 512,
                 JSON_THROW_ON_ERROR
             );
-        } catch (\JsonException) {
+        } catch (JsonException) {
             return false;
         }
         if (! is_array($checkoutPayload)) {
@@ -2656,7 +2644,7 @@ return new class
             $panelIdentity = PanelEndpointIdentity::hash(
                 trim((string) ($settings['host'] ?? ''))
             );
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return false;
         }
 
@@ -2786,7 +2774,7 @@ return new class
                 512,
                 JSON_THROW_ON_ERROR
             );
-        } catch (\JsonException) {
+        } catch (JsonException) {
             $payload = null;
         }
         if (! is_array($payload)) {
@@ -2865,7 +2853,7 @@ return new class
         } elseif (is_string($value)) {
             $text = $value;
         } else {
-            throw new \UnexpectedValueException(
+            throw new UnexpectedValueException(
                 'The upgrade quote amount is invalid.'
             );
         }
@@ -2877,7 +2865,7 @@ return new class
                 $matches
             ) !== 1
         ) {
-            throw new \UnexpectedValueException(
+            throw new UnexpectedValueException(
                 'The upgrade quote amount is invalid.'
             );
         }
@@ -2887,7 +2875,7 @@ return new class
             strlen($fraction) > 2
             && trim(substr($fraction, 2), '0') !== ''
         ) {
-            throw new \UnexpectedValueException(
+            throw new UnexpectedValueException(
                 'The upgrade quote amount exceeds cent precision.'
             );
         }

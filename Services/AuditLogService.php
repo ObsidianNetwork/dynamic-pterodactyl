@@ -24,7 +24,7 @@ class AuditLogService
         $user = Auth::user();
 
         return DB::table('ptero_audit_logs')->insertGetId([
-            'user_id' => $user?->id ?? 0,
+            'user_id' => $user?->id,
             'user_name' => $user?->name ?? 'System',
             'user_email' => $user?->email ?? 'system@localhost',
             'action' => $action,

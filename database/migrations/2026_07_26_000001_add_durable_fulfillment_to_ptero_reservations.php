@@ -20,9 +20,9 @@ return new class extends Migration
 
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
             DB::statement(
-                "ALTER TABLE ptero_resource_reservations MODIFY status "
-                . "ENUM('pending','paid_committed','confirmed','expired','cancelled') "
-                . "NOT NULL DEFAULT 'pending'"
+                'ALTER TABLE ptero_resource_reservations MODIFY status '
+                ."ENUM('pending','paid_committed','confirmed','expired','cancelled') "
+                ."NOT NULL DEFAULT 'pending'"
             );
         } elseif ($driver === 'sqlite') {
             // Laravel represents SQLite enums as CHECK-constrained text.
@@ -173,9 +173,9 @@ return new class extends Migration
         $driver = DB::getDriverName();
         if (in_array($driver, ['mysql', 'mariadb'], true)) {
             DB::statement(
-                "ALTER TABLE ptero_resource_reservations MODIFY status "
-                . "ENUM('pending','confirmed','expired','cancelled') "
-                . "NOT NULL DEFAULT 'pending'"
+                'ALTER TABLE ptero_resource_reservations MODIFY status '
+                ."ENUM('pending','confirmed','expired','cancelled') "
+                ."NOT NULL DEFAULT 'pending'"
             );
         } elseif ($driver === 'sqlite') {
             Schema::table(

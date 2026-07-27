@@ -14,6 +14,7 @@ use App\Services\Invoice\CapacityInvoicePaymentService;
 use App\Services\Service\CapacityConfigurationLockService;
 use App\Services\Service\FulfillmentStatusTransitionService;
 use App\Services\Service\ProductStockService;
+use App\Services\Service\ServiceJobDispatchService;
 use App\Support\StrictInteger;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
@@ -29,6 +30,8 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExten
 class ReservationService
 {
     use AuditsExtensionActions;
+
+    private const MAX_ADMIN_EXTENSION_MINUTES = 60;
 
     private const PROVISIONING_LEASE_MINUTES = 5;
 
@@ -472,8 +475,7 @@ class ReservationService
             if (
                 $lockedInvoice !== null
                 && ! $invoiceItems->contains(
-                    fn ($item): bool =>
-                        (int) $item->reference_id === (int) $lockedService->id
+                    fn ($item): bool => (int) $item->reference_id === (int) $lockedService->id
                         && (string) $item->reference_type === $lockedService->getMorphClass()
                         && (int) $item->quantity === (int) $lockedService->quantity
                 )
@@ -871,8 +873,7 @@ class ReservationService
         int|Service $service,
         ?string $leaseId = null,
         array $externalServer = []
-    ): bool
-    {
+    ): bool {
         $serviceId = $service instanceof Service ? (int) $service->id : $service;
 
         return DB::transaction(function () use ($serviceId, $leaseId, $externalServer) {
@@ -963,8 +964,7 @@ class ReservationService
         int $serviceId,
         ?string $leaseId,
         \Throwable $exception
-    ): void
-    {
+    ): void {
         $attempts = (int) $this->checkoutCommitmentQuery($serviceId)
             ->value('provisioning_attempts');
         $delay = self::RETRY_DELAYS_SECONDS[
@@ -1010,7 +1010,7 @@ class ReservationService
                         'provisioning_lease_id' => null,
                         'admin_notes' => 'Service cancelled before payment.',
                         'updated_at' => now(),
-                ]);
+                    ]);
                 $this->releaseAllocationClaims((int) $reservation->id);
                 $this->releaseProductStockOnce($reservation, $lockedService);
                 $lockedService->status = Service::STATUS_CANCELLED;
@@ -1134,10 +1134,8 @@ class ReservationService
             $storedIdentity = [
                 'external_server_id' => $reservation->external_server_id,
                 'external_user_id' => $reservation->external_user_id,
-                'external_server_uuid' =>
-                    $reservation->external_server_uuid,
-                'external_server_identifier' =>
-                    $reservation->external_server_identifier,
+                'external_server_uuid' => $reservation->external_server_uuid,
+                'external_server_identifier' => $reservation->external_server_identifier,
             ];
             $hasStoredIdentity = collect($storedIdentity)
                 ->contains(fn ($value): bool => $value !== null);
@@ -1325,8 +1323,7 @@ class ReservationService
                 ? (int) $reservation->external_user_id
                 : null,
             'external_server_uuid' => $reservation->external_server_uuid,
-            'external_server_identifier' =>
-                $reservation->external_server_identifier,
+            'external_server_identifier' => $reservation->external_server_identifier,
             'external_server_external_id' => (string) $serviceId,
             'user_external_id' => $provisioning['user_external_id'] ?? null,
             'user_email' => $provisioning['user_email'] ?? null,
@@ -1530,10 +1527,10 @@ class ReservationService
                 ->where('status', 'pending')
                 ->whereNull('service_id')
                 ->update([
-                'status' => 'cancelled',
-                'admin_notes' => $reason,
-                'updated_at' => now(),
-            ]);
+                    'status' => 'cancelled',
+                    'admin_notes' => $reason,
+                    'updated_at' => now(),
+                ]);
             if ($updated !== 1) {
                 throw new \RuntimeException(
                     'The reservation changed while cancellation was being committed.'
@@ -1566,31 +1563,106 @@ class ReservationService
      */
     public function extend(string $token, int $additionalMinutes = 15, ?User $actor = null): bool
     {
-        $reservation = ResourceReservation::query()->where('token', $token)->first();
-        if ($reservation === null) {
+        if (
+            $additionalMinutes < 1
+            || $additionalMinutes > self::MAX_ADMIN_EXTENSION_MINUTES
+        ) {
+            throw new \InvalidArgumentException(
+                'A reservation extension must be between 1 and 60 minutes.'
+            );
+        }
+
+        $extended = DB::transaction(function () use (
+            $token,
+            $additionalMinutes,
+            $actor
+        ): ?array {
+            $reservation = ResourceReservation::query()
+                ->where('token', $token)
+                ->lockForUpdate()
+                ->first();
+            if ($reservation === null) {
+                return null;
+            }
+
+            if ($actor !== null) {
+                Gate::forUser($actor)->authorize('extend', $reservation);
+            }
+
+            if (
+                $reservation->status !== ResourceReservation::STATUS_PENDING
+                || $reservation->service_id !== null
+                || $reservation->invoice_id !== null
+            ) {
+                return null;
+            }
+
+            $now = now();
+            $currentExpiresAt = $reservation->expires_at?->copy();
+            $maximumExpiresAt = $now->copy()->addMinutes(
+                self::MAX_ADMIN_EXTENSION_MINUTES
+            );
+            if (
+                $currentExpiresAt === null
+                || ! $currentExpiresAt->greaterThan($now)
+                || ! $currentExpiresAt->lessThan($maximumExpiresAt)
+            ) {
+                return null;
+            }
+
+            $requestedExpiresAt = $currentExpiresAt
+                ->copy()
+                ->addMinutes($additionalMinutes);
+            $newExpiresAt = $requestedExpiresAt->greaterThan(
+                $maximumExpiresAt
+            )
+                ? $maximumExpiresAt
+                : $requestedExpiresAt;
+            $updated = DB::table('ptero_resource_reservations')
+                ->where('id', $reservation->id)
+                ->where(
+                    'status',
+                    ResourceReservation::STATUS_PENDING
+                )
+                ->whereNull('service_id')
+                ->whereNull('invoice_id')
+                ->update([
+                    'expires_at' => $newExpiresAt,
+                    'guaranteed_until' => $newExpiresAt,
+                    'updated_at' => $now,
+                ]);
+            if ($updated !== 1) {
+                throw new \RuntimeException(
+                    'The reservation changed while its extension was being committed.'
+                );
+            }
+
+            return [
+                'id' => (int) $reservation->id,
+                'node_id' => (int) $reservation->node_id,
+                'previous_expires_at' => $currentExpiresAt->toIso8601String(),
+                'expires_at' => $newExpiresAt->toIso8601String(),
+                'capped' => $requestedExpiresAt->greaterThan(
+                    $maximumExpiresAt
+                ),
+            ];
+        }, 5);
+        if ($extended === null) {
             return false;
         }
 
-        if ($actor !== null) {
-            Gate::forUser($actor)->authorize('extend', $reservation);
-        }
-
-        if ($reservation->status !== 'pending') {
-            return false;
-        }
-
-        if ($reservation->service_id !== null || $reservation->invoice_id !== null) {
-            return false;
-        }
-
-        $reservation->expires_at = $reservation->expires_at->addMinutes($additionalMinutes);
-        $reservation->guaranteed_until = $reservation->expires_at;
-        $reservation->save();
-
-        $this->safeAudit('reservation_extended', 'resource_reservation', $reservation->id, [
-            'additional_minutes' => $additionalMinutes,
-            'node_id' => $reservation->node_id,
-        ]);
+        $this->safeAudit(
+            'reservation_extended',
+            'resource_reservation',
+            $extended['id'],
+            [
+                'additional_minutes' => $additionalMinutes,
+                'previous_expires_at' => $extended['previous_expires_at'],
+                'expires_at' => $extended['expires_at'],
+                'capped' => $extended['capped'],
+                'node_id' => $extended['node_id'],
+            ]
+        );
 
         return true;
     }
@@ -1651,10 +1723,38 @@ class ReservationService
             ->pluck('count', 'status')
             ->toArray();
 
-        $revenue = DB::table('ptero_resource_reservations')
+        $revenueRows = DB::table('ptero_resource_reservations')
             ->where('created_at', '>=', $startDate)
             ->where('status', 'confirmed')
-            ->sum('calculated_price');
+            ->selectRaw('currency_code, SUM(calculated_price) as total')
+            ->groupBy('currency_code')
+            ->orderBy('currency_code')
+            ->get();
+        $revenueCents = [];
+        foreach ($revenueRows as $row) {
+            $currency = strtoupper(trim((string) $row->currency_code));
+            $cents = $this->moneyCents($row->total);
+            if ($cents === null) {
+                throw new \RuntimeException(
+                    'Confirmed reservation revenue contains an invalid amount.'
+                );
+            }
+            if (preg_match('/^[A-Z]{3}$/D', $currency) !== 1) {
+                $currency = 'UNSPECIFIED';
+            }
+            $current = $revenueCents[$currency] ?? 0;
+            if ($current > PHP_INT_MAX - $cents) {
+                throw new \RuntimeException(
+                    'Confirmed reservation revenue exceeds the supported range.'
+                );
+            }
+            $revenueCents[$currency] = $current + $cents;
+        }
+        ksort($revenueCents);
+        $revenueByCurrency = array_map(
+            fn (int $cents): string => $this->moneyFromCents($cents),
+            $revenueCents
+        );
 
         $average = DB::table('ptero_resource_reservations')
             ->where('created_at', '>=', $startDate)
@@ -1671,7 +1771,7 @@ class ReservationService
             'period' => $period,
             'total' => $total,
             'by_status' => $stats,
-            'confirmed_revenue' => $revenue,
+            'confirmed_revenue_by_currency' => $revenueByCurrency,
             'conversion_rate' => ($confirmed + $expired + $cancelled) > 0
                 ? round($confirmed / ($confirmed + $expired + $cancelled) * 100, 1)
                 : 0,
@@ -1683,125 +1783,219 @@ class ReservationService
         ];
     }
 
-    public function cleanupExpired(): int
+    public function cleanupExpired(int $limit = 100): int
     {
-        $candidateIds = DB::table('ptero_resource_reservations')
-            ->where('purpose', 'checkout')
-            ->where('status', 'pending')
-            ->whereRaw('COALESCE(guaranteed_until, expires_at) <= ?', [now()])
-            ->pluck('id');
-        $count = 0;
+        $limit = max(1, min($limit, 500));
+        $count = app(SchedulerHealthService::class)->processEligibleRows(
+            SchedulerHealthService::TASK_EXPIRE_CHECKOUT,
+            'resource_reservation',
+            $limit,
+            fn (): Builder => DB::table('ptero_resource_reservations')
+                ->where('purpose', 'checkout')
+                ->where('status', 'pending')
+                ->whereRaw(
+                    'COALESCE(guaranteed_until, expires_at) <= ?',
+                    [now()]
+                ),
+            function (int $candidateId): bool {
+                return DB::transaction(function () use ($candidateId) {
+                    $candidate = DB::table('ptero_resource_reservations')->where('id', $candidateId)->first();
+                    if ($candidate === null) {
+                        return false;
+                    }
 
-        foreach ($candidateIds as $candidateId) {
-            $changed = DB::transaction(function () use ($candidateId) {
-                $candidate = DB::table('ptero_resource_reservations')->where('id', $candidateId)->first();
-                if ($candidate === null) {
-                    return false;
-                }
-
-                $invoice = $candidate->invoice_id !== null
-                    ? Invoice::query()->whereKey($candidate->invoice_id)->lockForUpdate()->first()
-                    : null;
-                $itemSnapshotIds = $invoice !== null
-                    ? $invoice->items()->orderBy('id')->pluck('id')
-                    : collect();
-                $serviceIds = $invoice !== null
-                    ? $invoice->items()
-                        ->where('reference_type', Service::class)
-                        ->pluck('reference_id')
-                        ->merge(
-                            DB::table('ptero_resource_reservations')
-                                ->where('purpose', 'checkout')
-                                ->where('invoice_id', $invoice->id)
-                                ->pluck('service_id')
-                        )
-                        ->filter()
-                        ->map(fn ($id) => (int) $id)
-                        ->unique()
-                        ->sort()
-                        ->values()
-                    : collect(array_filter([(int) ($candidate->service_id ?? 0)]));
-                $services = Service::query()
-                    ->whereKey($serviceIds->all())
-                    ->orderBy('id')
-                    ->lockForUpdate()
-                    ->get();
-                $service = $services->firstWhere('id', (int) $candidate->service_id);
-                $reservations = DB::table('ptero_resource_reservations')
-                    ->where('purpose', 'checkout')
-                    ->when(
-                        $invoice !== null,
-                        fn (Builder $query) => $query->where(
-                            'invoice_id',
-                            $invoice->id
-                        ),
-                        fn (Builder $query) => $query->where('id', $candidateId)
-                    )
-                    ->orderBy('id')
-                    ->lockForUpdate()
-                    ->get();
-                $reservation = $reservations->firstWhere('id', $candidateId);
-                $lockedItems = $invoice !== null
-                    ? $invoice->items()
+                    $invoice = $candidate->invoice_id !== null
+                        ? Invoice::query()->whereKey($candidate->invoice_id)->lockForUpdate()->first()
+                        : null;
+                    $itemSnapshotIds = $invoice !== null
+                        ? $invoice->items()->orderBy('id')->pluck('id')
+                        : collect();
+                    $serviceIds = $invoice !== null
+                        ? $invoice->items()
+                            ->where('reference_type', Service::class)
+                            ->pluck('reference_id')
+                            ->merge(
+                                DB::table('ptero_resource_reservations')
+                                    ->where('purpose', 'checkout')
+                                    ->where('invoice_id', $invoice->id)
+                                    ->pluck('service_id')
+                            )
+                            ->filter()
+                            ->map(fn ($id) => (int) $id)
+                            ->unique()
+                            ->sort()
+                            ->values()
+                        : collect(array_filter([(int) ($candidate->service_id ?? 0)]));
+                    $services = Service::query()
+                        ->whereKey($serviceIds->all())
                         ->orderBy('id')
                         ->lockForUpdate()
-                        ->get()
-                    : collect();
-                if (
-                    $invoice !== null
-                    && $lockedItems->pluck('id')->all()
-                        !== $itemSnapshotIds->all()
-                ) {
-                    throw new \RuntimeException(
-                        'The capacity invoice obligations changed while expiry was acquiring its locks.'
-                    );
-                }
+                        ->get();
+                    $service = $services->firstWhere('id', (int) $candidate->service_id);
+                    $reservations = DB::table('ptero_resource_reservations')
+                        ->where('purpose', 'checkout')
+                        ->when(
+                            $invoice !== null,
+                            fn (Builder $query) => $query->where(
+                                'invoice_id',
+                                $invoice->id
+                            ),
+                            fn (Builder $query) => $query->where('id', $candidateId)
+                        )
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+                    $reservation = $reservations->firstWhere('id', $candidateId);
+                    $lockedItems = $invoice !== null
+                        ? $invoice->items()
+                            ->orderBy('id')
+                            ->lockForUpdate()
+                            ->get()
+                        : collect();
+                    if (
+                        $invoice !== null
+                        && $lockedItems->pluck('id')->all()
+                            !== $itemSnapshotIds->all()
+                    ) {
+                        throw new \RuntimeException(
+                            'The capacity invoice obligations changed while expiry was acquiring its locks.'
+                        );
+                    }
 
-                if (
-                    $reservation === null
-                    || $reservation->status !== ResourceReservation::STATUS_PENDING
-                    || Carbon::parse(
-                        $reservation->guaranteed_until ?? $reservation->expires_at
-                    )->isFuture()
-                ) {
-                    return false;
-                }
+                    if (
+                        $reservation === null
+                        || $reservation->status !== ResourceReservation::STATUS_PENDING
+                        || Carbon::parse(
+                            $reservation->guaranteed_until ?? $reservation->expires_at
+                        )->isFuture()
+                    ) {
+                        return false;
+                    }
 
-                if ($invoice?->status === Invoice::STATUS_PAID && $service !== null) {
-                    $reason = 'A paid invoice was found after its capacity guarantee expired before fulfillment was committed.';
-                    $snapshot = [
-                        'reservation_id' => (int) $reservation->id,
-                        'service_id' => (int) $service->id,
-                        'invoice_id' => (int) $invoice->id,
-                        'node_id' => (int) $reservation->node_id,
-                        'memory' => (int) $reservation->memory,
-                        'cpu' => (int) $reservation->cpu,
-                        'disk' => (int) $reservation->disk,
-                        'attempts' => (int) $reservation->provisioning_attempts,
-                        'error' => $reason,
-                    ];
-                    $expiringReservations = $reservations->where(
-                        'status',
-                        ResourceReservation::STATUS_PENDING
-                    );
-                    foreach ($expiringReservations as $expiringReservation) {
+                    if ($invoice?->status === Invoice::STATUS_PAID && $service !== null) {
+                        $reason = 'A paid invoice was found after its capacity guarantee expired before fulfillment was committed.';
+                        $snapshot = [
+                            'reservation_id' => (int) $reservation->id,
+                            'service_id' => (int) $service->id,
+                            'invoice_id' => (int) $invoice->id,
+                            'node_id' => (int) $reservation->node_id,
+                            'memory' => (int) $reservation->memory,
+                            'cpu' => (int) $reservation->cpu,
+                            'disk' => (int) $reservation->disk,
+                            'attempts' => (int) $reservation->provisioning_attempts,
+                            'error' => $reason,
+                        ];
+                        $expiringReservations = $reservations->where(
+                            'status',
+                            ResourceReservation::STATUS_PENDING
+                        );
+                        foreach ($expiringReservations as $expiringReservation) {
+                            DB::table('ptero_resource_reservations')
+                                ->where('id', $expiringReservation->id)
+                                ->update([
+                                    'status' => ResourceReservation::STATUS_EXPIRED,
+                                    'last_provisioning_error' => $reason,
+                                    'failure_alerted_at' => $expiringReservation->failure_alerted_at ?? now(),
+                                    'admin_notes' => $reason,
+                                    'updated_at' => now(),
+                                ]);
+                            $this->releaseAllocationClaims(
+                                (int) $expiringReservation->id
+                            );
+                        }
+                        foreach ($services as $linkedService) {
+                            if ($linkedService->status !== Service::STATUS_PENDING) {
+                                continue;
+                            }
+                            $linkedReservation = $reservations->firstWhere(
+                                'service_id',
+                                $linkedService->id
+                            );
+                            if ($linkedReservation !== null) {
+                                $this->releaseProductStockOnce(
+                                    $linkedReservation,
+                                    $linkedService
+                                );
+                            } else {
+                                app(ProductStockService::class)->release(
+                                    $linkedService
+                                );
+                            }
+                            $linkedService->status = Service::STATUS_PROVISIONING_FAILED;
+                            $this->persistFulfillmentService($linkedService);
+                        }
+
+                        if ($reservation->failure_alerted_at === null) {
+                            DB::afterCommit(function () use ($snapshot, $reason) {
+                                $alerts = app(AlertService::class);
+                                if (method_exists($alerts, 'notifyShortfall')) {
+                                    $alerts->notifyShortfall(
+                                        $snapshot['service_id'],
+                                        $snapshot['invoice_id'],
+                                        $snapshot,
+                                        $reason
+                                    );
+                                } else {
+                                    $alerts->notifyProvisioningFailure($snapshot);
+                                }
+                            });
+                        }
+
+                        return true;
+                    }
+
+                    if (
+                        $invoice?->status === Invoice::STATUS_PAID
+                        || $service?->status === 'provisioning'
+                    ) {
+                        throw new \RuntimeException(
+                            'An expired hold cannot be reclaimed after payment or provisioning begins.'
+                        );
+                    }
+
+                    $paymentAttention = $invoice !== null
+                        && $invoice->status === Invoice::STATUS_PENDING
+                        && app(CapacityInvoicePaymentService::class)
+                            ->hasInFlightOrSucceededPayment($invoice);
+
+                    foreach (
+                        $reservations->where(
+                            'status',
+                            ResourceReservation::STATUS_PENDING
+                        ) as $expiringReservation
+                    ) {
                         DB::table('ptero_resource_reservations')
                             ->where('id', $expiringReservation->id)
                             ->update([
-                            'status' => ResourceReservation::STATUS_EXPIRED,
-                            'last_provisioning_error' => $reason,
-                            'failure_alerted_at' => $expiringReservation->failure_alerted_at ?? now(),
-                            'admin_notes' => $reason,
-                            'updated_at' => now(),
-                        ]);
+                                'status' => ResourceReservation::STATUS_EXPIRED,
+                                'provisioning_started_at' => null,
+                                'provisioning_lease_id' => null,
+                                'updated_at' => now(),
+                            ]);
                         $this->releaseAllocationClaims(
                             (int) $expiringReservation->id
                         );
+                    }
+
+                    if ($paymentAttention) {
+                        app(CapacityInvoicePaymentService::class)->requireAttention(
+                            $invoice,
+                            'The seven-day capacity guarantee expired after a partial or in-flight payment. Capacity was released; refund or account-credit review is required.'
+                        );
+                    } elseif ($invoice !== null && $invoice->status === Invoice::STATUS_PENDING) {
+                        app(CancelInvoiceService::class)
+                            ->markCancelledAfterFulfillment($invoice);
                     }
                     foreach ($services as $linkedService) {
                         if ($linkedService->status !== Service::STATUS_PENDING) {
                             continue;
                         }
+
+                        $linkedService->status = $paymentAttention
+                            ? Service::STATUS_PROVISIONING_FAILED
+                            : Service::STATUS_CANCELLED;
+                        $this->persistFulfillmentService($linkedService);
+
                         $linkedReservation = $reservations->firstWhere(
                             'service_id',
                             $linkedService->id
@@ -1812,106 +2006,14 @@ class ReservationService
                                 $linkedService
                             );
                         } else {
-                            app(ProductStockService::class)->release(
-                                $linkedService
-                            );
+                            app(ProductStockService::class)->release($linkedService);
                         }
-                        $linkedService->status = Service::STATUS_PROVISIONING_FAILED;
-                        $this->persistFulfillmentService($linkedService);
-                    }
-
-                    if ($reservation->failure_alerted_at === null) {
-                        DB::afterCommit(function () use ($snapshot, $reason) {
-                            $alerts = app(AlertService::class);
-                            if (method_exists($alerts, 'notifyShortfall')) {
-                                $alerts->notifyShortfall(
-                                    $snapshot['service_id'],
-                                    $snapshot['invoice_id'],
-                                    $snapshot,
-                                    $reason
-                                );
-                            } else {
-                                $alerts->notifyProvisioningFailure($snapshot);
-                            }
-                        });
                     }
 
                     return true;
-                }
-
-                if (
-                    $invoice?->status === Invoice::STATUS_PAID
-                    || $service?->status === 'provisioning'
-                ) {
-                    throw new \RuntimeException(
-                        'An expired hold cannot be reclaimed after payment or provisioning begins.'
-                    );
-                }
-
-                $paymentAttention = $invoice !== null
-                    && $invoice->status === Invoice::STATUS_PENDING
-                    && app(CapacityInvoicePaymentService::class)
-                        ->hasInFlightOrSucceededPayment($invoice);
-
-                foreach (
-                    $reservations->where(
-                        'status',
-                        ResourceReservation::STATUS_PENDING
-                    ) as $expiringReservation
-                ) {
-                    DB::table('ptero_resource_reservations')
-                        ->where('id', $expiringReservation->id)
-                        ->update([
-                        'status' => ResourceReservation::STATUS_EXPIRED,
-                        'provisioning_started_at' => null,
-                        'provisioning_lease_id' => null,
-                        'updated_at' => now(),
-                    ]);
-                    $this->releaseAllocationClaims(
-                        (int) $expiringReservation->id
-                    );
-                }
-
-                if ($paymentAttention) {
-                    app(CapacityInvoicePaymentService::class)->requireAttention(
-                        $invoice,
-                        'The seven-day capacity guarantee expired after a partial or in-flight payment. Capacity was released; refund or account-credit review is required.'
-                    );
-                } elseif ($invoice !== null && $invoice->status === Invoice::STATUS_PENDING) {
-                    app(CancelInvoiceService::class)
-                        ->markCancelledAfterFulfillment($invoice);
-                }
-                foreach ($services as $linkedService) {
-                    if ($linkedService->status !== Service::STATUS_PENDING) {
-                        continue;
-                    }
-
-                    $linkedService->status = $paymentAttention
-                        ? Service::STATUS_PROVISIONING_FAILED
-                        : Service::STATUS_CANCELLED;
-                    $this->persistFulfillmentService($linkedService);
-
-                    $linkedReservation = $reservations->firstWhere(
-                        'service_id',
-                        $linkedService->id
-                    );
-                    if ($linkedReservation !== null) {
-                        $this->releaseProductStockOnce(
-                            $linkedReservation,
-                            $linkedService
-                        );
-                    } else {
-                        app(ProductStockService::class)->release($linkedService);
-                    }
-                }
-
-                return true;
-            }, 5);
-
-            if ($changed) {
-                $count++;
+                }, 5);
             }
-        }
+        );
 
         if ($count > 0) {
             $this->safeAudit('reservations_expired_batch', 'resource_reservation', 0, [
@@ -1929,85 +2031,110 @@ class ReservationService
      */
     public function reconcileStalledPaidCommitments(int $limit = 100): int
     {
+        $limit = max(1, min($limit, 500));
         $cutoff = now()->subMinutes(self::PROVISIONING_LEASE_MINUTES);
-        $reservationIds = DB::table('ptero_resource_reservations')
-            ->where('status', ResourceReservation::STATUS_PAID_COMMITTED)
-            ->whereNull('cancellation_requested_at')
-            ->where(function (Builder $query) {
-                $query->whereNull('next_provisioning_attempt_at')
-                    ->orWhere('next_provisioning_attempt_at', '<=', now());
-            })
-            ->where(function (Builder $query) use ($cutoff) {
-                $query->whereNull('provisioning_started_at')
-                    ->orWhere('provisioning_started_at', '<=', $cutoff);
-            })
-            ->orderBy('next_provisioning_attempt_at')
-            ->limit($limit)
-            ->pluck('id');
 
-        $dispatched = 0;
-        foreach ($reservationIds as $reservationId) {
-            $service = DB::transaction(function () use ($reservationId, $cutoff) {
-                $candidate = DB::table('ptero_resource_reservations')
-                    ->where('id', $reservationId)
-                    ->first(['service_id']);
-                if ($candidate?->service_id === null) {
-                    return null;
-                }
+        return app(SchedulerHealthService::class)->processEligibleRows(
+            SchedulerHealthService::TASK_RECONCILE_CHECKOUT,
+            'resource_reservation',
+            $limit,
+            fn (): Builder => DB::table('ptero_resource_reservations')
+                ->where(
+                    'status',
+                    ResourceReservation::STATUS_PAID_COMMITTED
+                )
+                ->whereNull('cancellation_requested_at')
+                ->where(function (Builder $query): void {
+                    $query->whereNull('next_provisioning_attempt_at')
+                        ->orWhere(
+                            'next_provisioning_attempt_at',
+                            '<=',
+                            now()
+                        );
+                })
+                ->where(function (Builder $query) use ($cutoff): void {
+                    $query->whereNull('provisioning_started_at')
+                        ->orWhere('provisioning_started_at', '<=', $cutoff);
+                }),
+            function (int $reservationId) use ($cutoff): bool {
+                $service = DB::transaction(
+                    function () use ($reservationId, $cutoff) {
+                        $candidate = DB::table(
+                            'ptero_resource_reservations'
+                        )
+                            ->where('id', $reservationId)
+                            ->first(['service_id']);
+                        if ($candidate?->service_id === null) {
+                            return null;
+                        }
 
-                $service = Service::query()
-                    ->whereKey($candidate->service_id)
-                    ->lockForUpdate()
-                    ->first();
-                $reservation = DB::table('ptero_resource_reservations')
-                    ->where('id', $reservationId)
-                    ->lockForUpdate()
-                    ->first();
+                        $service = Service::query()
+                            ->whereKey($candidate->service_id)
+                            ->lockForUpdate()
+                            ->first();
+                        $reservation = DB::table(
+                            'ptero_resource_reservations'
+                        )
+                            ->where('id', $reservationId)
+                            ->lockForUpdate()
+                            ->first();
+                        if (
+                            $service === null
+                            || $service->status
+                                !== Service::STATUS_PROVISIONING
+                            || $reservation === null
+                            || $reservation->status
+                                !== ResourceReservation::STATUS_PAID_COMMITTED
+                            || $reservation->cancellation_requested_at !== null
+                            || (
+                                $reservation->next_provisioning_attempt_at
+                                    !== null
+                                && Carbon::parse(
+                                    $reservation
+                                        ->next_provisioning_attempt_at
+                                )->isFuture()
+                            )
+                            || (
+                                $reservation->provisioning_started_at !== null
+                                && Carbon::parse(
+                                    $reservation->provisioning_started_at
+                                )->greaterThan($cutoff)
+                            )
+                        ) {
+                            return null;
+                        }
+
+                        DB::table('ptero_resource_reservations')
+                            ->where('id', $reservationId)
+                            ->update([
+                                'provisioning_started_at' => null,
+                                'provisioning_lease_id' => null,
+                                'next_provisioning_attempt_at' => now()
+                                    ->addMinutes(10),
+                                'updated_at' => now(),
+                            ]);
+
+                        return $service;
+                    },
+                    5
+                );
+
                 if (
                     $service === null
-                    || $service->status !== Service::STATUS_PROVISIONING
-                    || $reservation === null
-                    || $reservation->status !== ResourceReservation::STATUS_PAID_COMMITTED
-                    || $reservation->cancellation_requested_at !== null
-                    || (
-                        $reservation->next_provisioning_attempt_at !== null
-                        && Carbon::parse($reservation->next_provisioning_attempt_at)->isFuture()
-                    )
-                    || (
-                        $reservation->provisioning_started_at !== null
-                        && Carbon::parse($reservation->provisioning_started_at)->greaterThan($cutoff)
-                    )
+                    || ! class_exists(ServiceJobDispatchService::class)
                 ) {
-                    return null;
+                    return false;
                 }
 
-                DB::table('ptero_resource_reservations')
-                    ->where('id', $reservationId)
-                    ->update([
-                        'provisioning_started_at' => null,
-                        'provisioning_lease_id' => null,
-                        'next_provisioning_attempt_at' => now()->addMinutes(10),
-                        'updated_at' => now(),
-                    ]);
+                app(ServiceJobDispatchService::class)
+                    ->requestCreate($service);
 
-                return $service;
-            }, 5);
-
-            if ($service === null) {
-                continue;
+                return true;
             }
-
-            if (class_exists(\App\Jobs\Server\CreateJob::class)) {
-                \App\Jobs\Server\CreateJob::dispatch($service);
-                $dispatched++;
-            }
-        }
-
-        return $dispatched;
+        );
     }
 
     /**
-     * @param  object  $reservation
      * @param  array<string, mixed>  $snapshot
      */
     private function matchesSnapshot(object $reservation, array $snapshot): bool
@@ -2031,7 +2158,6 @@ class ReservationService
     }
 
     /**
-     * @param  object  $reservation
      * @return array{
      *     reservation_id: int,
      *     panel_identity: string,
@@ -2052,8 +2178,7 @@ class ReservationService
         object $reservation,
         bool $alreadyConsumed,
         ?string $leaseId = null
-    ): array
-    {
+    ): array {
         try {
             $payload = json_decode(
                 (string) $reservation->configuration_payload,
@@ -2070,10 +2195,10 @@ class ReservationService
         $identity = is_array($payload)
             ? (array) ($payload['provisioning_identity'] ?? [])
             : [];
-        $nestId = \App\Support\StrictInteger::parse(
+        $nestId = StrictInteger::parse(
             $identity['nest_id'] ?? null
         );
-        $eggId = \App\Support\StrictInteger::parse(
+        $eggId = StrictInteger::parse(
             $identity['egg_id'] ?? null
         );
         $userExternalId = $identity['user_external_id'] ?? null;
@@ -2155,13 +2280,11 @@ class ReservationService
         $requirements = array_values(array_merge(
             array_filter(
                 $requirements,
-                fn (array $requirement): bool =>
-                    ($requirement['requested_port'] ?? null) !== null
+                fn (array $requirement): bool => ($requirement['requested_port'] ?? null) !== null
             ),
             array_filter(
                 $requirements,
-                fn (array $requirement): bool =>
-                    ($requirement['requested_port'] ?? null) === null
+                fn (array $requirement): bool => ($requirement['requested_port'] ?? null) === null
             )
         ));
 
@@ -2251,7 +2374,6 @@ class ReservationService
     }
 
     /**
-     * @param  object  $reservation
      * @return array<string, mixed>
      */
     private function buildCancellationReconciliationContext(
@@ -2338,8 +2460,7 @@ class ReservationService
 
         return [
             'reservation_id' => (int) $reservation->id,
-            'configuration_fingerprint' =>
-                (string) $reservation->configuration_fingerprint,
+            'configuration_fingerprint' => (string) $reservation->configuration_fingerprint,
             'status' => (string) $reservation->status,
             'panel_identity' => (string) $reservation->panel_identity,
             'external_server_external_id' => (string) $service->id,
@@ -2467,16 +2588,13 @@ class ReservationService
 
         $reserved = collect($context['allocations'] ?? []);
         $reservedIds = $reserved
-            ->map(fn (array $allocation): int =>
-                (int) ($allocation['allocation_id'] ?? 0))
+            ->map(fn (array $allocation): int => (int) ($allocation['allocation_id'] ?? 0))
             ->sort()
             ->values()
             ->all();
         $primaryIds = $reserved
-            ->filter(fn (array $allocation): bool =>
-                (bool) ($allocation['is_primary'] ?? false))
-            ->map(fn (array $allocation): int =>
-                (int) ($allocation['allocation_id'] ?? 0))
+            ->filter(fn (array $allocation): bool => (bool) ($allocation['is_primary'] ?? false))
+            ->map(fn (array $allocation): int => (int) ($allocation['allocation_id'] ?? 0))
             ->values();
         if (
             $reservedIds === []
@@ -2497,7 +2615,7 @@ class ReservationService
      */
     private function capacityScopeKey(array $scope): string
     {
-        return $scope['panel_identity'] . ':' . $scope['location_id'];
+        return $scope['panel_identity'].':'.$scope['location_id'];
     }
 
     private function checkoutCommitmentQuery(int $serviceId): Builder
@@ -2596,6 +2714,19 @@ class ReservationService
 
         return $whole * 100
             + (int) str_pad(substr($fraction, 0, 2), 2, '0');
+    }
+
+    private function moneyFromCents(int $cents): string
+    {
+        if ($cents < 0) {
+            throw new \RuntimeException(
+                'Reservation revenue cannot be negative.'
+            );
+        }
+
+        return intdiv($cents, 100)
+            .'.'
+            .str_pad((string) ($cents % 100), 2, '0', STR_PAD_LEFT);
     }
 
     /**

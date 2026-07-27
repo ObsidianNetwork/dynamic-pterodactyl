@@ -98,8 +98,7 @@ class NodeCapacityPolicyResource extends Resource
                 TextColumn::make('effective_cpu')
                     ->label('Effective CPU')
                     ->getStateUsing(
-                        fn (NodeCapacityPolicy $record): string =>
-                            number_format($record->effectiveCpuCapacity()).'%'
+                        fn (NodeCapacityPolicy $record): string => number_format($record->effectiveCpuCapacity()).'%'
                     ),
                 IconColumn::make('enabled')->boolean(),
             ])

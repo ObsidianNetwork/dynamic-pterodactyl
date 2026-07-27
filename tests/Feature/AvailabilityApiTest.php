@@ -14,7 +14,7 @@ class AvailabilityApiTest extends LaravelTestCase
     {
         parent::setUp();
 
-        require __DIR__ . '/../../routes/api.php';
+        require __DIR__.'/../../routes/api.php';
     }
 
     public function test_legacy_independent_maximum_availability_route_is_removed(): void

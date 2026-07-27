@@ -349,8 +349,7 @@ class ProductResourceConfigurationService
     private function allocationRequirements(
         mixed $raw,
         int $additionalAllocations = 0
-    ): array
-    {
+    ): array {
         if ($raw === null || $raw === '') {
             $mappings = [[
                 'environment_key' => 'SERVER_PORT',
@@ -503,8 +502,7 @@ class ProductResourceConfigurationService
 
         usort(
             $ranges,
-            fn (array $left, array $right): int =>
-                [$left['from'], $left['to']] <=> [$right['from'], $right['to']]
+            fn (array $left, array $right): int => [$left['from'], $left['to']] <=> [$right['from'], $right['to']]
         );
         $merged = [];
         foreach ($ranges as $range) {

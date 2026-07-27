@@ -11,6 +11,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 class NodeSelectionServiceTest extends LaravelTestCase
 {
     private NodeSelectionService $service;
+
     private $mockResourceService;
 
     protected function setUp(): void
@@ -20,7 +21,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         $this->mockResourceService = Mockery::mock(ResourceCalculationService::class);
         $this->service = new NodeSelectionService(
             $this->mockResourceService,
-            new AllocationSelectionService()
+            new AllocationSelectionService
         );
     }
 

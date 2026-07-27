@@ -82,382 +82,382 @@ class SetupWizard extends Page implements HasForms
         return $schema
             ->components([
                 Form::make([
-                Tabs::make('Wizard')->tabs([
+                    Tabs::make('Wizard')->tabs([
 
-                    // TAB 1: Product Selection
-                    Tabs\Tab::make('Product')
-                        ->icon('heroicon-o-cube')
-                        ->schema([
-                            Select::make('product_id')
-                                ->label('Select Product')
-                                ->options(fn () => Product::query()
-                                    ->where('hidden', false)
-                                    ->whereHas('server', fn ($query) => $query
-                                        ->where('extension', 'Pterodactyl')
-                                        ->where('enabled', true))
-                                    ->pluck('name', 'id'))
-                                ->required()
-                                ->searchable()
-                                ->live()
-                                ->afterStateUpdated(function (Get $get, Set $set, ?int $state) {
-                                    if ($state) {
-                                        $this->checkExistingOptions($state);
-                                    } else {
-                                        $this->existingOptions = null;
-                                        $this->showOverwriteWarning = false;
-                                    }
-                                }),
+                        // TAB 1: Product Selection
+                        Tabs\Tab::make('Product')
+                            ->icon('heroicon-o-cube')
+                            ->schema([
+                                Select::make('product_id')
+                                    ->label('Select Product')
+                                    ->options(fn () => Product::query()
+                                        ->where('hidden', false)
+                                        ->whereHas('server', fn ($query) => $query
+                                            ->where('extension', 'Pterodactyl')
+                                            ->where('enabled', true))
+                                        ->pluck('name', 'id'))
+                                    ->required()
+                                    ->searchable()
+                                    ->live()
+                                    ->afterStateUpdated(function (Get $get, Set $set, ?int $state) {
+                                        if ($state) {
+                                            $this->checkExistingOptions($state);
+                                        } else {
+                                            $this->existingOptions = null;
+                                            $this->showOverwriteWarning = false;
+                                        }
+                                    }),
 
-                            Placeholder::make('existing_warning')
-                                ->label('')
-                                ->content(fn () => $this->showOverwriteWarning
-                                    ? '⚠️ This product already has ' . ($this->existingOptions['existing_count'] ?? 0) . ' dynamic slider config option(s). Running the wizard will update them.'
-                                    : '')
-                                ->visible(fn () => $this->showOverwriteWarning),
+                                Placeholder::make('existing_warning')
+                                    ->label('')
+                                    ->content(fn () => $this->showOverwriteWarning
+                                        ? '⚠️ This product already has '.($this->existingOptions['existing_count'] ?? 0).' dynamic slider config option(s). Running the wizard will update them.'
+                                        : '')
+                                    ->visible(fn () => $this->showOverwriteWarning),
 
-                            Section::make('Pricing Model')
-                                ->schema([
-                                    Select::make('pricing_model')
-                                        ->options([
-                                            'linear' => 'Linear (per-unit pricing)',
-                                            'tiered' => 'Tiered (volume discounts)',
-                                            'base_addon' => 'Base + Addon',
-                                        ])
-                                        ->default('linear')
-                                        ->live()
-                                        ->required(),
+                                Section::make('Pricing Model')
+                                    ->schema([
+                                        Select::make('pricing_model')
+                                            ->options([
+                                                'linear' => 'Linear (per-unit pricing)',
+                                                'tiered' => 'Tiered (volume discounts)',
+                                                'base_addon' => 'Base + Addon',
+                                            ])
+                                            ->default('linear')
+                                            ->live()
+                                            ->required(),
 
-                                    TextInput::make('base_price')
-                                        ->label('Base Price')
-                                        ->prefix('$')
-                                        ->numeric()
-                                        ->required()
-                                        ->minValue(0)
-                                        ->default(0)
-                                        ->helperText('Monthly base price before resource costs'),
-                                ]),
-                        ]),
+                                        TextInput::make('base_price')
+                                            ->label('Base Price')
+                                            ->prefix('$')
+                                            ->numeric()
+                                            ->required()
+                                            ->minValue(0)
+                                            ->default(0)
+                                            ->helperText('Monthly base price before resource costs'),
+                                    ]),
+                            ]),
 
-                    // TAB 2: Resource Sliders
-                    Tabs\Tab::make('Sliders')
-                        ->icon('heroicon-o-adjustments-horizontal')
-                        ->schema([
-                            // Memory Slider
-                            Section::make('Memory Slider')
-                                ->schema([
-                                    Toggle::make('enable_memory_slider')
-                                        ->label('Enable Memory Slider')
-                                        ->default(true)
-                                        ->live(),
-                                    Grid::make(4)
-                                        ->visible(fn (Get $get) => $get('enable_memory_slider'))
-                                        ->schema([
-                                            TextInput::make('memory_min')
-                                                ->label('Min')
+                        // TAB 2: Resource Sliders
+                        Tabs\Tab::make('Sliders')
+                            ->icon('heroicon-o-adjustments-horizontal')
+                            ->schema([
+                                // Memory Slider
+                                Section::make('Memory Slider')
+                                    ->schema([
+                                        Toggle::make('enable_memory_slider')
+                                            ->label('Enable Memory Slider')
+                                            ->default(true)
+                                            ->live(),
+                                        Grid::make(4)
+                                            ->visible(fn (Get $get) => $get('enable_memory_slider'))
+                                            ->schema([
+                                                TextInput::make('memory_min')
+                                                    ->label('Min')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(1),
+                                                TextInput::make('memory_max')
+                                                    ->label('Max')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(64),
+                                                TextInput::make('memory_step')
+                                                    ->label('Step')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(1),
+                                                TextInput::make('memory_default')
+                                                    ->label('Default')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(4),
+                                            ]),
+                                    ]),
+
+                                // CPU Slider
+                                Section::make('CPU Slider')
+                                    ->schema([
+                                        Toggle::make('enable_cpu_slider')
+                                            ->label('Enable CPU Slider')
+                                            ->default(true)
+                                            ->live(),
+                                        Grid::make(4)
+                                            ->visible(fn (Get $get) => $get('enable_cpu_slider'))
+                                            ->schema([
+                                                TextInput::make('cpu_min')
+                                                    ->label('Min')
+                                                    ->suffix('cores')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(1),
+                                                TextInput::make('cpu_max')
+                                                    ->label('Max')
+                                                    ->suffix('cores')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(8),
+                                                TextInput::make('cpu_step')
+                                                    ->label('Step')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(1),
+                                                TextInput::make('cpu_default')
+                                                    ->label('Default')
+                                                    ->suffix('cores')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(2),
+                                            ]),
+                                    ]),
+
+                                // Disk Slider
+                                Section::make('Disk Slider')
+                                    ->schema([
+                                        Toggle::make('enable_disk_slider')
+                                            ->label('Enable Disk Slider')
+                                            ->default(true)
+                                            ->live(),
+                                        Grid::make(4)
+                                            ->visible(fn (Get $get) => $get('enable_disk_slider'))
+                                            ->schema([
+                                                TextInput::make('disk_min')
+                                                    ->label('Min')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(10),
+                                                TextInput::make('disk_max')
+                                                    ->label('Max')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(500),
+                                                TextInput::make('disk_step')
+                                                    ->label('Step')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(10),
+                                                TextInput::make('disk_default')
+                                                    ->label('Default')
+                                                    ->suffix('GB')
+                                                    ->numeric()
+                                                    ->required()
+                                                    ->minValue(0.0001)
+                                                    ->default(50),
+                                            ]),
+                                    ]),
+                            ]),
+
+                        // TAB 3: Pricing Details
+                        Tabs\Tab::make('Pricing')
+                            ->icon('heroicon-o-currency-dollar')
+                            ->schema([
+                                // LINEAR pricing
+                                Section::make('Linear Rates')
+                                    ->description('Set price per unit for each resource type')
+                                    ->visible(fn (Get $get) => $get('pricing_model') === 'linear')
+                                    ->schema([
+                                        Grid::make(3)->schema([
+                                            TextInput::make('memory_rate')
+                                                ->label('Memory Rate')
+                                                ->prefix('$')
+                                                ->suffix('/GB/mo')
+                                                ->numeric()
+                                                ->required()
+                                                ->minValue(0)
+                                                ->default(0.50),
+                                            TextInput::make('cpu_rate')
+                                                ->label('CPU Rate')
+                                                ->prefix('$')
+                                                ->suffix('/core/mo')
+                                                ->numeric()
+                                                ->required()
+                                                ->minValue(0)
+                                                ->default(2.00),
+                                            TextInput::make('disk_rate')
+                                                ->label('Disk Rate')
+                                                ->prefix('$')
+                                                ->suffix('/GB/mo')
+                                                ->numeric()
+                                                ->required()
+                                                ->minValue(0)
+                                                ->default(0.02),
+                                        ]),
+                                    ]),
+
+                                // TIERED pricing
+                                Section::make('Memory Tiers')
+                                    ->description('Volume discounts - price decreases as quantity increases')
+                                    ->visible(fn (Get $get) => $get('pricing_model') === 'tiered')
+                                    ->schema([
+                                        Repeater::make('memory_tiers')
+                                            ->schema([
+                                                TextInput::make('up_to')
+                                                    ->label('Up to (GB)')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->placeholder('∞ (leave empty for unlimited)'),
+                                                TextInput::make('rate')
+                                                    ->label('Price per GB')
+                                                    ->prefix('$')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->required(),
+                                            ])
+                                            ->columns(2)
+                                            ->addActionLabel('Add Tier')
+                                            ->defaultItems(2)
+                                            ->default([
+                                                ['up_to' => 8, 'rate' => 0.75],
+                                                ['up_to' => null, 'rate' => 0.50],
+                                            ]),
+                                    ]),
+
+                                Section::make('CPU Tiers')
+                                    ->visible(fn (Get $get) => $get('pricing_model') === 'tiered')
+                                    ->schema([
+                                        Repeater::make('cpu_tiers')
+                                            ->schema([
+                                                TextInput::make('up_to')
+                                                    ->label('Up to (cores)')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->placeholder('∞'),
+                                                TextInput::make('rate')
+                                                    ->label('Price per core')
+                                                    ->prefix('$')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->required(),
+                                            ])
+                                            ->columns(2)
+                                            ->addActionLabel('Add Tier')
+                                            ->defaultItems(1)
+                                            ->default([
+                                                ['up_to' => null, 'rate' => 2.00],
+                                            ]),
+                                    ]),
+
+                                Section::make('Disk Tiers')
+                                    ->visible(fn (Get $get) => $get('pricing_model') === 'tiered')
+                                    ->schema([
+                                        Repeater::make('disk_tiers')
+                                            ->schema([
+                                                TextInput::make('up_to')
+                                                    ->label('Up to (GB)')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->placeholder('∞'),
+                                                TextInput::make('rate')
+                                                    ->label('Price per GB')
+                                                    ->prefix('$')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->required(),
+                                            ])
+                                            ->columns(2)
+                                            ->addActionLabel('Add Tier')
+                                            ->defaultItems(1)
+                                            ->default([
+                                                ['up_to' => null, 'rate' => 0.02],
+                                            ]),
+                                    ]),
+
+                                // BASE + ADDON pricing
+                                Section::make('Included Resources')
+                                    ->description('Resources included in base price')
+                                    ->visible(fn (Get $get) => $get('pricing_model') === 'base_addon')
+                                    ->schema([
+                                        Grid::make(3)->schema([
+                                            TextInput::make('memory_included')
+                                                ->label('Included Memory')
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0.0001)
-                                                ->default(1),
-                                            TextInput::make('memory_max')
-                                                ->label('Max')
-                                                ->suffix('GB')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
-                                                ->default(64),
-                                            TextInput::make('memory_step')
-                                                ->label('Step')
-                                                ->suffix('GB')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
-                                                ->default(1),
-                                            TextInput::make('memory_default')
-                                                ->label('Default')
-                                                ->suffix('GB')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
+                                                ->minValue(0)
                                                 ->default(4),
-                                        ]),
-                                ]),
-
-                            // CPU Slider
-                            Section::make('CPU Slider')
-                                ->schema([
-                                    Toggle::make('enable_cpu_slider')
-                                        ->label('Enable CPU Slider')
-                                        ->default(true)
-                                        ->live(),
-                                    Grid::make(4)
-                                        ->visible(fn (Get $get) => $get('enable_cpu_slider'))
-                                        ->schema([
-                                            TextInput::make('cpu_min')
-                                                ->label('Min')
+                                            TextInput::make('cpu_included')
+                                                ->label('Included CPU')
                                                 ->suffix('cores')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0.0001)
-                                                ->default(1),
-                                            TextInput::make('cpu_max')
-                                                ->label('Max')
-                                                ->suffix('cores')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
-                                                ->default(8),
-                                            TextInput::make('cpu_step')
-                                                ->label('Step')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
-                                                ->default(1),
-                                            TextInput::make('cpu_default')
-                                                ->label('Default')
-                                                ->suffix('cores')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
+                                                ->minValue(0)
                                                 ->default(2),
-                                        ]),
-                                ]),
-
-                            // Disk Slider
-                            Section::make('Disk Slider')
-                                ->schema([
-                                    Toggle::make('enable_disk_slider')
-                                        ->label('Enable Disk Slider')
-                                        ->default(true)
-                                        ->live(),
-                                    Grid::make(4)
-                                        ->visible(fn (Get $get) => $get('enable_disk_slider'))
-                                        ->schema([
-                                            TextInput::make('disk_min')
-                                                ->label('Min')
+                                            TextInput::make('disk_included')
+                                                ->label('Included Disk')
                                                 ->suffix('GB')
                                                 ->numeric()
                                                 ->required()
-                                                ->minValue(0.0001)
-                                                ->default(10),
-                                            TextInput::make('disk_max')
-                                                ->label('Max')
-                                                ->suffix('GB')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
-                                                ->default(500),
-                                            TextInput::make('disk_step')
-                                                ->label('Step')
-                                                ->suffix('GB')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
-                                                ->default(10),
-                                            TextInput::make('disk_default')
-                                                ->label('Default')
-                                                ->suffix('GB')
-                                                ->numeric()
-                                                ->required()
-                                                ->minValue(0.0001)
+                                                ->minValue(0)
                                                 ->default(50),
                                         ]),
-                                ]),
-                        ]),
-
-                    // TAB 3: Pricing Details
-                    Tabs\Tab::make('Pricing')
-                        ->icon('heroicon-o-currency-dollar')
-                        ->schema([
-                            // LINEAR pricing
-                            Section::make('Linear Rates')
-                                ->description('Set price per unit for each resource type')
-                                ->visible(fn (Get $get) => $get('pricing_model') === 'linear')
-                                ->schema([
-                                    Grid::make(3)->schema([
-                                        TextInput::make('memory_rate')
-                                            ->label('Memory Rate')
-                                            ->prefix('$')
-                                            ->suffix('/GB/mo')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(0.50),
-                                        TextInput::make('cpu_rate')
-                                            ->label('CPU Rate')
-                                            ->prefix('$')
-                                            ->suffix('/core/mo')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(2.00),
-                                        TextInput::make('disk_rate')
-                                            ->label('Disk Rate')
-                                            ->prefix('$')
-                                            ->suffix('/GB/mo')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(0.02),
                                     ]),
-                                ]),
 
-                            // TIERED pricing
-                            Section::make('Memory Tiers')
-                                ->description('Volume discounts - price decreases as quantity increases')
-                                ->visible(fn (Get $get) => $get('pricing_model') === 'tiered')
-                                ->schema([
-                                    Repeater::make('memory_tiers')
-                                        ->schema([
-                                            TextInput::make('up_to')
-                                                ->label('Up to (GB)')
-                                                ->numeric()
-                                                ->minValue(0)
-                                                ->placeholder('∞ (leave empty for unlimited)'),
-                                            TextInput::make('rate')
-                                                ->label('Price per GB')
+                                Section::make('Overage Rates')
+                                    ->description('Price for resources beyond included amount')
+                                    ->visible(fn (Get $get) => $get('pricing_model') === 'base_addon')
+                                    ->schema([
+                                        Grid::make(3)->schema([
+                                            TextInput::make('memory_overage')
+                                                ->label('Memory Overage')
                                                 ->prefix('$')
+                                                ->suffix('/GB/mo')
                                                 ->numeric()
+                                                ->required()
                                                 ->minValue(0)
-                                                ->required(),
-                                        ])
-                                        ->columns(2)
-                                        ->addActionLabel('Add Tier')
-                                        ->defaultItems(2)
-                                        ->default([
-                                            ['up_to' => 8, 'rate' => 0.75],
-                                            ['up_to' => null, 'rate' => 0.50],
-                                        ]),
-                                ]),
-
-                            Section::make('CPU Tiers')
-                                ->visible(fn (Get $get) => $get('pricing_model') === 'tiered')
-                                ->schema([
-                                    Repeater::make('cpu_tiers')
-                                        ->schema([
-                                            TextInput::make('up_to')
-                                                ->label('Up to (cores)')
-                                                ->numeric()
-                                                ->minValue(0)
-                                                ->placeholder('∞'),
-                                            TextInput::make('rate')
-                                                ->label('Price per core')
+                                                ->default(0.75),
+                                            TextInput::make('cpu_overage')
+                                                ->label('CPU Overage')
                                                 ->prefix('$')
+                                                ->suffix('/core/mo')
                                                 ->numeric()
+                                                ->required()
                                                 ->minValue(0)
-                                                ->required(),
-                                        ])
-                                        ->columns(2)
-                                        ->addActionLabel('Add Tier')
-                                        ->defaultItems(1)
-                                        ->default([
-                                            ['up_to' => null, 'rate' => 2.00],
-                                        ]),
-                                ]),
-
-                            Section::make('Disk Tiers')
-                                ->visible(fn (Get $get) => $get('pricing_model') === 'tiered')
-                                ->schema([
-                                    Repeater::make('disk_tiers')
-                                        ->schema([
-                                            TextInput::make('up_to')
-                                                ->label('Up to (GB)')
-                                                ->numeric()
-                                                ->minValue(0)
-                                                ->placeholder('∞'),
-                                            TextInput::make('rate')
-                                                ->label('Price per GB')
+                                                ->default(3.00),
+                                            TextInput::make('disk_overage')
+                                                ->label('Disk Overage')
                                                 ->prefix('$')
+                                                ->suffix('/GB/mo')
                                                 ->numeric()
+                                                ->required()
                                                 ->minValue(0)
-                                                ->required(),
-                                        ])
-                                        ->columns(2)
-                                        ->addActionLabel('Add Tier')
-                                        ->defaultItems(1)
-                                        ->default([
-                                            ['up_to' => null, 'rate' => 0.02],
+                                                ->default(0.05),
                                         ]),
-                                ]),
-
-                            // BASE + ADDON pricing
-                            Section::make('Included Resources')
-                                ->description('Resources included in base price')
-                                ->visible(fn (Get $get) => $get('pricing_model') === 'base_addon')
-                                ->schema([
-                                    Grid::make(3)->schema([
-                                        TextInput::make('memory_included')
-                                            ->label('Included Memory')
-                                            ->suffix('GB')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(4),
-                                        TextInput::make('cpu_included')
-                                            ->label('Included CPU')
-                                            ->suffix('cores')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(2),
-                                        TextInput::make('disk_included')
-                                            ->label('Included Disk')
-                                            ->suffix('GB')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(50),
                                     ]),
-                                ]),
+                            ]),
 
-                            Section::make('Overage Rates')
-                                ->description('Price for resources beyond included amount')
-                                ->visible(fn (Get $get) => $get('pricing_model') === 'base_addon')
-                                ->schema([
-                                    Grid::make(3)->schema([
-                                        TextInput::make('memory_overage')
-                                            ->label('Memory Overage')
-                                            ->prefix('$')
-                                            ->suffix('/GB/mo')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(0.75),
-                                        TextInput::make('cpu_overage')
-                                            ->label('CPU Overage')
-                                            ->prefix('$')
-                                            ->suffix('/core/mo')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(3.00),
-                                        TextInput::make('disk_overage')
-                                            ->label('Disk Overage')
-                                            ->prefix('$')
-                                            ->suffix('/GB/mo')
-                                            ->numeric()
-                                            ->required()
-                                            ->minValue(0)
-                                            ->default(0.05),
+                        // TAB 4: Locations
+                        Tabs\Tab::make('Locations')
+                            ->icon('heroicon-o-map-pin')
+                            ->schema([
+                                Section::make('Location Selection')
+                                    ->description('Select which Pterodactyl locations to enable for this product')
+                                    ->schema([
+                                        Select::make('locations')
+                                            ->label('Allowed Locations')
+                                            ->multiple()
+                                            ->options(fn () => $this->getLocationOptions())
+                                            ->helperText('Select one or more customer choices, or leave empty only when the product has exactly one valid static Pterodactyl location.'),
                                     ]),
-                                ]),
-                        ]),
-
-                    // TAB 4: Locations
-                    Tabs\Tab::make('Locations')
-                        ->icon('heroicon-o-map-pin')
-                        ->schema([
-                            Section::make('Location Selection')
-                                ->description('Select which Pterodactyl locations to enable for this product')
-                                ->schema([
-                                    Select::make('locations')
-                                        ->label('Allowed Locations')
-                                        ->multiple()
-                                        ->options(fn () => $this->getLocationOptions())
-                                        ->helperText('Select one or more customer choices, or leave empty only when the product has exactly one valid static Pterodactyl location.'),
-                                ]),
-                        ]),
-                ])->columnSpanFull(),
+                            ]),
+                    ])->columnSpanFull(),
                 ]),
             ])
             ->statePath('data');
@@ -571,7 +571,7 @@ class SetupWizard extends Page implements HasForms
             $locations = app(ResourceCalculationService::class)->getLocations();
 
             return collect($locations)->mapWithKeys(fn ($loc) => [
-                $loc['id'] => ($loc['long'] ?: $loc['short']) . ' (ID: ' . $loc['id'] . ')',
+                $loc['id'] => ($loc['long'] ?: $loc['short']).' (ID: '.$loc['id'].')',
             ])->toArray();
         } catch (\Exception $e) {
             return [];

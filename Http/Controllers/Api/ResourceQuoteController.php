@@ -14,9 +14,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceQuoteService
 
 class ResourceQuoteController
 {
-    public function __construct(private readonly ResourceQuoteService $quotes)
-    {
-    }
+    public function __construct(private readonly ResourceQuoteService $quotes) {}
 
     public function __invoke(ResourceQuoteRequest $request, int $product): JsonResponse
     {

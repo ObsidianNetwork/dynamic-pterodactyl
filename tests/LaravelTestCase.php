@@ -14,9 +14,9 @@ abstract class LaravelTestCase extends BaseTestCase
      */
     public function createApplication()
     {
-        $bootstrap = __DIR__ . '/../../../../bootstrap/app.php';
+        $bootstrap = __DIR__.'/../../../../bootstrap/app.php';
 
-        if (!file_exists($bootstrap)) {
+        if (! file_exists($bootstrap)) {
             $bootstrap = '/var/www/paymenter/bootstrap/app.php';
         }
 

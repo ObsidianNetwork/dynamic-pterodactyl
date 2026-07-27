@@ -14,8 +14,7 @@ class UpgradeQuoteController
 {
     public function __construct(
         private readonly UpgradeReservationService $upgrades
-    ) {
-    }
+    ) {}
 
     public function __invoke(
         Request $request,

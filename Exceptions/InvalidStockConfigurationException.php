@@ -2,6 +2,4 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions;
 
-class InvalidStockConfigurationException extends \RuntimeException
-{
-}
+class InvalidStockConfigurationException extends \RuntimeException {}

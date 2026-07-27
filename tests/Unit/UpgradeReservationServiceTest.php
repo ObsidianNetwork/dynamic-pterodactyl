@@ -14,13 +14,15 @@ use App\Models\InvoiceTransaction;
 use App\Models\Plan;
 use App\Models\Price;
 use App\Models\Product;
+use App\Models\Server;
 use App\Models\Service;
 use App\Models\ServiceConfig;
 use App\Models\ServiceUpgrade;
-use App\Models\Server;
 use App\Models\User;
 use App\Services\Service\CapacityServiceCreationCoordinator;
+use App\Services\ServiceUpgrade\ServiceUpgradeMutationCoordinator;
 use App\Services\ServiceUpgrade\ServiceUpgradeService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
@@ -131,7 +133,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $this->assertSame(Invoice::STATUS_PAID, $invoice->status);
         $this->assertSame(
             $invoice->due_at->getTimestamp(),
-            \Carbon\Carbon::parse(
+            Carbon::parse(
                 $reservation->guaranteed_until
             )->getTimestamp()
         );
@@ -391,8 +393,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
     {
         $fixture = $this->fixture();
         NodeCapacityPolicy::create([
-            'panel_identity' =>
-                hash('sha256', 'https://panel.example'),
+            'panel_identity' => hash('sha256', 'https://panel.example'),
             'node_uuid' => 'node-1',
             'node_id' => 1,
             'location_id' => 1,
@@ -619,7 +620,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'configs.configValue',
         ]);
         $upgrade->captureSnapshots();
-        $upgrade->save();
+        ServiceUpgradeMutationCoordinator::save($upgrade);
 
         $this->expectException(InvalidResourceSelectionException::class);
         $this->expectExceptionMessage(
@@ -701,6 +702,10 @@ class UpgradeReservationServiceTest extends LaravelTestCase
 
         $this->assertNull(
             $reservation->fresh()->provisioning_lease_id
+        );
+        Queue::assertPushed(
+            UpgradeJob::class,
+            fn (UpgradeJob $job): bool => $job->serviceUpgrade->is($upgrade)
         );
     }
 
@@ -1030,6 +1035,47 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         );
     }
 
+    public function test_stale_provisioning_recovery_uses_core_lifecycle_coordinator(): void
+    {
+        Queue::fake();
+        $fixture = $this->fixture();
+        [$upgrade, $invoice] = $this->upgrade($fixture);
+        $reservation = $fixture->upgrades->reserveForUpgrade(
+            $upgrade,
+            $invoice->due_at
+        );
+        DB::table('invoices')->where('id', $invoice->id)->update([
+            'status' => Invoice::STATUS_PAID,
+        ]);
+
+        $this->assertTrue(
+            $fixture->upgrades->commitPaidUpgrade(
+                $upgrade,
+                $invoice->fresh()
+            )
+        );
+        $provisioningUpgrade = app(ServiceUpgradeService::class)
+            ->beginProvisioning($upgrade->fresh());
+        $fixture->upgrades->beginProvisioning($provisioningUpgrade);
+        DB::table('service_upgrades')
+            ->where('id', $upgrade->id)
+            ->update([
+                'provisioning_started_at' => now()->subMinutes(11),
+            ]);
+
+        $this->assertSame(
+            1,
+            $fixture->upgrades->reconcileStalledUpgrades()
+        );
+        $this->assertSame(
+            ServiceUpgrade::STATUS_RETRYABLE_FAILED,
+            $upgrade->fresh()->status
+        );
+        $this->assertNull(
+            $reservation->fresh()->provisioning_lease_id
+        );
+    }
+
     private function fixture(): object
     {
         $user = User::factory()->create();
@@ -1209,8 +1255,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         ];
         usort(
             $configurationOptions,
-            fn (array $left, array $right): int =>
-                $left['id'] <=> $right['id']
+            fn (array $left, array $right): int => $left['id'] <=> $right['id']
         );
         $cartSelections = collect($configurationOptions)
             ->map(function (array $option) use (
@@ -1225,8 +1270,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
                     'option_id' => (int) $option['id'],
                     'option_name' => (string) $model->name,
                     'option_type' => (string) $option['type'],
-                    'option_env_variable' =>
-                        (string) $option['environment_key'],
+                    'option_env_variable' => (string) $option['environment_key'],
                     'value' => $option['value'],
                 ];
             })
@@ -1285,8 +1329,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'resources' => $resourceValues,
             'calculated_price' => $checkoutPrice,
             'pricing_version' => $pricingVersion,
-            'formula_version' =>
-                ReservationConfigurationService::FORMULA_VERSION,
+            'formula_version' => ReservationConfigurationService::FORMULA_VERSION,
             'config_options' => $configurationOptions,
             'allocation_requirements' => [
                 'required_count' => 1,
@@ -1345,19 +1388,16 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'plan_id' => $plan->id,
             'quantity' => 1,
             'currency_code' => 'USD',
-            'configuration_fingerprint' =>
-                $checkoutConfiguration->fingerprint($checkoutPayload),
+            'configuration_fingerprint' => $checkoutConfiguration->fingerprint($checkoutPayload),
             'configuration_payload' => json_encode(
                 $checkoutPayload,
                 JSON_THROW_ON_ERROR
             ),
             'pricing_version' => $pricingVersion,
-            'formula_version' =>
-                ReservationConfigurationService::FORMULA_VERSION,
+            'formula_version' => ReservationConfigurationService::FORMULA_VERSION,
             'external_server_id' => 99,
             'external_user_id' => 44,
-            'external_server_uuid' =>
-                '10000000-0000-4000-8000-000000000099',
+            'external_server_uuid' => '10000000-0000-4000-8000-000000000099',
             'external_server_identifier' => 'server-99',
             'last_reconciled_at' => $checkoutCompletedAt,
             'consumed_at' => $checkoutCompletedAt,
@@ -1499,7 +1539,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'configs.configValue',
         ]);
         $upgrade->captureSnapshots();
-        $upgrade->save();
+        ServiceUpgradeMutationCoordinator::save($upgrade);
         $invoice->items()->create([
             'description' => 'Resource upgrade',
             'price' => 100,
@@ -1526,7 +1566,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'configs.configValue',
         ]);
         $upgrade->captureSnapshots();
-        $upgrade->save();
+        ServiceUpgradeMutationCoordinator::save($upgrade);
     }
 
     private function option(

@@ -4,6 +4,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\Product;
 use App\Models\Service;
+use App\Models\User;
 use App\Support\PanelEndpointIdentity;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigurationService;
 use PHPUnit\Framework\TestCase;
@@ -194,7 +195,7 @@ class ReservationConfigurationServiceTest extends TestCase
             'currency_code' => 'AUD',
         ], true);
         $service->exists = true;
-        $service->setRelation('user', new \App\Models\User([
+        $service->setRelation('user', new User([
             'id' => 30,
             'email' => 'renamed@example.com',
         ]));

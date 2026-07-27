@@ -15,6 +15,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  quality:
+    name: Extension quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Dynamic Pterodactyl
+        uses: actions/checkout@v7
+        with:
+          path: dynamic-pterodactyl
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check out companion Paymenter
+        uses: actions/checkout@v7
+        with:
+          repository: ObsidianNetwork/Paymenter-Obsidian-Network
+          ref: 5bcb23966d0801ec5059e205511c24af0f9a3276
+          path: paymenter
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Install Paymenter dependencies
+        working-directory: paymenter
+        run: composer install --no-interaction --no-ansi --prefer-dist --no-progress
+
+      - name: Audit Composer dependencies
+        working-directory: paymenter
+        run: composer audit --locked --no-interaction
+
+      - name: Run Pint on the complete extension branch diff
+        working-directory: dynamic-pterodactyl
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          mapfile -d '' files < <(
+            git diff --diff-filter=ACMR --name-only -z \
+              "$BASE_SHA"...HEAD -- '*.php'
+          )
+          if ((${#files[@]})); then
+            ../paymenter/vendor/bin/pint --test "${files[@]}"
+          fi
+
   extension-sqlite:
     name: PHP ${{ matrix.php }} / SQLite
     runs-on: ubuntu-latest
@@ -27,15 +78,15 @@ jobs:
 
     steps:
       - name: Check out Dynamic Pterodactyl
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: dynamic-pterodactyl
 
       - name: Check out companion Paymenter
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: codex/paymenter-1.5.6-remediation
+          ref: 5bcb23966d0801ec5059e205511c24af0f9a3276
           path: paymenter
 
       - name: Set up PHP
@@ -123,15 +174,15 @@ jobs:
 
     steps:
       - name: Check out Dynamic Pterodactyl
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: dynamic-pterodactyl
 
       - name: Check out companion Paymenter
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: codex/paymenter-1.5.6-remediation
+          ref: 5bcb23966d0801ec5059e205511c24af0f9a3276
           path: paymenter
 
       - name: Set up PHP

@@ -2,11 +2,15 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Models\Invoice;
+use App\Models\Plan;
+use App\Models\Product;
+use App\Models\Server;
+use App\Models\Service;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\NodeCapacityPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PterodactylInventoryService;
@@ -14,6 +18,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigura
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\UpgradeReservationIntegrityService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ResourceCalculationServiceTest extends LaravelTestCase
 {
@@ -303,7 +308,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertNotNull($invoiceId);
         DB::table('invoices')
             ->where('id', $invoiceId)
-            ->update(['status' => \App\Models\Invoice::STATUS_PAID]);
+            ->update(['status' => Invoice::STATUS_PAID]);
 
         $this->expectException(InvalidStockConfigurationException::class);
         $this->expectExceptionMessage(
@@ -316,11 +321,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_checkout_stays_overlaid_until_same_snapshot_proves_target(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create([
+        $serviceRecord = Service::factory()->create([
             'user_id' => User::factory()->create()->id,
         ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_ACTIVE,
+            'status' => Service::STATUS_ACTIVE,
         ]);
         $reservationId = $this->insertReservation(
             'confirmed-checkout-overlay',
@@ -334,8 +339,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'purpose' => 'checkout',
                 'service_id' => $serviceRecord->id,
                 'external_server_id' => 81,
-                'external_server_uuid' =>
-                    '10000000-0000-4000-8000-000000000081',
+                'external_server_uuid' => '10000000-0000-4000-8000-000000000081',
                 'external_server_identifier' => 'server-81',
                 'consumed_at' => now(),
             ]);
@@ -366,11 +370,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_upgrade_supersedes_checkout_and_overlays_only_snapshot_deficit(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create([
+        $serviceRecord = Service::factory()->create([
             'user_id' => User::factory()->create()->id,
         ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_ACTIVE,
+            'status' => Service::STATUS_ACTIVE,
         ]);
         $checkoutId = $this->insertReservation(
             'confirmed-checkout-before-upgrade',
@@ -384,8 +388,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'purpose' => 'checkout',
                 'service_id' => $serviceRecord->id,
                 'external_server_id' => 81,
-                'external_server_uuid' =>
-                    '10000000-0000-4000-8000-000000000081',
+                'external_server_uuid' => '10000000-0000-4000-8000-000000000081',
                 'external_server_identifier' => 'server-81',
                 'consumed_at' => now()->subHour(),
             ]);
@@ -435,11 +438,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_multiple_confirmed_upgrades_use_immutable_upgrade_order_not_mutable_timestamps(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create([
+        $serviceRecord = Service::factory()->create([
             'user_id' => User::factory()->create()->id,
         ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_ACTIVE,
+            'status' => Service::STATUS_ACTIVE,
         ]);
 
         $checkoutId = $this->insertReservation(
@@ -453,8 +456,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             ->update([
                 'service_id' => $serviceRecord->id,
                 'external_server_id' => 81,
-                'external_server_uuid' =>
-                    '10000000-0000-4000-8000-000000000081',
+                'external_server_uuid' => '10000000-0000-4000-8000-000000000081',
                 'external_server_identifier' => 'server-81',
                 'consumed_at' => now()->subHours(2),
             ]);
@@ -499,11 +501,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_conflicting_confirmed_server_identities_fail_snapshot_proof_closed(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create([
+        $serviceRecord = Service::factory()->create([
             'user_id' => User::factory()->create()->id,
         ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_ACTIVE,
+            'status' => Service::STATUS_ACTIVE,
         ]);
         $checkoutId = $this->insertReservation(
             'identity-checkout',
@@ -576,11 +578,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_local_claim_blocks_a_stale_free_allocation_snapshot(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create([
+        $serviceRecord = Service::factory()->create([
             'user_id' => User::factory()->create()->id,
         ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_ACTIVE,
+            'status' => Service::STATUS_ACTIVE,
         ]);
         $reservationId = $this->insertReservation(
             'confirmed-allocation-claim',
@@ -992,9 +994,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                     $payload,
                     JSON_THROW_ON_ERROR
                 ),
-                'configuration_fingerprint' =>
-                    (new ReservationConfigurationService)
-                        ->fingerprint($payload),
+                'configuration_fingerprint' => (new ReservationConfigurationService)
+                    ->fingerprint($payload),
             ]);
 
         $this->expectException(InvalidStockConfigurationException::class);
@@ -1008,11 +1009,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     public function test_confirmed_dedicated_server_blocks_ip_until_service_is_cancelled(): void
     {
         $this->createCpuPolicy();
-        $serviceRecord = \App\Models\Service::factory()->create([
+        $serviceRecord = Service::factory()->create([
             'user_id' => User::factory()->create()->id,
         ]);
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_ACTIVE,
+            'status' => Service::STATUS_ACTIVE,
         ]);
         $reservationId = $this->insertReservation(
             'confirmed-dedicated',
@@ -1047,7 +1048,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         );
 
         DB::table('services')->where('id', $serviceRecord->id)->update([
-            'status' => \App\Models\Service::STATUS_CANCELLED,
+            'status' => Service::STATUS_CANCELLED,
         ]);
         $this->assertSame(
             [502, 503],
@@ -1220,7 +1221,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         array $source,
         array $target,
         array $delta,
-        ?\App\Models\Service $service = null,
+        ?Service $service = null,
         int $externalServerId = 81,
         mixed $consumedAt = null
     ): int {
@@ -1229,12 +1230,12 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             || $service->product_id === null
             || $service->plan_id === null
         ) {
-            $product = \App\Models\Product::factory()->create();
-            $plan = \App\Models\Plan::factory()->create([
+            $product = Product::factory()->create();
+            $plan = Plan::factory()->create([
                 'priceable_id' => $product->id,
-                'priceable_type' => \App\Models\Product::class,
+                'priceable_type' => Product::class,
             ]);
-            $service ??= \App\Models\Service::factory()->create([
+            $service ??= Service::factory()->create([
                 'user_id' => User::factory()->create()->id,
             ]);
             DB::table('services')->where('id', $service->id)->update([
@@ -1245,11 +1246,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             ]);
             $service->refresh();
         }
-        $product = \App\Models\Product::query()
+        $product = Product::query()
             ->findOrFail($service->product_id);
         $server = $product->server;
         if ($server?->extension !== 'Pterodactyl') {
-            $server = \App\Models\Server::query()->create([
+            $server = Server::query()->create([
                 'name' => "Pterodactyl Upgrade {$token}",
                 'extension' => 'Pterodactyl',
                 'type' => 'server',
@@ -1284,12 +1285,12 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'recurring_price' => '0.00',
             'billing_anchor' => [],
         ];
-        $invoice = \App\Models\Invoice::factory()->create([
+        $invoice = Invoice::factory()->create([
             'user_id' => $service->user_id,
             'status' => match ($status) {
-                'pending' => \App\Models\Invoice::STATUS_PENDING,
+                'pending' => Invoice::STATUS_PENDING,
                 'paid_committed',
-                'confirmed' => \App\Models\Invoice::STATUS_PAID,
+                'confirmed' => Invoice::STATUS_PAID,
                 default => throw new \InvalidArgumentException(
                     "Unsupported upgrade reservation status {$status}."
                 ),
@@ -1344,17 +1345,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'node_id' => 5,
             'location_id' => 1,
             'external_server_id' => $externalServerId,
-            'external_server_uuid' =>
-                sprintf(
-                    '10000000-0000-4000-8000-%012d',
-                    $externalServerId
-                ),
-            'external_server_identifier' =>
-                "server-{$externalServerId}",
+            'external_server_uuid' => sprintf(
+                '10000000-0000-4000-8000-%012d',
+                $externalServerId
+            ),
+            'external_server_identifier' => "server-{$externalServerId}",
             'external_server_external_id' => (string) $service->id,
             'external_user_id' => 44,
-            'user_external_id' =>
-                "paymenter-user-{$service->user_id}",
+            'user_external_id' => "paymenter-user-{$service->user_id}",
             'user_email' => (string) $service->user->email,
             'nest_id' => 1,
             'egg_id' => 2,
@@ -1397,16 +1395,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'quantity' => 1,
             'currency_code' => 'USD',
             'panel_identity' => self::PANEL_IDENTITY,
-            'configuration_fingerprint' =>
-                (new UpgradeReservationIntegrityService)
-                    ->fingerprint($upgrade, $payload),
+            'configuration_fingerprint' => (new UpgradeReservationIntegrityService)
+                ->fingerprint($upgrade, $payload),
             'configuration_payload' => json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR
             ),
-            'pricing_version' =>
-                (new UpgradeReservationIntegrityService)
-                    ->pricingVersion($upgrade),
+            'pricing_version' => (new UpgradeReservationIntegrityService)
+                ->pricingVersion($upgrade),
             'formula_version' => 'dynamic-upgrade-v1',
             'node_id' => 5,
             'location_id' => 1,
@@ -1418,10 +1414,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'reserved_disk' => $delta['disk'],
             'external_server_id' => $externalServerId,
             'external_user_id' => 44,
-            'external_server_uuid' =>
-                $payload['external_server_uuid'],
-            'external_server_identifier' =>
-                $payload['external_server_identifier'],
+            'external_server_uuid' => $payload['external_server_uuid'],
+            'external_server_identifier' => $payload['external_server_identifier'],
             'calculated_price' => '9.90',
             'pricing_breakdown' => json_encode(
                 [],
@@ -1481,11 +1475,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         }
 
         $allocation ??= [
-            'allocation_id' =>
-                100000 + (int) sprintf('%u', crc32($token)),
+            'allocation_id' => 100000 + (int) sprintf('%u', crc32($token)),
             'ip' => '198.51.100.10',
-            'port' =>
-                20000 + ((int) sprintf('%u', crc32($token)) % 40000),
+            'port' => 20000 + ((int) sprintf('%u', crc32($token)) % 40000),
             'environment_key' => 'SERVER_PORT',
             'is_primary' => true,
         ];
@@ -1509,9 +1501,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             'purpose' => $purpose,
             'token' => $token,
             'panel_identity' => $panelIdentity,
-            'configuration_fingerprint' =>
-                (new ReservationConfigurationService)
-                    ->fingerprint($payload),
+            'configuration_fingerprint' => (new ReservationConfigurationService)
+                ->fingerprint($payload),
             'configuration_payload' => json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR

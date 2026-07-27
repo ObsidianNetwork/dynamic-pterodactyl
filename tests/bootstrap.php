@@ -1,8 +1,8 @@
 <?php
 
-$autoload = __DIR__ . '/../../../../vendor/autoload.php';
+$autoload = __DIR__.'/../../../../vendor/autoload.php';
 
-if (!file_exists($autoload)) {
+if (! file_exists($autoload)) {
     $autoload = '/var/www/paymenter/vendor/autoload.php';
 }
 
@@ -20,10 +20,10 @@ if (
     && ! $sqliteTestFile
 ) {
     fwrite(STDERR, "ABORT: phpunit would run against DB_DATABASE='$db'. "
-        . "Expected 'paymenter_test', 'paymenter_test.sqlite', or ':memory:'. "
-        . "See .sisyphus/notepads/dp-11-authorization-surface-reduction/incidents.md.\n");
+        ."Expected 'paymenter_test', 'paymenter_test.sqlite', or ':memory:'. "
+        ."See .sisyphus/notepads/dp-11-authorization-surface-reduction/incidents.md.\n");
     exit(2);
 }
 
-require __DIR__ . '/TestCase.php';
-require __DIR__ . '/LaravelTestCase.php';
+require __DIR__.'/TestCase.php';
+require __DIR__.'/LaravelTestCase.php';

@@ -39,7 +39,7 @@ class SetupWizardValidationTest extends LaravelTestCase
             ->zeroOrMoreTimes()
             ->andReturn(hash('sha256', 'https://panel.example'));
         $this->app->instance(PterodactylInventoryService::class, $inventory);
-        $this->app['view']->addNamespace('dynamic-pterodactyl', __DIR__ . '/../../resources/views');
+        $this->app['view']->addNamespace('dynamic-pterodactyl', __DIR__.'/../../resources/views');
     }
 
     protected function tearDown(): void
