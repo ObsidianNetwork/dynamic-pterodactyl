@@ -31,7 +31,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: 5bcb23966d0801ec5059e205511c24af0f9a3276
+          ref: 8a9e4849f131795f430869128231f7a193bb8dcc
           path: paymenter
 
       - name: Set up PHP
@@ -86,7 +86,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: 5bcb23966d0801ec5059e205511c24af0f9a3276
+          ref: 8a9e4849f131795f430869128231f7a193bb8dcc
           path: paymenter
 
       - name: Set up PHP
@@ -182,7 +182,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: 5bcb23966d0801ec5059e205511c24af0f9a3276
+          ref: 8a9e4849f131795f430869128231f7a193bb8dcc
           path: paymenter
 
       - name: Set up PHP

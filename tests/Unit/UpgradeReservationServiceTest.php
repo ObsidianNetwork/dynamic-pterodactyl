@@ -9,6 +9,7 @@ use App\Jobs\Server\UpgradeJob;
 use App\Models\Cart;
 use App\Models\ConfigOption;
 use App\Models\ConfigOptionProduct;
+use App\Models\Currency;
 use App\Models\Invoice;
 use App\Models\InvoiceTransaction;
 use App\Models\Plan;
@@ -20,6 +21,7 @@ use App\Models\ServiceConfig;
 use App\Models\ServiceUpgrade;
 use App\Models\User;
 use App\Services\Service\CapacityServiceCreationCoordinator;
+use App\Services\Service\ServiceBillingAnchorMutationCoordinator;
 use App\Services\ServiceUpgrade\ServiceUpgradeMutationCoordinator;
 use App\Services\ServiceUpgrade\ServiceUpgradeService;
 use Carbon\Carbon;
@@ -337,20 +339,11 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $this->assertEquals($checkoutBefore, $checkoutAfterFirst);
 
         $fixture->service->refresh();
-        [$secondUpgrade, $secondInvoice] = $this->upgrade($fixture);
-        foreach ([
+        [$secondUpgrade, $secondInvoice] = $this->upgrade($fixture, [
             'memory' => 12288,
             'cpu' => 200,
             'disk' => 40960,
-        ] as $resource => $value) {
-            $secondUpgrade->configs()
-                ->where(
-                    'config_option_id',
-                    $fixture->options[$resource]->id
-                )
-                ->update(['slider_value' => $value]);
-        }
-        $this->recaptureUpgrade($secondUpgrade);
+        ]);
 
         $secondReservation = $fixture->upgrades->reserveForUpgrade(
             $secondUpgrade->fresh(),
@@ -454,43 +447,28 @@ class UpgradeReservationServiceTest extends LaravelTestCase
     public function test_unchanged_resource_vector_is_not_an_upgrade(): void
     {
         $fixture = $this->fixture();
-        [$upgrade, $invoice] = $this->upgrade($fixture);
-        foreach ([
+        [$upgrade] = $this->upgrade($fixture, [
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 20480,
-        ] as $resource => $value) {
-            $upgrade->configs()
-                ->where('config_option_id', $fixture->options[$resource]->id)
-                ->update(['slider_value' => $value]);
-        }
-        $this->recaptureUpgrade($upgrade);
+        ]);
 
         $this->expectException(InvalidResourceSelectionException::class);
         $this->expectExceptionMessage('must change at least one');
 
         $fixture->upgrades->reserveForUpgrade(
             $upgrade->fresh(),
-            $invoice->due_at
+            now()->addDays(7)
         );
     }
 
-    public function test_checkout_identity_survives_product_and_customer_email_edits(): void
+    public function test_checkout_identity_survives_customer_email_edits(): void
     {
         $fixture = $this->fixture();
         $checkoutEmail = strtolower((string) $fixture->user->email);
         $fixture->user->update([
             'email' => "renamed-{$fixture->user->id}@example.com",
         ]);
-        $fixture->product->settings()->updateOrCreate(
-            ['key' => 'nest_id'],
-            ['value' => 77, 'type' => 'integer', 'encrypted' => false]
-        );
-        $fixture->product->settings()->updateOrCreate(
-            ['key' => 'egg_id'],
-            ['value' => 88, 'type' => 'integer', 'encrypted' => false]
-        );
-        $fixture->service->unsetRelation('product');
         $fixture->service->unsetRelation('user');
         [$upgrade, $invoice] = $this->upgrade($fixture);
 
@@ -503,6 +481,42 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         $this->assertSame(1, $payload['nest_id']);
         $this->assertSame(2, $payload['egg_id']);
         $this->assertSame($checkoutEmail, $payload['user_email']);
+    }
+
+    public function test_active_checkout_blocks_product_identity_setting_edits(): void
+    {
+        $fixture = $this->fixture();
+
+        foreach ([
+            'nest_id' => 77,
+            'egg_id' => 88,
+        ] as $key => $value) {
+            try {
+                $fixture->product->settings()->updateOrCreate(
+                    ['key' => $key],
+                    [
+                        'value' => $value,
+                        'type' => 'integer',
+                        'encrypted' => false,
+                    ]
+                );
+                $this->fail(
+                    "Expected the active checkout to protect {$key}."
+                );
+            } catch (\RuntimeException $exception) {
+                $this->assertStringContainsString(
+                    'product setting identity is required',
+                    strtolower($exception->getMessage())
+                );
+            }
+
+            $this->assertSame(
+                $key === 'nest_id' ? 1 : 2,
+                (int) $fixture->product->settings()
+                    ->where('key', $key)
+                    ->value('value')
+            );
+        }
     }
 
     public function test_server_identity_drift_is_rejected_before_upgrade_reservation(): void
@@ -601,26 +615,10 @@ class UpgradeReservationServiceTest extends LaravelTestCase
     public function test_dynamic_upgrade_rejects_non_resource_configuration_change(): void
     {
         $fixture = $this->fixture();
-        [$upgrade, $invoice] = $this->upgrade($fixture);
-        $upgrade->configs()->create([
-            'config_option_id' => $fixture->select->id,
-            'config_value_id' => $fixture->selectAlternate->id,
-            'slider_value' => null,
-        ]);
-        $upgrade->unsetRelation('configs');
-        $upgrade->load([
-            'service.product.server.settings',
-            'service.product.settings',
-            'service.configs.configOption',
-            'service.configs.configValue',
-            'product.server.settings',
-            'product.settings',
-            'plan.prices',
-            'configs.configOption',
-            'configs.configValue',
-        ]);
-        $upgrade->captureSnapshots();
-        ServiceUpgradeMutationCoordinator::save($upgrade);
+        [$upgrade, $invoice] = $this->upgrade(
+            $fixture,
+            selectValueId: $fixture->selectAlternate->id
+        );
 
         $this->expectException(InvalidResourceSelectionException::class);
         $this->expectExceptionMessage(
@@ -922,17 +920,42 @@ class UpgradeReservationServiceTest extends LaravelTestCase
     public function test_renewal_after_quote_invalidates_upgrade_before_payment(): void
     {
         $fixture = $this->fixture();
-        $fixture->service->expires_at = now()->addDays(10);
-        $fixture->service->save();
+        $fixture->service = app(
+            ServiceBillingAnchorMutationCoordinator::class
+        )->update($fixture->service, [
+            'expires_at' => now()->addDays(10),
+        ]);
         [$upgrade, $invoice] = $this->upgrade($fixture);
         $reservation = $fixture->upgrades->reserveForUpgrade(
             $upgrade,
             $invoice->due_at
         );
 
-        // Simulate the current service renewing on its old resource vector.
-        $fixture->service->expires_at = now()->addDays(35);
-        $fixture->service->save();
+        try {
+            app(ServiceBillingAnchorMutationCoordinator::class)->update(
+                $fixture->service,
+                ['expires_at' => now()->addDays(35)]
+            );
+            $this->fail(
+                'Expected the active upgrade to serialize renewal.'
+            );
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'cannot change while an upgrade is active',
+                strtolower($exception->getMessage())
+            );
+        }
+
+        // Model an internal fulfillment transition that changes the billing
+        // anchor after the quote despite that public guard. The extension must
+        // still fail closed if another coordinated path drifts it.
+        ServiceBillingAnchorMutationCoordinator::run(
+            $fixture->service,
+            function () use ($fixture): void {
+                $fixture->service->expires_at = now()->addDays(35);
+                $fixture->service->save();
+            }
+        );
 
         $failure = $fixture->upgrades->preflightPaidUpgrade(
             $upgrade,
@@ -978,7 +1001,7 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         ExtensionHelper::addPayment(
             $invoice->id,
             null,
-            '100.00',
+            (string) $upgrade->quoted_amount,
             transactionId: 'paid-but-stale-upgrade'
         );
 
@@ -1078,6 +1101,15 @@ class UpgradeReservationServiceTest extends LaravelTestCase
 
     private function fixture(): object
     {
+        Currency::firstOrCreate(
+            ['code' => 'USD'],
+            [
+                'name' => 'US Dollar',
+                'prefix' => '$',
+                'suffix' => '',
+                'format' => '1,000.00',
+            ]
+        );
         $user = User::factory()->create();
         $server = Server::create([
             'name' => 'Pterodactyl',
@@ -1175,6 +1207,22 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'hidden' => false,
             'parent_id' => $select->id,
         ]);
+        foreach ([$selectChild, $selectAlternate] as $selectValue) {
+            $selectPlan = Plan::factory()->create([
+                'priceable_id' => $selectValue->id,
+                'priceable_type' => ConfigOption::class,
+                'name' => 'Monthly',
+                'billing_unit' => 'month',
+                'billing_period' => 1,
+                'type' => 'recurring',
+            ]);
+            Price::factory()->create([
+                'plan_id' => $selectPlan->id,
+                'price' => 0,
+                'setup_fee' => 0,
+                'currency_code' => 'USD',
+            ]);
+        }
 
         $resourceValues = [
             'memory' => 4096,
@@ -1497,26 +1545,26 @@ class UpgradeReservationServiceTest extends LaravelTestCase
         ];
     }
 
-    private function upgrade(object $fixture): array
-    {
+    /**
+     * @param  array{memory: int, cpu: int, disk: int}|null  $resources
+     */
+    private function upgrade(
+        object $fixture,
+        ?array $resources = null,
+        ?int $selectValueId = null
+    ): array {
         $dueAt = now()->addDays(7);
-        $invoice = Invoice::factory()->create([
-            'user_id' => $fixture->user->id,
-            'currency_code' => 'USD',
-            'status' => Invoice::STATUS_PENDING,
-            'due_at' => $dueAt,
-        ]);
         $upgrade = ServiceUpgrade::create([
             'service_id' => $fixture->service->id,
             'product_id' => $fixture->product->id,
             'plan_id' => $fixture->plan->id,
-            'invoice_id' => $invoice->id,
+            'invoice_id' => null,
             'status' => ServiceUpgrade::STATUS_AWAITING_PAYMENT,
             'active_service_guard_id' => $fixture->service->id,
-            'quoted_amount' => 100,
             'currency_code' => 'USD',
+            'capacity_mode' => ServiceUpgrade::CAPACITY_MODE_DYNAMIC,
         ]);
-        foreach ([
+        foreach ($resources ?? [
             'memory' => 8192,
             'cpu' => 100,
             'disk' => 30720,
@@ -1525,6 +1573,13 @@ class UpgradeReservationServiceTest extends LaravelTestCase
                 'config_option_id' => $fixture->options[$resource]->id,
                 'config_value_id' => null,
                 'slider_value' => $value,
+            ]);
+        }
+        if ($selectValueId !== null) {
+            $upgrade->configs()->create([
+                'config_option_id' => $fixture->select->id,
+                'config_value_id' => $selectValueId,
+                'slider_value' => null,
             ]);
         }
         $upgrade->load([
@@ -1539,34 +1594,33 @@ class UpgradeReservationServiceTest extends LaravelTestCase
             'configs.configValue',
         ]);
         $upgrade->captureSnapshots();
+        $upgrade->quoted_amount = round(
+            (float) $upgrade->signedUpgradePrice()->price,
+            2
+        );
+        $upgrade->credit_amount = $upgrade->signedCreditAmount();
         ServiceUpgradeMutationCoordinator::save($upgrade);
+        if ((float) $upgrade->quoted_amount <= 0) {
+            return [$upgrade->fresh(), null];
+        }
+
+        $invoice = Invoice::factory()->create([
+            'user_id' => $fixture->user->id,
+            'currency_code' => 'USD',
+            'status' => Invoice::STATUS_PENDING,
+            'due_at' => $dueAt,
+        ]);
         $invoice->items()->create([
             'description' => 'Resource upgrade',
-            'price' => 100,
+            'price' => $upgrade->quoted_amount,
             'quantity' => 1,
             'reference_id' => $upgrade->id,
             'reference_type' => ServiceUpgrade::class,
         ]);
+        $upgrade->invoice_id = $invoice->id;
+        ServiceUpgradeMutationCoordinator::save($upgrade);
 
         return [$upgrade->fresh(), $invoice->fresh()];
-    }
-
-    private function recaptureUpgrade(ServiceUpgrade $upgrade): void
-    {
-        $upgrade->unsetRelations();
-        $upgrade->load([
-            'service.product.server.settings',
-            'service.product.settings',
-            'service.configs.configOption',
-            'service.configs.configValue',
-            'product.server.settings',
-            'product.settings',
-            'plan.prices',
-            'configs.configOption',
-            'configs.configValue',
-        ]);
-        $upgrade->captureSnapshots();
-        ServiceUpgradeMutationCoordinator::save($upgrade);
     }
 
     private function option(
