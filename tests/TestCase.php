@@ -44,8 +44,14 @@ abstract class TestCase extends BaseTestCase
             'node_id' => $nodeId,
             'name' => $name,
             'maintenance_mode' => $maintenance,
+            'eligible' => ! $maintenance,
             'total' => $total,
             'available' => $available,
+            'available_allocations' => [[
+                'id' => ($nodeId * 1000) + 1,
+                'ip' => '192.0.2.'.$nodeId,
+                'port' => 25565,
+            ]],
         ];
     }
 

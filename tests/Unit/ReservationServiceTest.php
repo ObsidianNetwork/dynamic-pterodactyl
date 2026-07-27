@@ -2,41 +2,66 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
+use App\Enums\InvoiceTransactionStatus;
+use App\Exceptions\DisplayException;
+use App\Exceptions\PermanentProvisioningException;
+use App\Helpers\ExtensionHelper;
+use App\Jobs\Server\CreateJob;
+use App\Jobs\Server\SuspendJob;
+use App\Models\Cart;
+use App\Models\CartItem;
+use App\Models\ConfigOption;
+use App\Models\Extension;
+use App\Models\Invoice;
+use App\Models\Plan;
+use App\Models\Product;
+use App\Models\Server;
+use App\Models\Service;
 use App\Models\User;
-
-use Illuminate\Auth\Access\AuthorizationException;
+use App\Services\Extensions\ExtensionLifecycleGuard;
+use App\Services\Invoice\CancelInvoiceService;
+use App\Services\Invoice\MarkInvoicePaidService;
+use App\Services\Service\DurableFulfillmentService;
+use App\Services\Service\FulfillmentStatusTransitionService;
+use App\Services\Service\RenewServiceService;
+use Carbon\Carbon;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ProductResourceConfigurationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\SchedulerHealthService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\SchedulerOperatorAlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ReservationServiceTest extends LaravelTestCase
 {
     use DatabaseTransactions;
 
-    private $mockNodeService;
+    private NodeSelectionService $nodeService;
 
-    private $mockAuditService;
+    private ReservationConfigurationService $configurationService;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        Config::set('settings.debug', false);
-        Gate::policy(ResourceReservation::class, ResourceReservationPolicy::class);
+        $this->nodeService = Mockery::mock(NodeSelectionService::class);
+        $this->configurationService = Mockery::mock(ReservationConfigurationService::class)
+            ->makePartial();
 
-        $this->mockNodeService = Mockery::mock(NodeSelectionService::class);
-        $this->mockAuditService = Mockery::mock(AuditLogService::class);
-
-        $this->app->instance(AuditLogService::class, $this->mockAuditService);
+        $audit = Mockery::mock(AuditLogService::class);
+        $audit->shouldReceive('log')->zeroOrMoreTimes();
+        $this->app->instance(AuditLogService::class, $audit);
     }
 
     protected function tearDown(): void
@@ -45,17 +70,2584 @@ class ReservationServiceTest extends LaravelTestCase
         parent::tearDown();
     }
 
+    public function test_guest_holds_transfer_with_cart_ownership(): void
+    {
+        $user = User::withoutEvents(fn () => User::factory()->create());
+        $reservationId = $this->insertReservation(
+            cartId: 71,
+            userId: null
+        );
+        $payload = json_decode(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('configuration_payload'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $payload['config_options'] = [[
+            'id' => 1,
+            'value' => 4096.0,
+        ]];
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'configuration_fingerprint' => $this->configurationService->fingerprint($payload),
+                'configuration_payload' => json_encode(
+                    $payload,
+                    JSON_THROW_ON_ERROR
+                ),
+            ]);
+        $persisted = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->first();
+        $persistedPayload = json_decode(
+            $persisted->configuration_payload,
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $this->assertSame(
+            $this->configurationService->fingerprint($persistedPayload),
+            $persisted->configuration_fingerprint,
+            'The immutable fingerprint must survive a JSON-column numeric round trip before ownership transfer.'
+        );
+
+        $updated = $this->service()->transferCartOwnership(71, $user->id);
+
+        $this->assertSame(1, $updated);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'cart_id' => 71,
+            'user_id' => $user->id,
+            'status' => 'pending',
+        ]);
+        $reservation = DB::table('ptero_resource_reservations')->where('cart_id', 71)->first();
+        $payload = json_decode($reservation->configuration_payload, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertIsInt($payload['config_options'][0]['value']);
+        $this->assertSame($user->id, $payload['customer_id']);
+        $this->assertSame(
+            $this->configurationService->fingerprint($payload),
+            $reservation->configuration_fingerprint
+        );
+    }
+
+    public function test_cart_reservation_rejects_resource_slider_added_after_checkout_render(): void
+    {
+        $product = $this->pterodactylProduct();
+        $memory = $this->resourceOption('Memory', 'memory');
+        $cpu = $this->resourceOption('CPU', 'cpu');
+        DB::table('config_option_products')->insert([
+            [
+                'product_id' => $product->id,
+                'config_option_id' => $memory->id,
+            ],
+            [
+                'product_id' => $product->id,
+                'config_option_id' => $cpu->id,
+            ],
+        ]);
+        $plan = Plan::factory()->create([
+            'priceable_id' => $product->id,
+            'priceable_type' => Product::class,
+            'type' => 'free',
+            'billing_unit' => null,
+            'billing_period' => 1,
+        ]);
+        $cart = new Cart([
+            'currency_code' => 'USD',
+        ]);
+        $cart->id = 71;
+        $cart->exists = true;
+        $cartItem = new CartItem([
+            'cart_id' => $cart->id,
+            'product_id' => $product->id,
+            'plan_id' => $plan->id,
+            'quantity' => 1,
+            'config_options' => [[
+                'option_id' => $memory->id,
+                'value' => 4096,
+            ]],
+        ]);
+        $cartItem->setRelation('cart', $cart);
+        $cartItem->setRelation('product', $product);
+        $cartItem->setRelation('plan', $plan);
+
+        $stockConfiguration = Mockery::mock(
+            ProductResourceConfigurationService::class
+        );
+        $stockConfiguration->shouldReceive('forQuote')
+            ->once()
+            ->andReturn([
+                'sliders' => [
+                    'memory' => ['config_option_id' => $memory->id],
+                    'cpu' => ['config_option_id' => $cpu->id],
+                ],
+            ]);
+        $this->app->instance(
+            ProductResourceConfigurationService::class,
+            $stockConfiguration
+        );
+
+        $this->expectException(DisplayException::class);
+        $this->expectExceptionMessage(
+            'Reload checkout and explicitly select every resource again.'
+        );
+
+        (new ReservationConfigurationService)->forCartItem($cartItem);
+    }
+
+    public function test_only_one_pending_hold_may_use_a_cart_item_guard(): void
+    {
+        $this->insertReservation(cartItemGuardId: 42);
+
+        $this->expectException(QueryException::class);
+
+        $this->insertReservation(cartItemGuardId: 42);
+    }
+
+    public function test_only_one_active_checkout_commitment_may_use_a_service(): void
+    {
+        $service = $this->makeService();
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+
+        $this->expectException(QueryException::class);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed'
+        );
+    }
+
+    public function test_only_one_active_upgrade_commitment_may_use_an_upgrade_guard(): void
+    {
+        $this->insertReservation(
+            status: 'paid_committed',
+            purpose: 'upgrade',
+            upgradeGuardId: 991
+        );
+
+        $this->expectException(QueryException::class);
+        $this->insertReservation(
+            status: 'pending',
+            purpose: 'upgrade',
+            upgradeGuardId: 991
+        );
+    }
+
+    public function test_only_one_active_hold_may_claim_an_allocation(): void
+    {
+        $first = $this->insertReservation();
+        $second = $this->insertReservation();
+        $this->insertAllocation($first, 7001);
+
+        $this->expectException(QueryException::class);
+        $this->insertAllocation($second, 7001);
+    }
+
+    public function test_admin_cancellation_rolls_back_status_when_allocation_release_fails(): void
+    {
+        $reservationId = $this->insertReservation();
+        $this->insertAllocation($reservationId);
+        $token = (string) DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('token');
+        $service = new class($this->nodeService, $this->configurationService) extends ReservationService
+        {
+            protected function releaseAllocationClaims(
+                int $reservationId
+            ): void {
+                throw new \RuntimeException(
+                    'Injected allocation release failure.'
+                );
+            }
+        };
+
+        try {
+            $service->cancel($token, 'Atomic cancellation regression');
+            $this->fail('The injected claim release failure must abort cancellation.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame(
+                'Injected allocation release failure.',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'pending',
+        ]);
+        $this->assertNull(
+            DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservationId)
+                ->value('released_at')
+        );
+    }
+
+    public function test_admin_extension_rejects_minutes_outside_the_short_hold_limit(): void
+    {
+        $reservationId = $this->insertReservation();
+        $token = (string) DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('token');
+        $originalExpiry = now()->addMinutes(15);
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'expires_at' => $originalExpiry,
+                'guaranteed_until' => $originalExpiry,
+            ]);
+
+        foreach ([-1, 0, 61] as $minutes) {
+            try {
+                $this->service()->extend($token, $minutes);
+                $this->fail(
+                    "Expected {$minutes} extension minutes to be rejected."
+                );
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame(
+                    'A reservation extension must be between 1 and 60 minutes.',
+                    $exception->getMessage()
+                );
+            }
+        }
+
+        $reservation = ResourceReservation::query()->findOrFail(
+            $reservationId
+        );
+        $this->assertSame(
+            $originalExpiry->toDateTimeString(),
+            $reservation->expires_at->toDateTimeString()
+        );
+        $this->assertSame(
+            $originalExpiry->toDateTimeString(),
+            $reservation->guaranteed_until->toDateTimeString()
+        );
+    }
+
+    public function test_admin_extension_is_capped_to_a_sixty_minute_short_hold_horizon(): void
+    {
+        Carbon::setTestNow('2026-07-27 12:00:00');
+
+        try {
+            $reservationId = $this->insertReservation();
+            $token = (string) DB::table(
+                'ptero_resource_reservations'
+            )
+                ->where('id', $reservationId)
+                ->value('token');
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->update([
+                    'expires_at' => now()->addMinutes(50),
+                    'guaranteed_until' => now()->addMinutes(50),
+                ]);
+
+            $this->assertTrue($this->service()->extend($token, 30));
+
+            $reservation = ResourceReservation::query()->findOrFail(
+                $reservationId
+            );
+            $maximum = now()->addMinutes(60);
+            $this->assertTrue(
+                $reservation->expires_at->equalTo($maximum)
+            );
+            $this->assertTrue(
+                $reservation->guaranteed_until->equalTo($maximum)
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_admin_extension_cannot_modify_a_bound_guarantee(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $guaranteedUntil = now()->addDays(7);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $invoice->id,
+            userId: $service->user_id,
+            guaranteedUntil: $guaranteedUntil
+        );
+        $token = (string) DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('token');
+
+        $this->assertFalse($this->service()->extend($token, 15));
+
+        $reservation = ResourceReservation::query()->findOrFail(
+            $reservationId
+        );
+        $this->assertSame($service->id, $reservation->service_id);
+        $this->assertSame($invoice->id, $reservation->invoice_id);
+        $this->assertSame(
+            $guaranteedUntil->toDateTimeString(),
+            $reservation->guaranteed_until->toDateTimeString()
+        );
+    }
+
+    public function test_admin_extension_locks_rechecks_and_conditionally_updates(): void
+    {
+        $source = file_get_contents(
+            __DIR__.'/../../Services/ReservationService.php'
+        );
+        $methodStart = strpos($source, 'public function extend(');
+        $methodEnd = strpos(
+            $source,
+            'public function getByToken(',
+            $methodStart
+        );
+        $method = substr(
+            $source,
+            $methodStart,
+            $methodEnd - $methodStart
+        );
+
+        $this->assertOrderedSourceMarkers($method, [
+            'DB::transaction(',
+            '->lockForUpdate()',
+            'ResourceReservation::STATUS_PENDING',
+            "->whereNull('service_id')",
+            "->whereNull('invoice_id')",
+            '->update([',
+        ]);
+    }
+
+    public function test_reservation_snapshot_is_built_under_the_configuration_lock(): void
+    {
+        $source = file_get_contents(
+            __DIR__.'/../../Services/ReservationService.php'
+        );
+        $method = strpos(
+            $source,
+            'public function reserveForCartItem'
+        );
+        $transaction = strpos(
+            $source,
+            'return DB::transaction',
+            $method
+        );
+        $configurationLock = strpos(
+            $source,
+            '->lockProduct(',
+            $transaction
+        );
+        $snapshot = strpos(
+            $source,
+            '->forCartItem($cartItem)',
+            $configurationLock
+        );
+        $insert = strpos(
+            $source,
+            "DB::table('ptero_resource_reservations')->insertGetId",
+            $snapshot
+        );
+
+        $this->assertNotFalse($method);
+        $this->assertNotFalse($transaction);
+        $this->assertNotFalse($configurationLock);
+        $this->assertNotFalse($snapshot);
+        $this->assertNotFalse($insert);
+        $this->assertLessThan($configurationLock, $transaction);
+        $this->assertLessThan($snapshot, $configurationLock);
+        $this->assertLessThan($insert, $snapshot);
+        $this->assertFalse(
+            strpos(
+                substr($source, $method, $transaction - $method),
+                '->forCartItem('
+            ),
+            'No mutable configuration snapshot may be built before the transaction.'
+        );
+    }
+
+    public function test_checkout_binding_uses_global_capacity_invoice_lock_order(): void
+    {
+        $source = file_get_contents(
+            __DIR__.'/../../Services/ReservationService.php'
+        );
+        $method = strpos(
+            $source,
+            'public function bindCartItemToService'
+        );
+        $nextMethod = strpos(
+            $source,
+            'public function preflightPaidService',
+            $method
+        );
+        $body = substr($source, $method, $nextMethod - $method);
+        $invoice = strpos($body, '$lockedInvoice = Invoice::query()');
+        $service = strpos($body, '$lockedService = Service::query()');
+        $reservation = strpos(
+            $body,
+            "DB::table('ptero_resource_reservations')"
+        );
+        $items = strpos($body, "DB::table('invoice_items')");
+
+        $this->assertNotFalse($invoice);
+        $this->assertNotFalse($service);
+        $this->assertNotFalse($reservation);
+        $this->assertNotFalse($items);
+        $this->assertLessThan($service, $invoice);
+        $this->assertLessThan($reservation, $service);
+        $this->assertLessThan($items, $reservation);
+    }
+
+    public function test_active_commitment_blocks_extension_deactivation(): void
+    {
+        $this->insertReservation();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('cannot be disabled, replaced, or uninstalled');
+
+        app(ExtensionLifecycleGuard::class)
+            ->assertCanDeactivate(ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL);
+    }
+
+    public function test_terminal_history_does_not_block_extension_deactivation(): void
+    {
+        $this->insertReservation(status: 'cancelled');
+
+        app(ExtensionLifecycleGuard::class)
+            ->assertCanDeactivate(ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL);
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function test_confirmed_active_service_blocks_extension_deactivation(): void
+    {
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'cannot be disabled, replaced, or uninstalled'
+        );
+
+        app(ExtensionLifecycleGuard::class)
+            ->assertCanDeactivate(
+                ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL
+            );
+    }
+
+    public function test_confirmed_active_service_allows_same_identity_upgrade_only_in_maintenance(): void
+    {
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+        $guard = app(ExtensionLifecycleGuard::class);
+
+        try {
+            $guard->assertCanUpgrade(
+                ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL
+            );
+            $this->fail(
+                'Live durable services must require deployment maintenance.'
+            );
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'deployment maintenance',
+                $exception->getMessage()
+            );
+        }
+
+        Artisan::call('down');
+        try {
+            $guard->assertCanUpgrade(
+                ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL
+            );
+            $this->addToAssertionCount(1);
+        } finally {
+            Artisan::call('up');
+        }
+    }
+
+    public function test_pending_commitment_keeps_its_snapshot_while_future_slider_metadata_changes(): void
+    {
+        $product = Product::factory()->create();
+        $option = $this->resourceOption('Memory', 'memory');
+        $option->products()->attach($product->id);
+        $reservationId = $this->insertReservation(productId: $product->id);
+        $originalPayload = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('configuration_payload');
+        $originalFingerprint = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('configuration_fingerprint');
+
+        $metadata = $option->metadata;
+        $metadata['max'] = 200000;
+        $option->metadata = $metadata;
+        $option->save();
+
+        $this->assertSame(200000, $option->fresh()->metadata['max']);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'pending',
+            'configuration_payload' => $originalPayload,
+            'configuration_fingerprint' => $originalFingerprint,
+        ]);
+    }
+
+    public function test_pending_commitment_keeps_its_snapshot_while_future_child_price_changes(): void
+    {
+        $product = Product::factory()->create();
+        $root = ConfigOption::create([
+            'name' => 'Location',
+            'env_variable' => 'location',
+            'type' => 'select',
+            'hidden' => false,
+            'upgradable' => false,
+        ]);
+        $root->products()->attach($product->id);
+        $child = ConfigOption::create([
+            'name' => 'Melbourne',
+            'env_variable' => 'location',
+            'type' => 'select',
+            'hidden' => false,
+            'upgradable' => false,
+            'parent_id' => $root->id,
+        ]);
+        $plan = $child->plans()->create([
+            'name' => 'Monthly',
+            'type' => 'recurring',
+            'billing_period' => 1,
+            'billing_unit' => 'month',
+        ]);
+        $price = $plan->prices()->create([
+            'currency_code' => 'USD',
+            'price' => 5,
+            'setup_fee' => 0,
+        ]);
+        $this->insertReservation(productId: $product->id);
+
+        $price->price = 7;
+        $price->save();
+
+        $this->assertEquals(7.0, (float) $price->fresh()->price);
+    }
+
+    public function test_pending_commitment_prevents_detaching_its_configuration(): void
+    {
+        $product = Product::factory()->create();
+        $option = $this->resourceOption('Disk', 'disk');
+        $option->products()->attach($product->id);
+        $this->insertReservation(productId: $product->id);
+
+        try {
+            $option->products()->detach($product->id);
+            $this->fail('Expected the product assignment to remain frozen.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'required by an unresolved or active capacity commitment',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('config_option_products', [
+            'config_option_id' => $option->id,
+            'product_id' => $product->id,
+        ]);
+    }
+
+    public function test_pending_commitment_prevents_reassigning_resource_identity(): void
+    {
+        $product = Product::factory()->create();
+        $option = $this->resourceOption('Memory', 'memory');
+        $option->products()->attach($product->id);
+        $this->insertReservation(productId: $product->id);
+
+        $option->env_variable = 'different_memory';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'required by an unresolved or active capacity commitment'
+        );
+
+        $option->save();
+    }
+
+    public function test_pending_commitment_prevents_deleting_its_product(): void
+    {
+        $product = Product::factory()->create();
+        $this->insertReservation(productId: $product->id);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'required by an unresolved or active capacity commitment'
+        );
+
+        $product->delete();
+    }
+
+    public function test_confirmed_active_service_keeps_its_configuration_identity(): void
+    {
+        $product = Product::factory()->create();
+        $option = $this->resourceOption('Disk', 'disk');
+        $option->products()->attach($product->id);
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            productId: $product->id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'required by an unresolved or active capacity commitment'
+        );
+
+        $option->products()->detach($product->id);
+    }
+
+    public function test_confirmed_cancelled_service_releases_configuration_identity(): void
+    {
+        $product = Product::factory()->create();
+        $option = $this->resourceOption('Disk', 'disk');
+        $option->products()->attach($product->id);
+        $service = $this->makeService(Service::STATUS_CANCELLED);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            productId: $product->id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+
+        $option->products()->detach($product->id);
+
+        $this->assertDatabaseMissing('config_option_products', [
+            'config_option_id' => $option->id,
+            'product_id' => $product->id,
+        ]);
+    }
+
+    public function test_dynamic_slider_cannot_be_attached_to_product_with_unmigrated_live_service(): void
+    {
+        $product = $this->pterodactylProduct();
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $option = $this->resourceOption('Memory', 'memory');
+
+        try {
+            $option->products()->attach($product->id);
+            $this->fail('Expected legacy service conversion to be rejected.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'has no confirmed checkout reservation',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseMissing('config_option_products', [
+            'config_option_id' => $option->id,
+            'product_id' => $product->id,
+        ]);
+    }
+
+    public function test_attached_option_cannot_be_activated_as_dynamic_for_unmigrated_live_service(): void
+    {
+        $product = $this->pterodactylProduct();
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $option = ConfigOption::create([
+            'name' => 'Memory',
+            'env_variable' => 'memory',
+            'type' => 'number',
+            'hidden' => false,
+            'upgradable' => false,
+            'metadata' => ['resource_type' => 'memory'],
+        ]);
+        $option->products()->attach($product->id);
+        $option->type = 'dynamic_slider';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'has no confirmed checkout reservation'
+        );
+
+        $option->save();
+    }
+
+    public function test_product_with_dynamic_slider_cannot_switch_to_pterodactyl_with_unmigrated_live_service(): void
+    {
+        $legacyHost = Server::query()->create([
+            'name' => 'Legacy host',
+            'extension' => 'LegacyHost',
+            'type' => 'server',
+            'enabled' => true,
+        ]);
+        $pterodactyl = Server::query()->create([
+            'name' => 'Pterodactyl',
+            'extension' => 'Pterodactyl',
+            'type' => 'server',
+            'enabled' => true,
+        ]);
+        $product = Product::factory()->create([
+            'server_id' => $legacyHost->id,
+        ]);
+        $option = $this->resourceOption('Memory', 'memory');
+        $option->products()->attach($product->id);
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $product->server_id = $pterodactyl->id;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'has no confirmed checkout reservation'
+        );
+
+        $product->save();
+    }
+
+    public function test_confirmed_service_allows_future_dynamic_slider_attachment(): void
+    {
+        $product = $this->pterodactylProduct();
+        $service = $this->makeService(Service::STATUS_ACTIVE);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed',
+            consumedAt: now(),
+            productId: $product->id
+        );
+        $option = $this->resourceOption('CPU', 'cpu');
+
+        $option->products()->attach($product->id);
+
+        $this->assertDatabaseHas('config_option_products', [
+            'config_option_id' => $option->id,
+            'product_id' => $product->id,
+        ]);
+    }
+
+    public function test_cancelled_legacy_service_allows_dynamic_slider_attachment(): void
+    {
+        $product = $this->pterodactylProduct();
+        $service = $this->makeService(Service::STATUS_CANCELLED);
+        DB::table('services')->where('id', $service->id)->update([
+            'product_id' => $product->id,
+        ]);
+        $option = $this->resourceOption('Disk', 'disk');
+
+        $option->products()->attach($product->id);
+
+        $this->assertDatabaseHas('config_option_products', [
+            'config_option_id' => $option->id,
+            'product_id' => $product->id,
+        ]);
+    }
+
+    public function test_fulfilled_history_allows_future_configuration_changes(): void
+    {
+        $product = Product::factory()->create();
+        $option = $this->resourceOption('CPU', 'cpu');
+        $option->products()->attach($product->id);
+        $this->insertReservation(
+            productId: $product->id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+
+        $metadata = $option->metadata;
+        $metadata['max'] = 200000;
+        $option->metadata = $metadata;
+        $option->save();
+
+        $this->assertSame(200000, $option->fresh()->metadata['max']);
+    }
+
+    public function test_begin_keeps_paid_commitment_reserved_until_verified_completion(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+
+        $this->configurationService->shouldReceive('assertServiceMatches')
+            ->once()
+            ->with($service, Mockery::on(fn ($row) => (int) $row->id === $reservationId));
+
+        $context = $this->service()->beginProvisioning($service);
+
+        $this->assertSame(4, $context['node_id']);
+        $this->assertFalse($context['already_consumed']);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'paid_committed',
+        ]);
+        $this->assertNotNull(
+            DB::table('ptero_resource_reservations')->where('id', $reservationId)->value('provisioning_started_at')
+        );
+
+        $this->assertNotNull($context['provisioning_lease_id']);
+        $this->assertTrue(
+            $this->service()->completeProvisioning(
+                $service->id,
+                $context['provisioning_lease_id'],
+                $this->externalServer()
+            )
+        );
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'confirmed',
+        ]);
+        $this->assertNotNull(
+            DB::table('ptero_resource_reservations')->where('id', $reservationId)->value('consumed_at')
+        );
+        $this->assertSame('active', $service->fresh()->status);
+        $this->assertNotNull(
+            DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservationId)
+                ->value('released_at')
+        );
+    }
+
+    public function test_active_provisioning_lease_rejects_a_second_worker(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now()
+        );
+        $this->insertAllocation($reservationId);
+
+        $this->configurationService->shouldNotReceive('assertServiceMatches');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('already being provisioned');
+
+        $this->service()->beginProvisioning($service);
+    }
+
+    public function test_failed_provisioning_releases_only_the_attempt_lease(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now(),
+            provisioningLeaseId: 'active-lease'
+        );
+
+        $this->service()->failProvisioning(
+            $service->id,
+            'active-lease',
+            new \RuntimeException('Pterodactyl unavailable')
+        );
+
+        $reservation = DB::table('ptero_resource_reservations')->where('id', $reservationId)->first();
+        $this->assertSame('paid_committed', $reservation->status);
+        $this->assertNull($reservation->provisioning_started_at);
+        $this->assertSame('Pterodactyl unavailable', $reservation->last_provisioning_error);
+        $this->assertNotNull($reservation->next_provisioning_attempt_at);
+    }
+
+    public function test_stale_worker_cannot_consume_or_clear_a_newer_lease(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now(),
+            provisioningLeaseId: 'new-lease'
+        );
+
+        try {
+            $this->service()->completeProvisioning(
+                $service->id,
+                'old-lease',
+                $this->externalServer()
+            );
+            $this->fail('Expected stale provisioning lease rejection.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('no longer owns', $exception->getMessage());
+        }
+
+        $this->service()->failProvisioning(
+            $service->id,
+            'old-lease',
+            new \RuntimeException('stale worker failed')
+        );
+
+        $reservation = DB::table('ptero_resource_reservations')->where('id', $reservationId)->first();
+        $this->assertSame('paid_committed', $reservation->status);
+        $this->assertSame('new-lease', $reservation->provisioning_lease_id);
+        $this->assertNotNull($reservation->provisioning_started_at);
+        $this->assertNull($reservation->last_provisioning_error);
+    }
+
+    public function test_completed_reservation_is_idempotent_for_server_reconciliation(): void
+    {
+        $service = $this->makeService();
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+        $reservationId = (int) DB::table('ptero_resource_reservations')
+            ->where('service_id', $service->id)
+            ->value('id');
+        $this->insertAllocation($reservationId);
+
+        $context = $this->service()->beginProvisioning($service);
+
+        $this->assertTrue($context['already_consumed']);
+        $this->assertTrue($this->service()->completeProvisioning($service->id));
+    }
+
+    public function test_bound_invoice_commits_even_if_current_metadata_no_longer_creates_new_holds(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            guaranteedUntil: now()->addDays(7)
+        );
+        $this->insertAllocation($reservationId);
+        $invoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => 12.50,
+            'quantity' => 1,
+            'description' => 'Dynamic service',
+        ]);
+
+        $this->configurationService->shouldNotReceive('requiresReservation');
+        $this->configurationService->shouldReceive('assertExclusiveProvisioningControl')->once();
+        $this->configurationService->shouldReceive('assertServiceMatches')->once();
+
+        $this->assertTrue($this->service()->commitPaidService($service, $invoice));
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'invoice_id' => $invoice->id,
+            'status' => 'paid_committed',
+        ]);
+        $this->assertSame('provisioning', $service->fresh()->status);
+    }
+
+    public function test_allocation_drift_rejects_payment_before_capacity_is_committed(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            guaranteedUntil: now()->addDays(7)
+        );
+        $this->insertAllocation($reservationId);
+        DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $reservationId)
+            ->update(['port' => 25566]);
+        $invoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => 12.50,
+            'quantity' => 1,
+            'description' => 'Dynamic service',
+        ]);
+
+        $this->configurationService->shouldNotReceive('requiresReservation');
+        $this->configurationService
+            ->shouldReceive('assertExclusiveProvisioningControl')
+            ->once();
+        $this->configurationService
+            ->shouldReceive('assertServiceMatches')
+            ->once();
+
+        try {
+            $this->service()->commitPaidService($service, $invoice);
+            $this->fail(
+                'Expected allocation drift to reject payment commitment.'
+            );
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'Allocation claims no longer match',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_non_dynamic_service_does_not_require_stock_control_gate(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+        ]);
+        $this->configurationService->shouldReceive('requiresReservation')
+            ->once()
+            ->with((int) $service->product_id)
+            ->andReturnFalse();
+        $this->configurationService->shouldNotReceive(
+            'assertExclusiveProvisioningControl'
+        );
+
+        $this->assertFalse(
+            $this->service()->commitPaidService($service, $invoice)
+        );
+    }
+
+    public function test_tampered_invoice_line_cannot_consume_reserved_capacity(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            guaranteedUntil: now()->addDays(7)
+        );
+        $invoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => 0.01,
+            'quantity' => 1,
+            'description' => 'Tampered dynamic service',
+        ]);
+
+        $this->configurationService->shouldNotReceive('requiresReservation');
+        $this->configurationService->shouldReceive('assertExclusiveProvisioningControl')->once();
+        $this->configurationService->shouldNotReceive('assertServiceMatches');
+
+        try {
+            $this->service()->commitPaidService($service, $invoice);
+            $this->fail('Expected invoice-line drift to reject the payment commitment.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'invoice line no longer matches',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_payment_after_the_seven_day_guarantee_fails_closed(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $invoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => 12.50,
+            'quantity' => 1,
+            'description' => 'Dynamic server',
+        ]);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $invoice->id,
+            userId: $service->user_id,
+            guaranteedUntil: now()->subSecond()
+        );
+
+        $this->configurationService->shouldNotReceive('requiresReservation');
+        $this->configurationService->shouldReceive('assertExclusiveProvisioningControl')->once();
+        $this->configurationService->shouldNotReceive('assertServiceMatches');
+
+        try {
+            $this->service()->commitPaidService($service, $invoice);
+            $this->fail('Expected the expired capacity guarantee to reject payment.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('seven-day capacity guarantee expired', $exception->getMessage());
+        }
+
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'pending',
+        ]);
+        $this->assertSame('pending', $service->fresh()->status);
+    }
+
+    public function test_completion_requires_a_durable_external_identity(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now(),
+            provisioningLeaseId: 'lease'
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('complete external server identity');
+
+        try {
+            $this->service()->completeProvisioning($service->id, 'lease', ['attributes' => ['id' => 8]]);
+        } finally {
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $reservationId,
+                'status' => 'paid_committed',
+            ]);
+            $this->assertSame('pending', $service->fresh()->status);
+        }
+    }
+
+    public function test_cancellation_tombstone_wins_after_external_create(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now(),
+            provisioningLeaseId: 'lease',
+            cancellationRequestedAt: now()
+        );
+        $this->insertAllocation($reservationId);
+
+        $this->assertFalse(
+            $this->service()->completeProvisioning(
+                $service,
+                'lease',
+                $this->externalServer()
+            )
+        );
+
+        $this->assertSame('cancellation_pending', $service->fresh()->status);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'paid_committed',
+            'external_server_id' => 71,
+        ]);
+    }
+
+    public function test_unpinned_paid_cancellation_exposes_only_the_signed_checkout_contract(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+
+        $context = $this->service()
+            ->cancellationReconciliationContext($service);
+
+        $this->assertSame($reservationId, $context['reservation_id']);
+        $this->assertSame(
+            (string) $service->id,
+            $context['external_server_external_id']
+        );
+        $this->assertSame(
+            "paymenter-user-{$service->user_id}",
+            $context['user_external_id']
+        );
+        $this->assertSame(4, $context['node_id']);
+        $this->assertSame(4096, $context['memory']);
+        $this->assertSame(200, $context['cpu']);
+        $this->assertSame(51200, $context['disk']);
+        $this->assertSame(0, $context['client_allocation_limit']);
+        $this->assertFalse($context['provisioning_in_flight']);
+        $this->assertSame([7001], array_column(
+            $context['allocations'],
+            'allocation_id'
+        ));
+        $this->assertMatchesRegularExpression(
+            '/^[a-f0-9]{64}$/',
+            $context['configuration_fingerprint']
+        );
+    }
+
+    public function test_absent_unpinned_server_completes_paid_cancellation(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+
+        $this->assertTrue(
+            $this->service()->completeServiceCancellation($service)
+        );
+
+        $this->assertSame(
+            Service::STATUS_CANCELLED,
+            $service->fresh()->status
+        );
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'cancelled',
+        ]);
+        $this->assertNotNull(
+            DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservationId)
+                ->value('released_at')
+        );
+    }
+
+    public function test_paid_cancellation_context_marks_an_active_create_race(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now(),
+            provisioningLeaseId: 'active-create'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+
+        $context = $this->service()
+            ->cancellationReconciliationContext($service);
+
+        $this->assertTrue($context['provisioning_in_flight']);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('still in flight');
+
+        $this->service()->pinCancellationServerIdentity(
+            $service,
+            $this->cancellationServer($service->id),
+            44
+        );
+    }
+
+    public function test_timed_out_create_identity_is_pinned_idempotently_before_cancellation(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+        $server = $this->cancellationServer($service->id);
+
+        $first = $this->service()->pinCancellationServerIdentity(
+            $service,
+            $server,
+            44
+        );
+        $second = $this->service()->pinCancellationServerIdentity(
+            $service,
+            $server,
+            44
+        );
+
+        $this->assertSame(71, $first['external_server_id']);
+        $this->assertSame($first, $second);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'paid_committed',
+            'external_server_id' => 71,
+            'external_user_id' => 44,
+            'external_server_identifier' => 'created',
+        ]);
+    }
+
+    public function test_mismatched_timed_out_create_is_never_pinned(): void
+    {
+        $service = $this->makeService('provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        $this->service()->requestServiceCancellation($service);
+        $server = $this->cancellationServer($service->id);
+        $server['attributes']['limits']['disk']++;
+
+        try {
+            $this->service()->pinCancellationServerIdentity(
+                $service,
+                $server,
+                44
+            );
+            $this->fail('Expected mismatched server rejection.');
+        } catch (PermanentProvisioningException $exception) {
+            $this->assertStringContainsString(
+                'reserved disk',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertNull(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('external_server_id')
+        );
+    }
+
+    public function test_unpaid_cancellation_returns_product_stock_exactly_once(): void
+    {
+        [$service, $product] = $this->makeStockedService(stock: 4);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id
+        );
+        $this->insertAllocation($reservationId);
+
+        $this->assertTrue($this->service()->requestServiceCancellation($service));
+        $this->assertSame(5, $product->fresh()->stock);
+        $this->assertTrue(
+            app(DurableFulfillmentService::class)
+                ->cancellationIsDurablyComplete($service)
+        );
+        $this->assertNotNull(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('product_stock_released_at')
+        );
+
+        $this->assertFalse($this->service()->requestServiceCancellation($service));
+        $this->assertSame(5, $product->fresh()->stock);
+    }
+
+    public function test_paid_cancellation_returns_stock_only_after_external_absence(): void
+    {
+        [$service, $product] = $this->makeStockedService(
+            stock: 4,
+            status: Service::STATUS_ACTIVE
+        );
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+
+        $this->assertTrue($this->service()->requestServiceCancellation($service));
+        $this->assertSame(4, $product->fresh()->stock);
+        $this->assertFalse(
+            app(DurableFulfillmentService::class)
+                ->cancellationIsDurablyComplete($service)
+        );
+        $this->assertNull(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('product_stock_released_at')
+        );
+
+        $this->assertTrue($this->service()->completeServiceCancellation($service));
+        $this->assertTrue($this->service()->completeServiceCancellation($service));
+        $this->assertSame(5, $product->fresh()->stock);
+        $this->assertTrue(
+            app(DurableFulfillmentService::class)
+                ->cancellationIsDurablyComplete($service)
+        );
+    }
+
+    public function test_failed_external_cancellation_keeps_product_stock_committed(): void
+    {
+        [$service, $product] = $this->makeStockedService(
+            stock: 4,
+            status: Service::STATUS_ACTIVE
+        );
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed',
+            consumedAt: now()
+        );
+        $this->service()->requestServiceCancellation($service);
+
+        $this->service()->recordPermanentCancellationFailure(
+            $service,
+            new \RuntimeException('Pterodactyl delete failed')
+        );
+
+        $this->assertSame(4, $product->fresh()->stock);
+        $this->assertNull(
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('product_stock_released_at')
+        );
+    }
+
+    public function test_invoice_cancellation_atomically_releases_checkout_obligations(): void
+    {
+        [$service, $product] = $this->makeStockedService(4);
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $invoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => 12.50,
+            'quantity' => 1,
+            'description' => 'Dynamic server',
+        ]);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $invoice->id,
+            userId: $service->user_id
+        );
+        $this->insertAllocation($reservationId);
+
+        app(CancelInvoiceService::class)->handle($invoice);
+
+        $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->fresh()->status);
+        $this->assertSame(Service::STATUS_CANCELLED, $service->fresh()->status);
+        $this->assertSame(5, $product->fresh()->stock);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => 'cancelled',
+        ]);
+        $this->assertNotNull(
+            DB::table('ptero_reservation_allocations')
+                ->where('reservation_id', $reservationId)
+                ->value('released_at')
+        );
+    }
+
+    public function test_capacity_invoice_cannot_be_raw_cancelled_or_deleted(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $invoice->id,
+            userId: $service->user_id
+        );
+
+        try {
+            $invoice->update(['status' => Invoice::STATUS_CANCELLED]);
+            $this->fail('Expected raw capacity invoice cancellation to fail.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'fulfillment coordinator',
+                $exception->getMessage()
+            );
+        }
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('cannot be deleted');
+        $invoice->delete();
+    }
+
+    public function test_active_allocation_cannot_be_claimed_twice(): void
+    {
+        $first = $this->insertReservation();
+        $second = $this->insertReservation();
+        $this->insertAllocation($first, allocationId: 7001);
+
+        $this->expectException(QueryException::class);
+        $this->insertAllocation($second, allocationId: 7001);
+    }
+
+    public function test_dynamic_service_status_cannot_bypass_fulfillment_state_machine(): void
+    {
+        $service = $this->makeService();
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $service->status = 'active';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('fulfillment state machine');
+
+        $service->save();
+    }
+
+    public function test_reservation_identity_guard_survives_mutable_product_classification(): void
+    {
+        $service = $this->makeService();
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id
+        );
+
+        $service->currency_code = 'AUD';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('capacity-aware fulfillment coordinator');
+
+        $service->save();
+    }
+
+    public function test_reserved_panel_host_cannot_change_while_commitment_is_live(): void
+    {
+        $server = Server::query()->create([
+            'name' => 'Reserved Pterodactyl',
+            'extension' => 'Pterodactyl',
+            'type' => 'server',
+            'enabled' => true,
+        ]);
+        $host = $server->settings()->create([
+            'key' => 'host',
+            'value' => 'https://panel.example.com',
+            'type' => 'string',
+            'encrypted' => false,
+        ]);
+        $reservationId = $this->insertReservation();
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update(['server_extension_id' => $server->id]);
+
+        $host->value = 'https://different-panel.example.com';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('pinned by active services or upgrade commitments');
+
+        $host->save();
+    }
+
+    public function test_exclusive_provisioning_control_cannot_change_while_commitment_is_live(): void
+    {
+        $extension = Extension::query()->firstOrCreate(
+            [
+                'extension' => ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL,
+                'type' => 'other',
+            ],
+            [
+                'name' => 'Dynamic Pterodactyl',
+                'enabled' => true,
+            ]
+        );
+        $control = $extension->settings()->firstOrCreate(
+            ['key' => 'exclusive_provisioning_control'],
+            [
+                'value' => true,
+                'type' => 'boolean',
+                'encrypted' => false,
+            ]
+        );
+        if (! (bool) $control->value) {
+            $control->value = true;
+            $control->save();
+        }
+        $this->insertReservation();
+
+        $control->value = false;
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('cannot be disabled, replaced, or uninstalled');
+
+        $control->save();
+    }
+
+    public function test_stock_control_setting_cannot_be_deleted_while_commitment_is_live(): void
+    {
+        $extension = Extension::query()->firstOrCreate(
+            [
+                'extension' => ExtensionLifecycleGuard::DYNAMIC_PTERODACTYL,
+                'type' => 'other',
+            ],
+            [
+                'name' => 'Dynamic Pterodactyl',
+                'enabled' => true,
+            ]
+        );
+        $control = $extension->settings()->firstOrCreate(
+            ['key' => 'exclusive_provisioning_control'],
+            [
+                'value' => true,
+                'type' => 'boolean',
+                'encrypted' => false,
+            ]
+        );
+        $this->insertReservation();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('cannot be disabled, replaced, or uninstalled');
+
+        $control->delete();
+    }
+
+    public function test_resource_property_create_update_and_delete_bypasses_are_blocked(): void
+    {
+        $service = $this->makeService();
+        $update = $service->properties()->create([
+            'key' => 'memory',
+            'value' => 4096,
+        ]);
+        $delete = $service->properties()->create([
+            'key' => 'disk',
+            'value' => 51200,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id
+        );
+
+        $operations = [
+            fn () => $service->properties()->create([
+                'key' => 'cpu',
+                'value' => 300,
+            ]),
+            function () use ($update): void {
+                $update->value = 8192;
+                $update->save();
+            },
+            fn () => $delete->delete(),
+        ];
+        foreach ($operations as $operation) {
+            try {
+                $operation();
+                $this->fail('Expected resource property mutation to be blocked.');
+            } catch (\RuntimeException $exception) {
+                $this->assertStringContainsString(
+                    'capacity-aware fulfillment coordinator',
+                    $exception->getMessage()
+                );
+            }
+        }
+    }
+
+    public function test_resource_config_create_update_and_delete_bypasses_are_blocked(): void
+    {
+        $service = $this->makeService();
+        $memory = $this->resourceOption('Memory', 'memory');
+        $cpu = $this->resourceOption('CPU', 'cpu');
+        $disk = $this->resourceOption('Disk', 'disk');
+        $update = $service->configs()->create([
+            'config_option_id' => $memory->id,
+            'config_value_id' => null,
+            'slider_value' => 4096,
+        ]);
+        $delete = $service->configs()->create([
+            'config_option_id' => $disk->id,
+            'config_value_id' => null,
+            'slider_value' => 51200,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id
+        );
+
+        $operations = [
+            fn () => $service->configs()->create([
+                'config_option_id' => $cpu->id,
+                'config_value_id' => null,
+                'slider_value' => 300,
+            ]),
+            function () use ($update): void {
+                $update->slider_value = 8192;
+                $update->save();
+            },
+            fn () => $delete->delete(),
+        ];
+        foreach ($operations as $operation) {
+            try {
+                $operation();
+                $this->fail('Expected resource config mutation to be blocked.');
+            } catch (\RuntimeException $exception) {
+                $this->assertStringContainsString(
+                    'capacity-aware fulfillment coordinator',
+                    $exception->getMessage()
+                );
+            }
+        }
+
+        FulfillmentStatusTransitionService::run(
+            $service,
+            function () use ($update): void {
+                $update->slider_value = 8192;
+                $update->save();
+            }
+        );
+        $this->assertSame(8192.0, (float) $update->fresh()->slider_value);
+    }
+
+    public function test_reservation_backed_service_cannot_be_hard_deleted(): void
+    {
+        $service = $this->makeService();
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed'
+        );
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('cannot be hard deleted');
+
+        $service->delete();
+    }
+
+    public function test_exact_guarantee_boundary_expires_order_and_blocks_payment(): void
+    {
+        Carbon::setTestNow('2026-07-26 12:00:00');
+
+        try {
+            $service = $this->makeService();
+            $invoice = Invoice::factory()->create([
+                'user_id' => $service->user_id,
+                'status' => Invoice::STATUS_PENDING,
+                'due_at' => now(),
+            ]);
+            $invoice->items()->create([
+                'reference_type' => Service::class,
+                'reference_id' => $service->id,
+                'price' => 10,
+                'quantity' => 1,
+                'description' => 'Dynamic server',
+            ]);
+            $reservationId = $this->insertReservation(
+                serviceId: $service->id,
+                invoiceId: $invoice->id,
+                userId: $service->user_id,
+                guaranteedUntil: now()
+            );
+            $this->insertAllocation($reservationId);
+
+            $this->assertSame(1, $this->service()->cleanupExpired());
+            $this->assertSame(Invoice::STATUS_CANCELLED, $invoice->fresh()->status);
+            $this->assertSame(Service::STATUS_CANCELLED, $service->fresh()->status);
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $reservationId,
+                'status' => 'expired',
+            ]);
+            $this->assertNotNull(
+                DB::table('ptero_reservation_allocations')
+                    ->where('reservation_id', $reservationId)
+                    ->value('released_at')
+            );
+            try {
+                app(MarkInvoicePaidService::class)->handle($invoice);
+                $this->fail('Expected the cancelled day-eight invoice to reject payment.');
+            } catch (\RuntimeException $exception) {
+                $this->assertStringContainsString(
+                    'capacity guarantee deadline expired',
+                    $exception->getMessage()
+                );
+            }
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_cleanup_continues_after_corrupt_earlier_reservation(): void
+    {
+        $validService = $this->makeService();
+        $paidInvoice = Invoice::factory()->create([
+            'user_id' => $validService->user_id,
+            'status' => Invoice::STATUS_PAID,
+            'due_at' => now()->subMinute(),
+        ]);
+        $corruptReservationId = $this->insertReservation(
+            invoiceId: $paidInvoice->id,
+            userId: $validService->user_id,
+            guaranteedUntil: now()->subMinute()
+        );
+        $validReservationId = $this->insertReservation(
+            serviceId: $validService->id,
+            userId: $validService->user_id,
+            guaranteedUntil: now()->subMinute()
+        );
+        $operatorAlerts = Mockery::mock(SchedulerOperatorAlertService::class);
+        $operatorAlerts->shouldReceive('notify')
+            ->once()
+            ->with(Mockery::on(
+                fn (array $context): bool => $context['entity_type']
+                    === 'resource_reservation'
+                    && $context['entity_id'] === $corruptReservationId
+            ));
+        $this->app->instance(
+            SchedulerOperatorAlertService::class,
+            $operatorAlerts
+        );
+
+        $this->assertSame(1, $this->service()->cleanupExpired());
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $corruptReservationId,
+            'status' => ResourceReservation::STATUS_PENDING,
+        ]);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $validReservationId,
+            'status' => ResourceReservation::STATUS_EXPIRED,
+        ]);
+        $this->assertSame(
+            Service::STATUS_CANCELLED,
+            $validService->fresh()->status
+        );
+    }
+
+    public function test_cleanup_cursor_reaches_valid_row_beyond_failed_page(): void
+    {
+        $validService = $this->makeService();
+        $paidInvoice = Invoice::factory()->create([
+            'user_id' => $validService->user_id,
+            'status' => Invoice::STATUS_PAID,
+            'due_at' => now()->subMinute(),
+        ]);
+        $corruptReservationIds = [];
+        for ($index = 0; $index < 2; $index++) {
+            $corruptReservationIds[] = $this->insertReservation(
+                invoiceId: $paidInvoice->id,
+                userId: $validService->user_id,
+                guaranteedUntil: now()->subMinute()
+            );
+        }
+        $validReservationId = $this->insertReservation(
+            serviceId: $validService->id,
+            userId: $validService->user_id,
+            guaranteedUntil: now()->subMinute()
+        );
+        $operatorAlerts = Mockery::mock(
+            SchedulerOperatorAlertService::class
+        );
+        $health = Mockery::mock(
+            SchedulerHealthService::class,
+            [$operatorAlerts]
+        )->makePartial();
+        $health->shouldReceive('recordRowFailure')->times(2);
+        $this->app->instance(SchedulerHealthService::class, $health);
+        DB::table('ptero_scheduler_heartbeats')
+            ->where(
+                'task_name',
+                SchedulerHealthService::TASK_EXPIRE_CHECKOUT
+            )
+            ->update(['last_scanned_entity_id' => 0]);
+
+        $this->assertSame(0, $this->service()->cleanupExpired(2));
+        $this->assertSame(1, $this->service()->cleanupExpired(1));
+        foreach ($corruptReservationIds as $corruptReservationId) {
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $corruptReservationId,
+                'status' => ResourceReservation::STATUS_PENDING,
+            ]);
+        }
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $validReservationId,
+            'status' => ResourceReservation::STATUS_EXPIRED,
+        ]);
+        $this->assertSame(
+            $validReservationId,
+            (int) DB::table('ptero_scheduler_heartbeats')
+                ->where(
+                    'task_name',
+                    SchedulerHealthService::TASK_EXPIRE_CHECKOUT
+                )
+                ->value('last_scanned_entity_id')
+        );
+        $this->assertSame(
+            Service::STATUS_CANCELLED,
+            $validService->fresh()->status
+        );
+    }
+
+    public function test_late_gateway_payment_is_preserved_for_refund_review(): void
+    {
+        Carbon::setTestNow('2026-07-26 12:00:01');
+
+        try {
+            $service = $this->makeService();
+            $invoice = Invoice::factory()->create([
+                'user_id' => $service->user_id,
+                'status' => Invoice::STATUS_PENDING,
+                'due_at' => now()->subSecond(),
+                'currency_code' => 'USD',
+            ]);
+            $invoice->items()->create([
+                'reference_type' => Service::class,
+                'reference_id' => $service->id,
+                'price' => 12.50,
+                'quantity' => 1,
+                'description' => 'Dynamic server',
+            ]);
+            $reservationId = $this->insertReservation(
+                serviceId: $service->id,
+                invoiceId: $invoice->id,
+                userId: $service->user_id,
+                guaranteedUntil: now()->subSecond()
+            );
+
+            ExtensionHelper::addPayment(
+                $invoice->id,
+                null,
+                12.50,
+                transactionId: 'late-gateway-transaction'
+            );
+
+            $this->assertSame(1, $invoice->transactions()->count());
+            $this->assertSame(Invoice::STATUS_PENDING, $invoice->fresh()->status);
+            $this->assertNotNull(
+                $invoice->fresh()->payment_attention_required_at
+            );
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $reservationId,
+                'status' => 'pending',
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_partial_payment_expiry_releases_capacity_without_cancelling_payment_fact(): void
+    {
+        Carbon::setTestNow('2026-07-26 12:00:00');
+
+        try {
+            $service = $this->makeService();
+            $invoice = Invoice::factory()->create([
+                'user_id' => $service->user_id,
+                'status' => Invoice::STATUS_PENDING,
+                'due_at' => now()->addDays(7),
+                'currency_code' => 'USD',
+            ]);
+            $invoice->items()->create([
+                'reference_type' => Service::class,
+                'reference_id' => $service->id,
+                'price' => 12.50,
+                'quantity' => 1,
+                'description' => 'Dynamic server',
+            ]);
+            $reservationId = $this->insertReservation(
+                serviceId: $service->id,
+                invoiceId: $invoice->id,
+                userId: $service->user_id,
+                guaranteedUntil: now()->addDays(7)
+            );
+            $this->insertAllocation($reservationId);
+            ExtensionHelper::addPayment(
+                $invoice->id,
+                null,
+                5.00,
+                transactionId: 'partial-gateway-transaction'
+            );
+
+            Carbon::setTestNow(now()->addDays(7));
+            $this->assertSame(1, $this->service()->cleanupExpired());
+
+            $this->assertSame(1, $invoice->transactions()->count());
+            $this->assertSame(Invoice::STATUS_PENDING, $invoice->fresh()->status);
+            $this->assertNotNull(
+                $invoice->fresh()->payment_attention_required_at
+            );
+            $this->assertSame(
+                Service::STATUS_PROVISIONING_FAILED,
+                $service->fresh()->status
+            );
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $reservationId,
+                'status' => 'expired',
+            ]);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_mixed_invoice_expiry_releases_dynamic_and_static_stock_once(): void
+    {
+        Carbon::setTestNow('2026-07-26 12:00:00');
+
+        try {
+            [$dynamicService, $dynamicProduct] = $this->makeStockedService(4);
+            [$staticService, $staticProduct] = $this->makeStockedService(
+                7,
+                userId: $dynamicService->user_id
+            );
+            $invoice = Invoice::factory()->create([
+                'user_id' => $dynamicService->user_id,
+                'status' => Invoice::STATUS_PENDING,
+                'due_at' => now(),
+                'currency_code' => 'USD',
+            ]);
+            foreach ([$dynamicService, $staticService] as $linkedService) {
+                $invoice->items()->create([
+                    'reference_type' => Service::class,
+                    'reference_id' => $linkedService->id,
+                    'price' => 12.50,
+                    'quantity' => 1,
+                    'description' => 'Server',
+                ]);
+            }
+            $reservationId = $this->insertReservation(
+                serviceId: $dynamicService->id,
+                invoiceId: $invoice->id,
+                userId: $dynamicService->user_id,
+                guaranteedUntil: now()
+            );
+            $this->insertAllocation($reservationId);
+
+            $this->assertSame(1, $this->service()->cleanupExpired());
+            $this->assertSame(0, $this->service()->cleanupExpired());
+
+            $this->assertSame(5, $dynamicProduct->fresh()->stock);
+            $this->assertSame(8, $staticProduct->fresh()->stock);
+            $this->assertSame(
+                Service::STATUS_CANCELLED,
+                $dynamicService->fresh()->status
+            );
+            $this->assertSame(
+                Service::STATUS_CANCELLED,
+                $staticService->fresh()->status
+            );
+            $this->assertSame(
+                Invoice::STATUS_CANCELLED,
+                $invoice->fresh()->status
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_mixed_invoice_payment_attention_releases_all_stock_once(): void
+    {
+        Carbon::setTestNow('2026-07-26 12:00:00');
+
+        try {
+            [$dynamicService, $dynamicProduct] = $this->makeStockedService(4);
+            [$staticService, $staticProduct] = $this->makeStockedService(
+                7,
+                userId: $dynamicService->user_id
+            );
+            $invoice = Invoice::factory()->create([
+                'user_id' => $dynamicService->user_id,
+                'status' => Invoice::STATUS_PENDING,
+                'due_at' => now()->addDays(7),
+                'currency_code' => 'USD',
+            ]);
+            foreach ([$dynamicService, $staticService] as $linkedService) {
+                $invoice->items()->create([
+                    'reference_type' => Service::class,
+                    'reference_id' => $linkedService->id,
+                    'price' => 12.50,
+                    'quantity' => 1,
+                    'description' => 'Server',
+                ]);
+            }
+            $reservationId = $this->insertReservation(
+                serviceId: $dynamicService->id,
+                invoiceId: $invoice->id,
+                userId: $dynamicService->user_id,
+                guaranteedUntil: now()->addDays(7)
+            );
+            $this->insertAllocation($reservationId);
+            ExtensionHelper::addPayment(
+                $invoice->id,
+                null,
+                5,
+                transactionId: 'mixed-partial-payment'
+            );
+
+            Carbon::setTestNow(now()->addDays(7));
+            $this->assertSame(1, $this->service()->cleanupExpired());
+            $this->assertSame(0, $this->service()->cleanupExpired());
+
+            $this->assertSame(5, $dynamicProduct->fresh()->stock);
+            $this->assertSame(8, $staticProduct->fresh()->stock);
+            $this->assertSame(
+                Service::STATUS_PROVISIONING_FAILED,
+                $dynamicService->fresh()->status
+            );
+            $this->assertSame(
+                Service::STATUS_PROVISIONING_FAILED,
+                $staticService->fresh()->status
+            );
+            $this->assertSame(
+                Invoice::STATUS_PENDING,
+                $invoice->fresh()->status
+            );
+            $this->assertNotNull(
+                $invoice->fresh()->payment_attention_required_at
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_generic_order_age_cron_cannot_shorten_seven_day_capacity_guarantee(): void
+    {
+        Carbon::setTestNow('2026-07-26 12:00:00');
+
+        try {
+            config(['settings.cronjob_order_cancel' => 3]);
+            $service = $this->makeService();
+            DB::table('services')
+                ->where('id', $service->id)
+                ->update(['created_at' => now()->subDays(4)]);
+            $reservationId = $this->insertReservation(
+                serviceId: $service->id,
+                userId: $service->user_id,
+                guaranteedUntil: now()->addDays(3)
+            );
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->update(['expires_at' => now()->addDays(3)]);
+            $this->insertAllocation($reservationId);
+
+            $this->artisan('app:cron-job')->assertExitCode(0);
+            $this->assertSame(Service::STATUS_PENDING, $service->fresh()->status);
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $reservationId,
+                'status' => 'pending',
+            ]);
+
+            Carbon::setTestNow(now()->addDays(3));
+            $this->assertSame(1, $this->service()->cleanupExpired());
+            $this->assertSame(Service::STATUS_CANCELLED, $service->fresh()->status);
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_checkout_cleanup_never_reclaims_upgrade_reservations(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            guaranteedUntil: now()->subSecond()
+        );
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'purpose' => 'upgrade',
+                'expires_at' => now()->subSecond(),
+            ]);
+        $this->insertAllocation($reservationId);
+
+        $this->assertSame(0, $this->service()->cleanupExpired());
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'purpose' => 'upgrade',
+            'status' => ResourceReservation::STATUS_PENDING,
+        ]);
+        $this->assertDatabaseHas('ptero_reservation_allocations', [
+            'reservation_id' => $reservationId,
+            'released_at' => null,
+        ]);
+    }
+
+    public function test_cron_can_suspend_a_confirmed_dynamic_service_through_coordinator(): void
+    {
+        Queue::fake();
+        config([
+            'settings.cronjob_order_suspend' => 2,
+            'settings.cronjob_invoice' => 7,
+        ]);
+        $service = $this->makeBillableService(Service::STATUS_ACTIVE);
+        DB::table('services')->where('id', $service->id)->update([
+            'expires_at' => now()->subDays(3),
+            'price' => 10,
+        ]);
+        $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'confirmed'
+        );
+
+        $this->artisan('app:cron-job')->assertExitCode(0);
+
+        $this->assertSame(Service::STATUS_SUSPENDED, $service->fresh()->status);
+        Queue::assertPushed(
+            SuspendJob::class,
+            fn (SuspendJob $job): bool => (int) $job->service->id === (int) $service->id
+        );
+    }
+
+    public function test_paid_renewal_can_reactivate_confirmed_dynamic_service(): void
+    {
+        Queue::fake();
+        $service = $this->makeBillableService(Service::STATUS_SUSPENDED);
+        DB::table('services')->where('id', $service->id)->update([
+            'price' => '10.00',
+        ]);
+        $service = $service->fresh();
+        $this->insertConfirmedCheckoutCommitment($service);
+        $renewalInvoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => $service->currency_code,
+            'due_at' => $service->expires_at,
+        ]);
+        $renewalInvoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => $service->price,
+            'quantity' => $service->quantity,
+            'description' => 'Dynamic service renewal',
+        ]);
+
+        $payment = ExtensionHelper::addPayment(
+            $renewalInvoice,
+            null,
+            $service->price,
+            transactionId: 'paid-renewal-reactivation'
+        );
+
+        $this->assertSame(
+            InvoiceTransactionStatus::Succeeded,
+            $payment->fresh()->status
+        );
+        $this->assertSame(
+            number_format(
+                (float) $renewalInvoice->fresh()->total,
+                2,
+                '.',
+                ''
+            ),
+            number_format((float) $payment->fresh()->amount, 2, '.', '')
+        );
+        $paidInvoice = $renewalInvoice->fresh();
+        $this->assertNull(
+            $paidInvoice->payment_attention_required_at,
+            (string) $paidInvoice->payment_attention_reason
+        );
+        $this->assertSame(
+            Invoice::STATUS_PAID,
+            $paidInvoice->status
+        );
+        $this->assertSame(Service::STATUS_ACTIVE, $service->fresh()->status);
+    }
+
+    public function test_mixed_paid_invoice_routes_only_the_row_backed_service_through_dynamic_commit(): void
+    {
+        Bus::fake([CreateJob::class]);
+        $server = Server::query()->create([
+            'name' => 'Pterodactyl',
+            'extension' => 'Pterodactyl',
+            'type' => 'server',
+            'enabled' => true,
+        ]);
+        $dynamicProduct = Product::factory()->create(['server_id' => $server->id]);
+        $staticProduct = Product::factory()->create(['server_id' => $server->id]);
+        $dynamicPlan = $dynamicProduct->plans()->create([
+            'name' => 'Dynamic',
+            'type' => 'recurring',
+            'billing_period' => 1,
+            'billing_unit' => 'month',
+        ]);
+        $staticPlan = $staticProduct->plans()->create([
+            'name' => 'Static',
+            'type' => 'recurring',
+            'billing_period' => 1,
+            'billing_unit' => 'month',
+        ]);
+        $user = User::withoutEvents(fn () => User::factory()->create());
+        $dynamicService = Service::withoutEvents(fn () => Service::factory()->create([
+            'user_id' => $user->id,
+            'product_id' => $dynamicProduct->id,
+            'plan_id' => $dynamicPlan->id,
+            'status' => Service::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]));
+        $staticService = Service::withoutEvents(fn () => Service::factory()->create([
+            'user_id' => $user->id,
+            'product_id' => $staticProduct->id,
+            'plan_id' => $staticPlan->id,
+            'status' => Service::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]));
+        $invoice = Invoice::factory()->create([
+            'user_id' => $user->id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        foreach ([$dynamicService, $staticService] as $invoiceService) {
+            $invoice->items()->create([
+                'reference_type' => Service::class,
+                'reference_id' => $invoiceService->id,
+                'price' => 12.50,
+                'quantity' => 1,
+                'description' => 'Mixed checkout service',
+            ]);
+        }
+        $this->insertReservation(
+            serviceId: $dynamicService->id,
+            invoiceId: $invoice->id,
+            userId: $user->id,
+            guaranteedUntil: now()->addDays(7)
+        );
+
+        $reservationService = Mockery::mock(ReservationService::class);
+        $reservationService->shouldReceive('commitPaidService')
+            ->once()
+            ->withArgs(
+                fn (Service $candidate, Invoice $paidInvoice): bool => $candidate->is($dynamicService) && $paidInvoice->is($invoice)
+            )
+            ->andReturnTrue();
+        $this->app->instance(ReservationService::class, $reservationService);
+
+        $fulfillment = app(DurableFulfillmentService::class);
+        $this->assertTrue($fulfillment->isReservationBacked($dynamicService));
+        $this->assertFalse($fulfillment->isReservationBacked($staticService));
+
+        app(RenewServiceService::class)->handle($dynamicService, $invoice);
+        app(RenewServiceService::class)->handle($staticService, $invoice);
+
+        $this->assertCount(2, Bus::dispatched(CreateJob::class));
+        Bus::assertDispatched(
+            CreateJob::class,
+            fn (CreateJob $job): bool => $job->service->is($dynamicService)
+        );
+        Bus::assertDispatched(
+            CreateJob::class,
+            fn (CreateJob $job): bool => $job->service->is($staticService)
+        );
+        $this->assertSame(Service::STATUS_ACTIVE, $staticService->fresh()->status);
+    }
+
+    public function test_missing_extension_runtime_cannot_fall_back_to_legacy_paid_provisioning(): void
+    {
+        Bus::fake([CreateJob::class]);
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $invoice->id,
+            userId: $service->user_id,
+            guaranteedUntil: now()->addDays(7)
+        );
+        $missingRuntime = new class extends DurableFulfillmentService
+        {
+            protected function reservationService(): ?object
+            {
+                return null;
+            }
+        };
+        $this->app->instance(
+            DurableFulfillmentService::class,
+            $missingRuntime
+        );
+
+        try {
+            app(RenewServiceService::class)->handle($service, $invoice);
+            $this->fail('Expected missing durable runtime to block provisioning.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'durable fulfillment extension is unavailable',
+                $exception->getMessage()
+            );
+        }
+
+        Bus::assertNotDispatched(CreateJob::class);
+        $this->assertSame(Service::STATUS_PENDING, $service->fresh()->status);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => ResourceReservation::STATUS_PENDING,
+        ]);
+    }
+
+    public function test_missing_extension_runtime_cannot_partially_cancel_or_release_stock(): void
+    {
+        [$service, $product] = $this->makeStockedService(4);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id
+        );
+        $missingRuntime = new class extends DurableFulfillmentService
+        {
+            protected function reservationService(): ?object
+            {
+                return null;
+            }
+        };
+
+        try {
+            $missingRuntime->requestCancellation($service);
+            $this->fail('Expected missing durable runtime to block cancellation.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString(
+                'durable fulfillment extension is unavailable',
+                $exception->getMessage()
+            );
+        }
+
+        $this->assertSame(4, $product->fresh()->stock);
+        $this->assertSame(Service::STATUS_PENDING, $service->fresh()->status);
+        $this->assertNull($service->fresh()->product_stock_released_at);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $reservationId,
+            'status' => ResourceReservation::STATUS_PENDING,
+            'product_stock_released_at' => null,
+        ]);
+    }
+
+    public function test_allocation_row_drift_is_rejected_before_external_provisioning(): void
+    {
+        $service = $this->makeService();
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed'
+        );
+        $this->insertAllocation($reservationId);
+        DB::table('ptero_reservation_allocations')
+            ->where('reservation_id', $reservationId)
+            ->update(['port' => 25566]);
+
+        $this->configurationService->shouldNotReceive('assertServiceMatches');
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Allocation claims no longer match');
+
+        $this->service()->beginProvisioning($service);
+    }
+
+    public function test_reconciler_recovers_a_stale_crashed_worker_lease(): void
+    {
+        Queue::fake();
+        $service = $this->makeService(status: 'provisioning');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            userId: $service->user_id,
+            status: 'paid_committed',
+            provisioningStartedAt: now()->subMinutes(6),
+            provisioningLeaseId: 'abandoned-lease'
+        );
+
+        $this->assertSame(1, $this->service()->reconcileStalledPaidCommitments());
+        $reservation = DB::table('ptero_resource_reservations')->find($reservationId);
+        $this->assertNull($reservation->provisioning_started_at);
+        $this->assertNull($reservation->provisioning_lease_id);
+        $this->assertNotNull($reservation->next_provisioning_attempt_at);
+        Queue::assertPushed(
+            CreateJob::class,
+            fn (CreateJob $job): bool => $job->service->is($service)
+                && $job->dispatchId !== null
+                && $job->dispatchToken !== null
+        );
+        $this->assertDatabaseHas('service_job_dispatches', [
+            'service_id' => $service->id,
+            'action' => 'create',
+        ]);
+    }
+
+    public function test_fixed_port_is_claimed_before_an_earlier_wildcard_mapping(): void
+    {
+        $service = $this->service();
+        $reflection = new \ReflectionClass($service);
+        $method = $reflection->getMethod('mapAllocationRequirements');
+        $method->setAccessible(true);
+
+        $mapped = $method->invoke($service, [
+            ['id' => 7001, 'ip' => '192.0.2.10', 'port' => 27015],
+            ['id' => 7002, 'ip' => '192.0.2.10', 'port' => 25565],
+        ], [
+            [
+                'environment_key' => 'SERVER_PORT',
+                'requested_port' => null,
+                'is_primary' => true,
+            ],
+            [
+                'environment_key' => 'QUERY_PORT',
+                'requested_port' => 27015,
+                'is_primary' => false,
+            ],
+        ]);
+
+        $this->assertSame([
+            [
+                'allocation_id' => 7001,
+                'ip' => '192.0.2.10',
+                'port' => 27015,
+                'environment_key' => 'QUERY_PORT',
+                'is_primary' => false,
+            ],
+            [
+                'allocation_id' => 7002,
+                'ip' => '192.0.2.10',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ],
+        ], $mapped);
+    }
+
     /**
-     * Create ReservationService with mocked dependencies.
-     * Uses reflection to bypass constructor ExtensionHelper call.
+     * @param  array<int, string>  $markers
      */
-    private function createService(): ReservationService
+    private function assertOrderedSourceMarkers(
+        string $source,
+        array $markers
+    ): void {
+        $offset = 0;
+
+        foreach ($markers as $marker) {
+            $position = strpos($source, $marker, $offset);
+            $this->assertNotFalse(
+                $position,
+                "Expected source marker [{$marker}] after offset {$offset}."
+            );
+            $offset = $position + strlen($marker);
+        }
+    }
+
+    private function service(): ReservationService
     {
         $reflection = new \ReflectionClass(ReservationService::class);
         $service = $reflection->newInstanceWithoutConstructor();
 
         foreach ([
-            'nodeService' => $this->mockNodeService,
+            'nodeService' => $this->nodeService,
+            'configurationService' => $this->configurationService,
             'ttlMinutes' => 15,
         ] as $property => $value) {
             $instanceProperty = $reflection->getProperty($property);
@@ -66,820 +2658,337 @@ class ReservationServiceTest extends LaravelTestCase
         return $service;
     }
 
-    public function test_safeAudit_logs_warning_on_failure(): void
+    private function makeService(string $status = 'pending'): Service
     {
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('created', 'reservation', 99, ['token_prefix' => 'deadbeef...'])
-            ->andThrow(new \RuntimeException('audit backend unavailable'));
-
-        Log::shouldReceive('warning')
-            ->once()
-            ->with('extension audit write failed', Mockery::on(function (array $context) {
-                return $context['action'] === 'created'
-                    && $context['entity_type'] === 'reservation'
-                    && $context['entity_id'] === 99
-                    && $context['error'] === 'audit backend unavailable';
-            }));
-        Log::shouldReceive('error')->zeroOrMoreTimes();
-
-        $service = new class
-        {
-            use \Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
-
-            public function writeAudit(): void
-            {
-                $this->safeAudit('created', 'reservation', 99, ['token_prefix' => 'deadbeef...']);
-            }
-        };
-
-        $service->writeAudit();
-
-        $this->addToAssertionCount(1);
-    }
-
-    /**
-     * Test that confirm updates status to confirmed.
-     */
-    public function test_confirm_updates_status(): void
-    {
-        $token = 'test_token_123';
-        $serviceId = 42;
-
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('token', $token)
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('status', 'pending')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('expires_at', '>', Mockery::any())
-            ->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 99, 'token' => $token]);
-        DB::shouldReceive('update')
-            ->with(Mockery::on(function ($data) use ($serviceId) {
-                return $data['status'] === 'confirmed'
-                    && $data['service_id'] === $serviceId
-                    && isset($data['updated_at']);
-            }))
-            ->andReturn(1);
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservation_confirmed', 'resource_reservation', 99, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)
-                && $ctx['service_id'] === $serviceId
-                && array_key_exists('node_id', $ctx)
-                && $ctx['node_id'] === null))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->confirm($token, $serviceId);
-
-        $this->assertTrue($result);
-    }
-
-    /**
-     * Test that confirm returns false for non-existent token.
-     */
-    public function test_confirm_returns_false_for_nonexistent_token(): void
-    {
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')->times(4)->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn(null);
-        DB::shouldReceive('update')->andReturn(0);
-
-        $service = $this->createService();
-        $result = $service->confirm('nonexistent', 1);
-
-        $this->assertFalse($result);
-    }
-
-    /**
-     * Test that expired reservations cannot be confirmed.
-     */
-    public function test_expired_reservation_cannot_be_confirmed(): void
-    {
-        $token = 'expired_token_123';
-
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('token', $token)
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('status', 'pending')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('expires_at', '>', Mockery::any())
-            ->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 5, 'token' => $token]);
-        DB::shouldReceive('update')->andReturn(0);
-
-        $service = $this->createService();
-        $result = $service->confirm($token, 1);
-
-        $this->assertFalse($result);
-    }
-
-    /**
-     * Test that cancel updates status to cancelled.
-     */
-    public function test_cancel_updates_status(): void
-    {
-        $token = 'test_token_123';
-
-        $mockReservation = (object) [
-            'id' => 1,
-            'token' => $token,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 51200,
-            'status' => 'pending',
-        ];
-
-        // First call for getByToken
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('token', $token)
-            ->andReturnSelf();
-        DB::shouldReceive('first')
-            ->once()
-            ->andReturn($mockReservation);
-
-        // Second call for update
-        DB::shouldReceive('where')
-            ->with('status', 'pending')
-            ->andReturnSelf();
-        DB::shouldReceive('update')
-            ->with(Mockery::on(function ($data) {
-                return $data['status'] === 'cancelled'
-                    && isset($data['updated_at']);
-            }))
-            ->andReturn(1);
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservation_cancelled', 'resource_reservation', 1, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)
-                && array_key_exists('node_id', $ctx)
-                && $ctx['node_id'] === null))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->cancel($token);
-
-        $this->assertTrue($result);
-    }
-
-    /**
-     * Test that cancel returns false for non-existent token.
-     */
-    public function test_cancel_returns_false_for_nonexistent_token(): void
-    {
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')->andReturnSelf();
-        DB::shouldReceive('first')->andReturn(null);
-
-        $service = $this->createService();
-        $result = $service->cancel('nonexistent');
-
-        $this->assertFalse($result);
-    }
-
-    /**
-     * Test that cleanup expired marks pending reservations as expired.
-     */
-    public function test_cleanup_expired_marks_pending_as_expired(): void
-    {
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('status', 'pending')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('expires_at', '<', Mockery::any())
-            ->andReturnSelf();
-        DB::shouldReceive('update')
-            ->with(Mockery::on(function ($data) {
-                return $data['status'] === 'expired'
-                    && isset($data['updated_at']);
-            }))
-            ->andReturn(5);
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservations_expired_batch', 'resource_reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5 && isset($ctx['run_at'])))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->cleanupExpired();
-
-        $this->assertEquals(5, $result);
-    }
-
-    /**
-     * Test getByToken returns reservation.
-     */
-    public function test_get_by_token_returns_reservation(): void
-    {
-        $token = 'test_token_123';
-        $expected = (object) [
-            'id' => 1,
-            'token' => $token,
-            'status' => 'pending',
-        ];
-
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('token', $token)
-            ->andReturnSelf();
-        DB::shouldReceive('first')
-            ->andReturn($expected);
-
-        $service = $this->createService();
-        $result = $service->getByToken($token);
-
-        $this->assertEquals($expected, $result);
-    }
-
-    /**
-     * Test getByCartItem returns pending reservation.
-     */
-    public function test_get_by_cart_item_returns_pending_reservation(): void
-    {
-        $cartItemId = 42;
-        $expected = (object) [
-            'id' => 1,
-            'cart_item_id' => $cartItemId,
-            'status' => 'pending',
-        ];
-
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('cart_item_id', $cartItemId)
-            ->andReturnSelf();
-        DB::shouldReceive('where')
-            ->with('status', 'pending')
-            ->andReturnSelf();
-        DB::shouldReceive('first')
-            ->andReturn($expected);
-
-        $service = $this->createService();
-        $result = $service->getByCartItem($cartItemId);
-
-        $this->assertEquals($expected, $result);
-    }
-
-    public function test_create_logs_audit_entry(): void
-    {
-        $this->mockNodeService->shouldReceive('selectBestNode')
-            ->once()
-            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-
-        DB::shouldReceive('transaction')
-            ->once()
-            ->andReturnUsing(fn ($callback) => $callback());
-
-        DB::shouldReceive('table')
-            ->with('ptero_resource_reservations')
-            ->andReturnSelf();
-        DB::shouldReceive('where')->andReturnSelf();
-        DB::shouldReceive('lockForUpdate')->andReturnSelf();
-        DB::shouldReceive('get')->andReturn(collect([]));
-        DB::shouldReceive('insertGetId')->andReturn(42);
-
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('created', 'reservation', 42, Mockery::type('array'))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->create(1, 1, ['memory' => 4096, 'cpu' => 200, 'disk' => 51200], 10, 5);
-
-        $this->assertEquals(42, $result['id']);
-        $this->assertSame(0.0, $result['pricing']['total']);
-        $this->assertSame([], $result['pricing']['breakdown']);
-        $this->assertSame('stored', $result['pricing']['model']);
-    }
-
-    public function test_confirm_logs_audit_entry_on_success(): void
-    {
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->times(4)->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 42, 'token' => 'test_token']);
-        DB::shouldReceive('update')->andReturn(1);
-
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservation_confirmed', 'resource_reservation', 42, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === 'test_tok' && $ctx['service_id'] === 42))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->confirm('test_token', 42);
-
-        $this->assertTrue($result);
-    }
-
-    public function test_confirm_skips_audit_on_state_drift(): void
-    {
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->times(4)->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn(null);
-        DB::shouldReceive('update')->andReturn(0);
-
-        $this->mockAuditService->shouldReceive('log')->never();
-
-        $service = $this->createService();
-        $result = $service->confirm('expired_token', 42);
-
-        $this->assertFalse($result);
-    }
-
-    public function test_extend_logs_audit_entry_on_success(): void
-    {
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->times(3)->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn((object) ['id' => 42, 'token' => 'test_token']);
-        DB::shouldReceive('raw')->once()->andReturn('DATE_ADD_SQL');
-        DB::shouldReceive('update')->andReturn(1);
-
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservation_extended', 'resource_reservation', 42, Mockery::on(fn ($ctx) => $ctx['additional_minutes'] === 15
-                && $ctx['token_prefix'] === substr('test_token', 0, 8)
-                && array_key_exists('node_id', $ctx)
-                && $ctx['node_id'] === null))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->extend('test_token', 15);
-
-        $this->assertTrue($result);
-    }
-
-    public function test_cleanup_expired_logs_batch_count(): void
-    {
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->times(2)->andReturnSelf();
-        DB::shouldReceive('update')->andReturn(5);
-
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservations_expired_batch', 'resource_reservation', 0, Mockery::on(fn ($ctx) => $ctx['count'] === 5 && isset($ctx['run_at'])))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $result = $service->cleanupExpired();
-
-        $this->assertEquals(5, $result);
-    }
-
-    public function test_cancel_audits_with_source_admin(): void
-    {
-        $token = 'admin_cancel_token';
-        $mockReservation = (object) ['id' => 5, 'token' => $token, 'memory' => 4096, 'cpu' => 200, 'disk' => 51200, 'status' => 'pending'];
-
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->with('token', $token)->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn($mockReservation);
-        DB::shouldReceive('where')->with('status', 'pending')->andReturnSelf();
-        DB::shouldReceive('update')->andReturn(1);
-
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservation_cancelled', 'resource_reservation', 5, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $service->cancel($token, 'admin override', 'admin');
-
-        $this->addToAssertionCount(1);
-    }
-
-    public function test_cancel_audits_with_source_customer(): void
-    {
-        $token = 'system_cancel_token';
-        $mockReservation = (object) ['id' => 6, 'token' => $token, 'memory' => 4096, 'cpu' => 200, 'disk' => 51200, 'status' => 'pending'];
-
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->with('token', $token)->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn($mockReservation);
-        DB::shouldReceive('where')->with('status', 'pending')->andReturnSelf();
-        DB::shouldReceive('update')->andReturn(1);
-
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('reservation_cancelled', 'resource_reservation', 6, Mockery::on(fn ($ctx) => $ctx['token_prefix'] === substr($token, 0, 8)))
-            ->andReturn(1);
-
-        $service = $this->createService();
-        $service->cancel($token, null, 'customer');
-
-        $this->addToAssertionCount(1);
-    }
-    public function test_audit_failure_does_not_break_confirm(): void
-    {
-        $token = 'audit_fail_token';
-        $mockReservation = (object) ['id' => 77, 'token' => $token];
-
-        DB::shouldReceive('table')->with('ptero_resource_reservations')->andReturnSelf();
-        DB::shouldReceive('where')->andReturnSelf();
-        DB::shouldReceive('first')->once()->andReturn($mockReservation);
-        DB::shouldReceive('update')->once()->andReturn(1);
-
-        $this->mockAuditService->shouldReceive('log')->once()
-            ->andThrow(new \RuntimeException('audit db down'));
-
-        $service = $this->createService();
-
-        $this->assertTrue($service->confirm($token, 42));
-    }
-
-    public function test_create_with_idempotency_key_returns_existing_on_duplicate(): void
-    {
-        /** @var User $user */
         $user = User::withoutEvents(fn () => User::factory()->create());
-        $service = $this->createService();
-
-        $this->mockNodeService->shouldReceive('selectBestNode')
-            ->once()
-            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->mockAuditService->shouldReceive('log')
-            ->once()
-            ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
-
-        $first = $service->create(1, 1, $this->standardResources(), null, $user->id, 'dup-key-123');
-        $second = $service->create(1, 1, $this->standardResources(), null, $user->id, 'dup-key-123');
-
-        $this->assertSame($first['id'], $second['id']);
-        $this->assertSame($first['token'], $second['token']);
-        $this->assertSame(1, ResourceReservation::count());
-    }
-
-    public function test_create_with_idempotency_key_creates_new_after_original_cancelled(): void
-    {
-        /** @var User $user */
-        $user = User::withoutEvents(fn () => User::factory()->create());
-        $service = $this->createService();
-
-        $this->mockNodeService->shouldReceive('selectBestNode')
-            ->twice()
-            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->mockAuditService->shouldReceive('log')
-            ->twice()
-            ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
-
-        $first = $service->create(1, 1, $this->standardResources(), null, $user->id, 'cancelled-key-123');
-        ResourceReservation::query()->findOrFail($first['id'])->update(['status' => 'cancelled']);
-
-        $second = $service->create(1, 1, $this->standardResources(), null, $user->id, 'cancelled-key-123');
-
-        $this->assertNotSame($first['id'], $second['id']);
-        $this->assertSame(2, ResourceReservation::count());
-    }
-
-    public function test_confirm_writes_audit_row(): void
-    {
-        $this->app->instance(AuditLogService::class, new AuditLogService);
-        $actor = User::withoutEvents(fn () => User::factory()->create());
-        $this->actingAs($actor);
-
-        $serviceId = DB::table('services')->insertGetId([
-            'user_id' => $actor->id,
-            'status' => 'active',
+        $id = DB::table('services')->insertGetId([
+            'user_id' => $user->id,
+            'status' => $status,
             'currency_code' => 'USD',
             'quantity' => 1,
             'price' => '0.00',
+            'expires_at' => now()->addMonth(),
             'created_at' => now(),
             'updated_at' => now(),
         ]);
 
-        $reservation = ResourceReservation::create([
-            'token' => 'confirm_token_12345678',
-            'user_id' => null,
-            'cart_item_id' => null,
-            'node_id' => 11,
-            'location_id' => 1,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 51200,
-            'calculated_price' => 0,
-            'pricing_breakdown' => [],
-            'status' => 'pending',
-            'expires_at' => now()->addMinutes(15),
-        ]);
-
-        $this->assertTrue($this->createService()->confirm($reservation->token, $serviceId));
-
-        $this->assertDatabaseHas('ptero_audit_logs', [
-            'action' => 'reservation_confirmed',
-            'entity_type' => 'resource_reservation',
-            'entity_id' => $reservation->id,
-        ]);
-
-        $log = DB::table('ptero_audit_logs')->where('action', 'reservation_confirmed')->latest('id')->first();
-        $newValues = json_decode($log->new_values, true);
-
-        $this->assertSame(substr($reservation->token, 0, 8), $newValues['token_prefix']);
-        $this->assertSame($serviceId, $newValues['service_id']);
-        $this->assertSame(11, $newValues['node_id']);
+        return Service::query()->findOrFail($id);
     }
 
-    public function test_cancel_writes_audit_row(): void
+    private function makeBillableService(string $status): Service
     {
-        $this->app->instance(AuditLogService::class, new AuditLogService);
-        $actor = User::withoutEvents(fn () => User::factory()->create());
-        $this->actingAs($actor);
-
-        $reservation = ResourceReservation::create([
-            'token' => 'cancel_token_12345678',
-            'user_id' => null,
-            'cart_item_id' => null,
-            'node_id' => 12,
-            'location_id' => 1,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 51200,
-            'calculated_price' => 0,
-            'pricing_breakdown' => [],
-            'status' => 'pending',
-            'expires_at' => now()->addMinutes(15),
+        $product = $this->pterodactylProduct();
+        $plan = Plan::factory()->create([
+            'priceable_id' => $product->id,
+            'priceable_type' => Product::class,
+            'type' => 'recurring',
+            'billing_unit' => 'month',
+            'billing_period' => 1,
         ]);
+        $service = $this->makeService($status);
+        DB::table('services')
+            ->where('id', $service->id)
+            ->update([
+                'product_id' => $product->id,
+                'plan_id' => $plan->id,
+            ]);
 
-        $this->assertTrue($this->createService()->cancel($reservation->token));
-
-        $this->assertDatabaseHas('ptero_audit_logs', [
-            'action' => 'reservation_cancelled',
-            'entity_type' => 'resource_reservation',
-            'entity_id' => $reservation->id,
-        ]);
-
-        $log = DB::table('ptero_audit_logs')->where('action', 'reservation_cancelled')->latest('id')->first();
-        $newValues = json_decode($log->new_values, true);
-
-        $this->assertSame(substr($reservation->token, 0, 8), $newValues['token_prefix']);
-        $this->assertSame(12, $newValues['node_id']);
+        return $service->fresh();
     }
 
-    public function test_cleanup_expired_writes_batch_audit_row_with_count(): void
-    {
-        $this->app->instance(AuditLogService::class, new AuditLogService);
-        $actor = User::withoutEvents(fn () => User::factory()->create());
-        $this->actingAs($actor);
+    /**
+     * @return array{Service, Product}
+     */
+    private function makeStockedService(
+        int $stock,
+        string $status = Service::STATUS_PENDING,
+        ?int $userId = null
+    ): array {
+        $product = Product::factory()->create(['stock' => $stock]);
+        $service = $this->makeService($status);
+        DB::table('services')
+            ->where('id', $service->id)
+            ->update(array_filter([
+                'product_id' => $product->id,
+                'user_id' => $userId,
+            ], fn ($value): bool => $value !== null));
 
-        ResourceReservation::create([
-            'token' => 'expired_a_token_1234',
-            'user_id' => null,
-            'cart_item_id' => null,
-            'node_id' => 21,
-            'location_id' => 1,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 51200,
-            'calculated_price' => 0,
-            'pricing_breakdown' => [],
-            'status' => 'pending',
-            'expires_at' => now()->subMinute(),
-        ]);
-
-        ResourceReservation::create([
-            'token' => 'expired_b_token_1234',
-            'user_id' => null,
-            'cart_item_id' => null,
-            'node_id' => 22,
-            'location_id' => 1,
-            'memory' => 4096,
-            'cpu' => 200,
-            'disk' => 51200,
-            'calculated_price' => 0,
-            'pricing_breakdown' => [],
-            'status' => 'pending',
-            'expires_at' => now()->subMinute(),
-        ]);
-
-        $this->assertSame(2, $this->createService()->cleanupExpired());
-
-        $this->assertDatabaseHas('ptero_audit_logs', [
-            'action' => 'reservations_expired_batch',
-            'entity_type' => 'resource_reservation',
-            'entity_id' => 0,
-        ]);
-
-        $log = DB::table('ptero_audit_logs')->where('action', 'reservations_expired_batch')->latest('id')->first();
-        $newValues = json_decode($log->new_values, true);
-
-        $this->assertSame(2, $newValues['count']);
-        $this->assertArrayHasKey('run_at', $newValues);
+        return [$service->fresh(), $product];
     }
 
-    public function test_create_without_idempotency_key_always_creates_new(): void
+    private function resourceOption(string $name, string $resource): ConfigOption
     {
-        /** @var User $user */
-        $user = User::withoutEvents(fn () => User::factory()->create());
-        $service = $this->createService();
-
-        $this->mockNodeService->shouldReceive('selectBestNode')
-            ->twice()
-            ->andReturn(['node_id' => 1, 'name' => 'Node 1']);
-        $this->mockAuditService->shouldReceive('log')
-            ->twice()
-            ->with('created', 'reservation', Mockery::type('int'), Mockery::type('array'));
-
-        $first = $service->create(1, 1, $this->standardResources(), null, $user->id);
-        $second = $service->create(1, 1, $this->standardResources(), null, $user->id);
-
-        $this->assertNotSame($first['id'], $second['id']);
-        $this->assertSame(2, ResourceReservation::count());
+        return ConfigOption::create([
+            'name' => $name,
+            'env_variable' => $resource,
+            'type' => 'dynamic_slider',
+            'hidden' => false,
+            'upgradable' => true,
+            'metadata' => [
+                'resource_type' => $resource,
+                'min' => 1,
+                'max' => 100000,
+                'step' => 1,
+                'default' => 1,
+                'display_divisor' => 1,
+                'pricing' => [
+                    'model' => 'linear',
+                    'rate_per_unit' => 0,
+                ],
+            ],
+        ]);
     }
 
-
-    private function createReservation(int $userId, string $token): ResourceReservation
+    private function pterodactylProduct(): Product
     {
-        return ResourceReservation::create([
-            'token' => $token,
+        $server = Server::query()->create([
+            'name' => 'Pterodactyl',
+            'extension' => 'Pterodactyl',
+            'type' => 'server',
+            'enabled' => true,
+        ]);
+
+        return Product::factory()->create(['server_id' => $server->id]);
+    }
+
+    private function insertReservation(
+        ?int $serviceId = null,
+        ?int $invoiceId = null,
+        ?int $cartId = null,
+        ?int $cartItemGuardId = null,
+        ?int $userId = null,
+        string $status = 'pending',
+        mixed $provisioningStartedAt = null,
+        ?string $provisioningLeaseId = null,
+        mixed $consumedAt = null,
+        mixed $cancellationRequestedAt = null,
+        mixed $guaranteedUntil = null,
+        ?int $productId = null,
+        ?int $planId = null,
+        string $purpose = 'checkout',
+        ?int $upgradeGuardId = null
+    ): int {
+        $payload = [
+            'customer_id' => $userId,
+            'cart_id' => $cartId,
+            'server_extension_id' => 0,
+            'product_id' => (int) $productId,
+            'plan_id' => (int) $planId,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'panel_identity' => str_repeat('c', 64),
+            'node_id' => 4,
+            'location_id' => 2,
+            'resources' => [
+                'memory' => 4096,
+                'cpu' => 200,
+                'disk' => 51200,
+            ],
+            'provisioning_identity' => [
+                'nest_id' => 1,
+                'egg_id' => 2,
+                'user_external_id' => $userId !== null
+                    ? "paymenter-user-{$userId}"
+                    : null,
+                'user_email' => $userId !== null
+                    ? (string) User::query()->whereKey($userId)->value('email')
+                    : null,
+            ],
+            'allocation_requirements' => [
+                'required_count' => 1,
+                'mappings' => [[
+                    'environment_key' => 'SERVER_PORT',
+                    'requested_port' => null,
+                    'is_primary' => true,
+                ]],
+                'allowed_port_ranges' => [],
+                'dedicated_ip' => false,
+            ],
+            'allocations' => [[
+                'allocation_id' => 7001,
+                'ip' => '192.0.2.10',
+                'port' => 25565,
+                'environment_key' => 'SERVER_PORT',
+                'is_primary' => true,
+            ]],
+        ];
+
+        return DB::table('ptero_resource_reservations')->insertGetId([
+            'token' => Str::random(64),
+            'purpose' => $purpose,
+            'cart_item_id' => null,
+            'cart_item_guard_id' => $cartItemGuardId,
+            'cart_id' => $cartId,
+            'server_extension_id' => null,
+            'panel_identity' => str_repeat('c', 64),
+            'service_id' => $serviceId,
+            'service_guard_id' => $serviceId,
+            'upgrade_guard_id' => $upgradeGuardId,
+            'invoice_id' => $invoiceId,
             'user_id' => $userId,
-            'cart_item_id' => null,
-            'node_id' => 1,
-            'location_id' => 1,
+            'product_id' => $productId,
+            'plan_id' => $planId,
+            'quantity' => 1,
+            'currency_code' => 'USD',
+            'configuration_fingerprint' => $this->configurationService->fingerprint($payload),
+            'configuration_payload' => json_encode($payload),
+            'pricing_version' => str_repeat('b', 64),
+            'formula_version' => ReservationConfigurationService::FORMULA_VERSION,
+            'node_id' => 4,
+            'location_id' => 2,
             'memory' => 4096,
             'cpu' => 200,
             'disk' => 51200,
-            'calculated_price' => 0,
-            'pricing_breakdown' => [],
-            'status' => 'pending',
-            'expires_at' => now()->addMinutes(15),
+            'calculated_price' => 12.50,
+            'pricing_breakdown' => json_encode([]),
+            'status' => $status,
+            'expires_at' => now()->addDay(),
+            'guaranteed_until' => $guaranteedUntil ?? now()->addDay(),
+            'provisioning_started_at' => $provisioningStartedAt,
+            'provisioning_lease_id' => $provisioningLeaseId,
+            'cancellation_requested_at' => $cancellationRequestedAt,
+            'consumed_at' => $consumedAt,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
     }
 
-    // ─── Commit-3: actor-aware authorization (cancel) ──────────────────────────
-
-    public function test_cancel_throws_when_actor_does_not_own_reservation(): void
+    private function insertAllocation(int $reservationId, int $allocationId = 7001): void
     {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-        $stranger = User::withoutEvents(fn () => User::factory()->create());
+        $status = DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('status');
 
-        $this->createReservation($owner->id, 'tok-cancel-deny');
-
-        $this->mockAuditService->shouldReceive('log')->never();
-
-        try {
-            $this->createService()->cancel('tok-cancel-deny', null, 'customer', $stranger);
-            $this->fail('Expected AuthorizationException was not thrown.');
-        } catch (AuthorizationException) {
-            $this->addToAssertionCount(1);
-        }
+        DB::table('ptero_reservation_allocations')->insert([
+            'reservation_id' => $reservationId,
+            'panel_identity' => str_repeat('c', 64),
+            'node_id' => 4,
+            'allocation_id' => $allocationId,
+            'ip' => '192.0.2.10',
+            'port' => 25565,
+            'environment_key' => 'SERVER_PORT',
+            'is_primary' => true,
+            'released_at' => $status === 'confirmed' ? now() : null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
-    public function test_cancel_succeeds_when_actor_is_owner(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-
-        $this->createReservation($owner->id, 'tok-cancel-allow');
-
-        $this->mockAuditService->shouldReceive('log')->once();
-
-        $result = $this->createService()->cancel('tok-cancel-allow', null, 'customer', $owner);
-
-        $this->assertTrue($result);
-    }
-
-    public function test_cancel_succeeds_when_actor_is_null(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-
-        $this->createReservation($owner->id, 'tok-cancel-null');
-
-        $this->mockAuditService->shouldReceive('log')->once();
-
-        $result = $this->createService()->cancel('tok-cancel-null', null, 'system', null);
-
-        $this->assertTrue($result);
-    }
-
-    // ─── Commit-3: actor-aware authorization (extend) ──────────────────────────
-
-    public function test_extend_throws_when_actor_does_not_own_reservation(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-        $stranger = User::withoutEvents(fn () => User::factory()->create());
-
-        $this->createReservation($owner->id, 'tok-extend-deny');
-
-        $this->mockAuditService->shouldReceive('log')->never();
-
-        try {
-            $this->createService()->extend('tok-extend-deny', 15, $stranger);
-            $this->fail('Expected AuthorizationException was not thrown.');
-        } catch (AuthorizationException) {
-            $this->addToAssertionCount(1);
-        }
-    }
-
-    public function test_extend_succeeds_when_actor_is_owner(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-
-        $this->createReservation($owner->id, 'tok-extend-allow');
-
-        $this->mockAuditService->shouldReceive('log')->once();
-
-        $result = $this->createService()->extend('tok-extend-allow', 15, $owner);
-
-        $this->assertTrue($result);
-    }
-
-    public function test_extend_succeeds_when_actor_is_null(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-
-        $this->createReservation($owner->id, 'tok-extend-null');
-
-        $this->mockAuditService->shouldReceive('log')->once();
-
-        $result = $this->createService()->extend('tok-extend-null', 15, null);
-
-        $this->assertTrue($result);
-    }
-
-    // ─── Commit-3: actor-aware authorization (confirm) ─────────────────────────
-
-    public function test_confirm_throws_when_actor_does_not_own_reservation(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-        $stranger = User::withoutEvents(fn () => User::factory()->create());
-
-        $this->createReservation($owner->id, 'tok-confirm-deny');
-
-        $this->mockAuditService->shouldReceive('log')->never();
-
-        try {
-            $this->createService()->confirm('tok-confirm-deny', 42, $stranger);
-            $this->fail('Expected AuthorizationException was not thrown.');
-        } catch (AuthorizationException) {
-            $this->addToAssertionCount(1);
-        }
-    }
-
-    public function test_confirm_succeeds_when_actor_is_owner(): void
-    {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-        // Direct DB insert avoids App\Models\Service alias-mock contamination from CartItemDeletedListenerTest.
-        $serviceId = DB::table('services')->insertGetId([
-            'user_id'       => $owner->id,
-            'status'        => 'active',
-            'currency_code' => 'USD',
-            'quantity'      => 1,
-            'price'         => '0.00',
-            'created_at'    => now(),
-            'updated_at'    => now(),
+    private function insertConfirmedCheckoutCommitment(
+        Service $service
+    ): int {
+        $checkoutInvoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PAID,
+            'currency_code' => $service->currency_code,
+            'due_at' => now()->subMonth(),
+        ]);
+        $checkoutInvoice->items()->create([
+            'reference_type' => Service::class,
+            'reference_id' => $service->id,
+            'price' => $service->price,
+            'quantity' => $service->quantity,
+            'description' => 'Original dynamic checkout',
         ]);
 
-        $this->createReservation($owner->id, 'tok-confirm-allow');
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $checkoutInvoice->id,
+            userId: $service->user_id,
+            status: ResourceReservation::STATUS_CONFIRMED,
+            consumedAt: now()->subMonth(),
+            productId: $service->product_id,
+            planId: $service->plan_id
+        );
+        $serverExtensionId = (int) Product::query()
+            ->whereKey($service->product_id)
+            ->value('server_id');
+        $payload = json_decode(
+            (string) DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->value('configuration_payload'),
+            true,
+            512,
+            JSON_THROW_ON_ERROR
+        );
+        $payload['server_extension_id'] = $serverExtensionId;
+        $checkoutPrice = number_format(
+            (float) $service->price,
+            2,
+            '.',
+            ''
+        );
+        $payload['calculated_price'] = $checkoutPrice;
 
-        $this->mockAuditService->shouldReceive('log')->once();
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'server_extension_id' => $serverExtensionId,
+                'calculated_price' => $checkoutPrice,
+                'configuration_payload' => json_encode(
+                    $payload,
+                    JSON_THROW_ON_ERROR
+                ),
+                'configuration_fingerprint' => $this->configurationService->fingerprint($payload),
+                'paid_committed_at' => now()->subMonth(),
+                'external_server_id' => 71,
+                'external_user_id' => 44,
+                'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'external_server_identifier' => 'created',
+                'updated_at' => now(),
+            ]);
+        $this->insertAllocation($reservationId);
 
-        $result = $this->createService()->confirm('tok-confirm-allow', $serviceId, $owner);
-
-        $this->assertTrue($result);
+        return $reservationId;
     }
 
-    public function test_confirm_succeeds_when_actor_is_null(): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function externalServer(): array
     {
-        $owner = User::withoutEvents(fn () => User::factory()->create());
-        $serviceId = DB::table('services')->insertGetId([
-            'user_id'       => $owner->id,
-            'status'        => 'active',
-            'currency_code' => 'USD',
-            'quantity'      => 1,
-            'price'         => '0.00',
-            'created_at'    => now(),
-            'updated_at'    => now(),
-        ]);
-
-        $this->createReservation($owner->id, 'tok-confirm-null');
-
-        $this->mockAuditService->shouldReceive('log')->once();
-
-        $result = $this->createService()->confirm('tok-confirm-null', $serviceId, null);
-
-        $this->assertTrue($result);
+        return [
+            'attributes' => [
+                'id' => 71,
+                'uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'identifier' => 'created',
+                'user' => 44,
+            ],
+        ];
     }
 
-    // ─── Commit-3: admin bypass via ResourceReservationPolicy::before() ─────────
-
-    public function test_policy_before_grants_admin_bypass(): void
+    /**
+     * @return array<string, mixed>
+     */
+    private function cancellationServer(int $serviceId): array
     {
-        $this->markTestSkipped('Requires full Filament panel registration');
+        return [
+            'attributes' => [
+                'id' => 71,
+                'uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'identifier' => 'created',
+                'external_id' => (string) $serviceId,
+                'user' => 44,
+                'node' => 4,
+                'nest' => 1,
+                'egg' => 2,
+                'allocation' => 7001,
+                'limits' => [
+                    'memory' => 4096,
+                    'cpu' => 200,
+                    'disk' => 51200,
+                ],
+                'feature_limits' => [
+                    'allocations' => 0,
+                ],
+                'relationships' => [
+                    'allocations' => [
+                        'data' => [[
+                            'attributes' => ['id' => 7001],
+                        ]],
+                    ],
+                ],
+            ],
+        ];
     }
 }

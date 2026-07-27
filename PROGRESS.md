@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-19 slider→reservation-API wiring shipped
-**Last Updated**: 2026-04-27
-**Last Session**: dp-19 shipped. Wired `dynamicSliderGroup` Alpine component to `POST /api/dynamic-pterodactyl/reservation`; swapped route middleware to `checkout` for guest support; made `cart_item_id` optional; added `Cart::checkout()` confirmation hook; 3 new guest tests green; CodeRabbit 2 findings fixed.
+**Phase**: Deep release verification of dynamic stock v4
+**Last Updated**: 2026-07-26
+**Last Session**: Deep acceptance audit of complete-vector stock, durable payment, provisioning, and capacity-aware upgrades.
 
 ---
 
@@ -16,7 +16,16 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 > **For Claude**: Read this + "Current Session State" to quickly understand where we are.
 
-All documentation and scaffolding complete. 9 spec files + 4 support files (CLAUDE.md, DECISIONS.md, PROGRESS.md, CHANGELOG.md) + skeleton directory. Ready to begin Phase 1: Database migrations and core models. Start with 01-DATABASE.md.
+The implementation is on the linked draft remediation PRs. Checkout and
+upgrade quotes now compute live, step-aligned RAM/CPU/disk bounds on one
+eligible node; cart and upgrade mutations repeat the proof under locks and
+reserve exact ports. A 15-minute cart hold becomes a seven-day invoice
+guarantee, then non-expiring paid capacity until exact Pterodactyl
+provisioning or upgrade reconciliation succeeds.
+
+Before release, run the full CI matrix and a real Pterodactyl 1.12.3+ staging
+canary. Deploy Paymenter core first in maintenance mode, run the extension
+migration/readiness gate, restart queue workers, and only then restore traffic.
 
 ---
 
@@ -66,22 +75,65 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-27
-**Working on**: No active task
-**Status**: dp-19 shipped. `dynamicSliderGroup` Alpine wired to reservation API; guest support via `checkout` middleware; `Cart::checkout()` confirms reservations with extension-disabled fallback. CodeRabbit findings fixed (Alpine x-data fallback + obsidian theme sync).
-**Current file**: PROGRESS.md
-**Next action**: All dp-NN backlog items complete. Next work determined by driver.
-**Blockers**: None
+**Last checkpoint**: 2026-07-26
+**Working on**: Final cross-repository release verification
+**Status**: Complete-vector live quotes, authoritative per-node CPU stock,
+exact allocation holds, seven-day invoice guarantees, durable paid
+fulfillment, cancellation reconciliation, and capacity-aware upgrades are
+implemented on the two draft remediation branches.
+**Current file**: final static checks, CI, and lifecycle documentation
+**Next action**: Publish the reviewed trees, run the full GitHub matrix, then
+exercise checkout/payment/provisioning/upgrade/cancellation against a
+dedicated Pterodactyl 1.12.3+ staging panel.
+**Blockers**: Local PHP/Composer are unavailable. GitHub CI supplies the real
+PHP, Composer, MariaDB, and SQLite execution gate; only the external-panel
+canary remains environment-specific.
 
 ### This Session's Changes:
 
-1. dp-19 — direct commits on `dynamic-slider` (extension) and `dynamic-slider/1.4.7` (outer Paymenter).
+1. Established a clean Paymenter 1.5.6 companion branch.
+2. Retired the browser reservation API/token flow and invoice-paid confirmation listener.
+3. Added the cart-to-provisioning reservation protocol and cross-repository provisioner integration.
+4. Retired the unused independent-max availability and extension-owned pricing
+   routes; complete-vector checkout and upgrade quotes are now the sole
+   customer stock contracts.
+5. Added SQLite-safe status/generated-column migrations and a PHP 8.3/8.4
+   SQLite cross-repository matrix alongside MariaDB 11/12.
+6. Added authoritative per-node CPU policies, exact allocation claims,
+   managed-node isolation, and deterministic complete-vector placement.
+7. Added seven-day invoice guarantees, non-expiring paid commitments,
+   retry/reconciliation, durable cancellation, and operator attention states.
+8. Added fixed-node dynamic resource upgrades with immutable source/target
+   snapshots, delta reservations, exact build reconciliation, and idempotent
+   billing/credit application.
+
+---
+
+## 2026-07-25 — Release-blocker remediation
+
+**Status**: Implemented locally; awaiting full container verification
+**Branches**: `codex/paymenter-1.5.6-remediation` in both repositories
+
+Implemented the ten-step repair order from the private-code audit:
+
+- Paymenter 1.5.6 baseline;
+- one server-owned reservation;
+- immutable configuration fingerprint;
+- atomic guest transfer and no browser token;
+- fail-closed cart/checkout;
+- seven-day invoice guarantee followed by a non-expiring paid commitment;
+- actual `node` field binding;
+- lowercase config keys and slider serialization;
+- explicit per-node CPU inventory and overcommit;
+- exact allocation/port reservation;
+- capacity-aware upgrade and cancellation lifecycles;
+- replacement lifecycle/concurrency tests and current documentation.
 
 ---
 
 ## dp-19 — Wire customer-facing slider to reservation API
 
-**Status**: Shipped  
+**Status**: Superseded by the server-owned complete-vector quote protocol
 **PR**: committed directly on `dynamic-slider` (default branch; no PR base)  
 **Date**: 2026-04-27
 

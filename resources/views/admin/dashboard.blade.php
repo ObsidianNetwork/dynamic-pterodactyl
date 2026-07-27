@@ -33,8 +33,14 @@
         </x-filament::section>
 
         <x-filament::section>
-            <div class="text-sm text-gray-500 dark:text-gray-400">30-Day Revenue</div>
-            <div class="text-3xl font-bold text-gray-900 dark:text-white">${{ number_format($stats['confirmed_revenue'] ?? 0, 2) }}</div>
+            <div class="text-sm text-gray-500 dark:text-gray-400">30-Day Confirmed Revenue</div>
+            <div class="space-y-1 text-xl font-bold text-gray-900 dark:text-white">
+                @forelse(($stats['confirmed_revenue_by_currency'] ?? []) as $currency => $amount)
+                    <div>{{ $currency }} {{ $amount }}</div>
+                @empty
+                    <div>—</div>
+                @endforelse
+            </div>
         </x-filament::section>
 
         <x-filament::section>

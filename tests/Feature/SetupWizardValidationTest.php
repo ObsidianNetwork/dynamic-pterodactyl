@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Feature;
 
 use App\Models\Product;
+use App\Models\Server;
 use App\Models\User;
 use Filament\Notifications\Notification;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -11,6 +12,7 @@ use Livewire\Livewire;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Pages\SetupWizard;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ConfigOptionSetupService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PterodactylInventoryService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
@@ -31,7 +33,13 @@ class SetupWizardValidationTest extends LaravelTestCase
         $resourceService->shouldReceive('getLocations')->zeroOrMoreTimes()->andReturn($locations);
 
         $this->app->instance(ResourceCalculationService::class, $resourceService);
-        $this->app['view']->addNamespace('dynamic-pterodactyl', __DIR__ . '/../../resources/views');
+        $inventory = Mockery::mock(PterodactylInventoryService::class);
+        $inventory->shouldReceive('locations')->zeroOrMoreTimes()->andReturn($locations);
+        $inventory->shouldReceive('panelIdentity')
+            ->zeroOrMoreTimes()
+            ->andReturn(hash('sha256', 'https://panel.example'));
+        $this->app->instance(PterodactylInventoryService::class, $inventory);
+        $this->app['view']->addNamespace('dynamic-pterodactyl', __DIR__.'/../../resources/views');
     }
 
     protected function tearDown(): void
@@ -45,7 +53,7 @@ class SetupWizardValidationTest extends LaravelTestCase
     {
         $this->actingAsAdmin();
 
-        $product = Product::factory()->create();
+        $product = $this->eligibleProduct();
 
         Livewire::test(SetupWizard::class)
             ->fillForm([
@@ -68,7 +76,7 @@ class SetupWizardValidationTest extends LaravelTestCase
     {
         $this->actingAsAdmin();
 
-        $product = Product::factory()->create();
+        $product = $this->eligibleProduct();
 
         // Filament harness fallback — see dp-13 plan commit 4 notes.
         app(ConfigOptionSetupService::class)->createDynamicSliderOptions(
@@ -96,7 +104,7 @@ class SetupWizardValidationTest extends LaravelTestCase
     {
         $this->actingAsAdmin();
 
-        $product = Product::factory()->create();
+        $product = $this->eligibleProduct();
 
         // Filament harness fallback — see dp-13 plan commit 4 notes.
         try {
@@ -113,7 +121,8 @@ class SetupWizardValidationTest extends LaravelTestCase
                         ['up_to' => null, 'rate' => 2.00],
                     ],
                     'disk_tiers' => [],
-                ]
+                ],
+                [['id' => 1, 'short' => 'nyc', 'long' => 'New York']]
             );
 
             $this->fail('Expected the setup service to reject the invalid disk tiers.');
@@ -148,7 +157,7 @@ class SetupWizardValidationTest extends LaravelTestCase
             'memory_rate' => 0.50,
             'cpu_rate' => 2.00,
             'disk_rate' => 0.02,
-            'locations' => [],
+            'locations' => [1],
         ];
     }
 
@@ -168,5 +177,26 @@ class SetupWizardValidationTest extends LaravelTestCase
         $this->actingAs($admin);
 
         return $admin;
+    }
+
+    private function eligibleProduct(): Product
+    {
+        $server = Server::create([
+            'name' => 'Pterodactyl',
+            'extension' => 'Pterodactyl',
+            'type' => 'server',
+            'enabled' => true,
+        ]);
+        $server->settings()->create([
+            'key' => 'host',
+            'value' => 'https://panel.example',
+            'type' => 'string',
+            'encrypted' => false,
+        ]);
+
+        return Product::factory()->create([
+            'server_id' => $server->id,
+            'hidden' => false,
+        ]);
     }
 }

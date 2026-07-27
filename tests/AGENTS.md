@@ -58,4 +58,4 @@ Largest files are `Unit/ReservationServiceTest.php` and `Unit/AlertServiceTest.p
 - Do not loosen the `paymenter_test` / `:memory:` bootstrap guard.
 - Do not add live Pterodactyl network calls; fake panel HTTP explicitly and prevent strays when testing capacity reads.
 - Do not expose or assert full reservation tokens in audit payloads; assert `token_prefix` behavior.
-- Current direct coverage gaps to watch: `CartItemCreatedListener`, `ServiceCreatedListener`, `PricingController::getConfig()`, and `AuditLogService` retrieval methods.
+- Current direct coverage gaps to watch: full cart-listener database integration and `AuditLogService` retrieval methods.

@@ -9,10 +9,13 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Events\AlertDeliveryFailed;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertDeliveryLog;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\PaymentAttentionNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ProvisioningFailedNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\Concerns\AuditsExtensionActions;
 
@@ -30,96 +33,152 @@ class AlertService
     /**
      * Check all locations for capacity alerts
      */
-    public function checkCapacityAlerts(): void
+    public function checkCapacityAlerts(int $chunkSize = 100): int
     {
-        $alertConfigs = DB::table('ptero_alert_configs')
-            ->where('is_active', true)
-            ->get();
+        $processed = 0;
+        $chunkSize = max(1, min($chunkSize, 500));
+        $schedulerHealth = app(SchedulerHealthService::class);
 
-        foreach ($alertConfigs as $config) {
-            $this->checkAlertConfig($config);
-        }
+        DB::table('ptero_alert_configs')
+            ->where('is_active', true)
+            ->chunkById(
+                $chunkSize,
+                function (Collection $configs) use (
+                    &$processed,
+                    $schedulerHealth
+                ): void {
+                    $processed += $schedulerHealth->processRows(
+                        SchedulerHealthService::TASK_CAPACITY_ALERTS,
+                        'alert_config',
+                        $configs->pluck('id'),
+                        function (int $alertConfigId) use (
+                            $schedulerHealth
+                        ): bool {
+                            $config = DB::table(
+                                'ptero_alert_configs'
+                            )
+                                ->where('id', $alertConfigId)
+                                ->where('is_active', true)
+                                ->first();
+                            if ($config === null) {
+                                return false;
+                            }
+
+                            $this->checkAlertConfig(
+                                $config,
+                                $schedulerHealth
+                            );
+
+                            return true;
+                        }
+                    );
+                },
+                'id'
+            );
+
+        return $processed;
     }
 
-    private function checkAlertConfig(object $config): void
-    {
+    private function checkAlertConfig(
+        object $config,
+        ?SchedulerHealthService $schedulerHealth = null,
+    ): void {
         // Skip if in cooldown
         if ($config->last_notification_at &&
             now()->diffInMinutes($config->last_notification_at) < $config->cooldown_minutes) {
             return;
         }
 
-        try {
-            if ($config->location_id) {
-                $locations = [$config->location_id];
-            } else {
-                $locations = collect($this->resourceService->getLocations())->pluck('id');
-            }
+        if ($config->location_id) {
+            $locations = [$config->location_id];
+        } else {
+            $locations = collect($this->resourceService->getLocations())->pluck('id');
+        }
 
-            foreach ($locations as $locationId) {
-                $availability = $this->resourceService->getLocationAvailability($locationId);
+        $schedulerHealth ??= app(SchedulerHealthService::class);
+        $schedulerHealth->processRows(
+            SchedulerHealthService::TASK_CAPACITY_ALERTS,
+            'alert_config_location',
+            collect($locations)->map(
+                fn ($locationId): string => (int) $config->id
+                    .':'
+                    .(int) $locationId
+            ),
+            function (string $identity) use ($config): bool {
+                [, $locationId] = array_map(
+                    'intval',
+                    explode(':', $identity, 2)
+                );
+                $availability = $this->resourceService
+                    ->getLocationAvailability($locationId);
                 $alerts = $this->checkThresholds($availability, $config);
 
-                if (! empty($alerts) && $this->sendNotifications($config, $availability, $alerts)) {
+                if (
+                    ! empty($alerts)
+                    && $this->sendNotifications(
+                        $config,
+                        $availability,
+                        $alerts
+                    )
+                ) {
                     DB::table('ptero_alert_configs')
                         ->where('id', $config->id)
                         ->update(['last_notification_at' => now()]);
                 }
+
+                return true;
             }
-        } catch (\Exception $e) {
-            Log::error('Alert check failed', [
-                'config_id' => $config->id,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        );
     }
 
     private function checkThresholds(array $availability, object $config): array
     {
         $alerts = [];
 
-        $memoryUtilization = $availability['total_capacity']['memory'] > 0
-            ? ($availability['total_allocated']['memory'] / $availability['total_capacity']['memory']) * 100
-            : 0;
+        foreach (['memory', 'cpu', 'disk'] as $resource) {
+            $capacity = (int) data_get(
+                $availability,
+                "total_capacity.{$resource}",
+                0
+            );
+            $available = data_get(
+                $availability,
+                "total_available.{$resource}"
+            );
+            $used = $available !== null
+                ? max(0, $capacity - (int) $available)
+                : (int) data_get(
+                    $availability,
+                    "total_allocated.{$resource}",
+                    0
+                );
+            $utilization = $capacity > 0
+                ? ($used / $capacity) * 100
+                : 0.0;
+            $warning = (int) (
+                $config->{"{$resource}_warning_threshold"} ?? 80
+            );
+            $critical = (int) (
+                $config->{"{$resource}_critical_threshold"} ?? 95
+            );
 
-        $diskUtilization = $availability['total_capacity']['disk'] > 0
-            ? ($availability['total_allocated']['disk'] / $availability['total_capacity']['disk']) * 100
-            : 0;
-
-        if ($memoryUtilization >= $config->memory_critical_threshold) {
-            $alerts[] = [
-                'type' => 'critical',
-                'resource' => 'memory',
-                'utilization' => $memoryUtilization,
-                'usage_percent' => round($memoryUtilization, 1),
-                'threshold' => (int) $config->memory_critical_threshold,
-            ];
-        } elseif ($memoryUtilization >= $config->memory_warning_threshold) {
-            $alerts[] = [
-                'type' => 'warning',
-                'resource' => 'memory',
-                'utilization' => $memoryUtilization,
-                'usage_percent' => round($memoryUtilization, 1),
-                'threshold' => (int) $config->memory_warning_threshold,
-            ];
-        }
-
-        if ($diskUtilization >= $config->disk_critical_threshold) {
-            $alerts[] = [
-                'type' => 'critical',
-                'resource' => 'disk',
-                'utilization' => $diskUtilization,
-                'usage_percent' => round($diskUtilization, 1),
-                'threshold' => (int) $config->disk_critical_threshold,
-            ];
-        } elseif ($diskUtilization >= $config->disk_warning_threshold) {
-            $alerts[] = [
-                'type' => 'warning',
-                'resource' => 'disk',
-                'utilization' => $diskUtilization,
-                'usage_percent' => round($diskUtilization, 1),
-                'threshold' => (int) $config->disk_warning_threshold,
-            ];
+            if ($utilization >= $critical) {
+                $alerts[] = [
+                    'type' => 'critical',
+                    'resource' => $resource,
+                    'utilization' => $utilization,
+                    'usage_percent' => round($utilization, 1),
+                    'threshold' => $critical,
+                ];
+            } elseif ($utilization >= $warning) {
+                $alerts[] = [
+                    'type' => 'warning',
+                    'resource' => $resource,
+                    'utilization' => $utilization,
+                    'usage_percent' => round($utilization, 1),
+                    'threshold' => $warning,
+                ];
+            }
         }
 
         return $alerts;
@@ -130,7 +189,7 @@ class AlertService
         $locationScope = $availability['location_id'] ?? $config->location_id ?? null;
         $locationName = $availability['location_name']
             ?? $config->location_name
-            ?? ($locationScope !== null ? 'Location #' . $locationScope : 'All Locations');
+            ?? ($locationScope !== null ? 'Location #'.$locationScope : 'All Locations');
         $alertConfig = $this->hydrateAlertConfig((object) array_merge((array) $config, [
             'location_id' => $locationScope,
             'location_name' => $locationName,
@@ -142,14 +201,21 @@ class AlertService
 
         if ($config->email_notifications) {
             $channelsTried[] = 'email';
-            $recipients = $this->getAdminRecipients();
+            $configuredEmails = $this->configuredNotificationEmails($config);
+            $recipients = $this->getAdminRecipients()->reject(
+                fn (User $recipient): bool => in_array(
+                    strtolower((string) $recipient->email),
+                    $configuredEmails,
+                    true
+                )
+            );
 
-            if ($recipients->isEmpty()) {
-                Log::warning('No admin recipients configured for capacity alert', [
+            if ($recipients->isEmpty() && $configuredEmails === []) {
+                Log::warning('No email recipients configured for capacity alert', [
                     'alert_config_id' => $config->id,
                 ]);
                 $channelsFailed[] = 'email';
-                $lastError = 'No admin recipients configured';
+                $lastError = 'No email recipients configured';
             } else {
                 $emailDelivered = false;
 
@@ -166,6 +232,29 @@ class AlertService
                             'recipient_id' => $admin->id ?? null,
                             'error' => $e->getMessage(),
                         ]);
+                        $lastError = $e->getMessage();
+                        $this->reportThrowable($e);
+                    }
+                }
+
+                foreach ($configuredEmails as $email) {
+                    try {
+                        Notification::route('mail', $email)->notify(
+                            new CapacityAlertNotification(
+                                $alertConfig,
+                                $alerts,
+                            )
+                        );
+                        $emailDelivered = true;
+                    } catch (\Throwable $e) {
+                        Log::warning(
+                            'Failed to send configured capacity alert email',
+                            [
+                                'alert_config_id' => $config->id,
+                                'recipient_email' => $email,
+                                'error' => $e->getMessage(),
+                            ]
+                        );
                         $lastError = $e->getMessage();
                         $this->reportThrowable($e);
                     }
@@ -192,8 +281,8 @@ class AlertService
                         'title' => 'Resource Usage Alert',
                         'color' => $alertColor,
                         'fields' => array_map(fn ($alert) => [
-                            'name' => ucfirst($alert['type']) . ' - ' . ucfirst($alert['resource']),
-                            'value' => round($alert['utilization'], 1) . '% utilized',
+                            'name' => ucfirst($alert['type']).' - '.ucfirst($alert['resource']),
+                            'value' => round($alert['utilization'], 1).'% utilized',
                             'inline' => true,
                         ], $alerts),
                         'footer' => [
@@ -361,11 +450,169 @@ class AlertService
     }
 
     /**
+     * Notify operators after the immediate queue retry series is exhausted.
+     * ReservationService persists a deduplication timestamp before calling this.
+     *
+     * @param  array<string, mixed>  $snapshot
+     */
+    public function notifyProvisioningFailure(array $snapshot): void
+    {
+        $operation = ($snapshot['operation'] ?? 'provisioning') === 'cancellation'
+            ? 'cancellation'
+            : 'provisioning';
+        $recipients = $this->getAdminRecipients();
+        if ($recipients->isEmpty()) {
+            Log::critical("Dynamic server {$operation} requires attention", $snapshot);
+
+            return;
+        }
+
+        foreach ($recipients as $recipient) {
+            try {
+                $recipient->notify(new ProvisioningFailedNotification($snapshot));
+            } catch (\Throwable $exception) {
+                Log::error("Failed to notify operator about {$operation} failure", [
+                    'service_id' => $snapshot['service_id'] ?? null,
+                    'recipient_id' => $recipient->id ?? null,
+                    'error' => $exception->getMessage(),
+                ]);
+                $this->reportThrowable($exception);
+            }
+        }
+
+        $this->safeAudit(
+            $operation.'_failure_alerted',
+            'resource_reservation',
+            (int) ($snapshot['reservation_id'] ?? 0),
+            [
+                'service_id' => $snapshot['service_id'] ?? null,
+                'invoice_id' => $snapshot['invoice_id'] ?? null,
+                'attempts' => $snapshot['attempts'] ?? null,
+            ]
+        );
+    }
+
+    /**
+     * Notify operators when a paid resource upgrade exhausts automatic
+     * retries. ServiceUpgradeService persists its deduplication timestamp
+     * before this method is called.
+     *
+     * @param  array<string, mixed>  $snapshot
+     */
+    public function notifyUpgradeFailure(array $snapshot): void
+    {
+        $recipients = $this->getAdminRecipients();
+        if ($recipients->isEmpty()) {
+            Log::critical(
+                'Dynamic resource upgrade requires attention',
+                $snapshot
+            );
+        }
+
+        foreach ($recipients as $recipient) {
+            try {
+                $recipient->notify(
+                    new ProvisioningFailedNotification($snapshot)
+                );
+            } catch (\Throwable $exception) {
+                Log::error(
+                    'Failed to notify operator about dynamic upgrade failure',
+                    [
+                        'upgrade_id' => $snapshot['upgrade_id'] ?? null,
+                        'service_id' => $snapshot['service_id'] ?? null,
+                        'recipient_id' => $recipient->id ?? null,
+                        'error' => $exception->getMessage(),
+                    ]
+                );
+                $this->reportThrowable($exception);
+            }
+        }
+
+        $reservationId = (int) ($snapshot['reservation_id'] ?? 0);
+        $this->safeAudit(
+            'upgrade_failure_alerted',
+            $reservationId > 0 ? 'resource_reservation' : 'service_upgrade',
+            $reservationId > 0
+                ? $reservationId
+                : (int) ($snapshot['upgrade_id'] ?? 0),
+            [
+                'upgrade_id' => $snapshot['upgrade_id'] ?? null,
+                'service_id' => $snapshot['service_id'] ?? null,
+                'invoice_id' => $snapshot['invoice_id'] ?? null,
+                'reservation_id' => $snapshot['reservation_id'] ?? null,
+                'attempts' => $snapshot['attempts'] ?? null,
+                'error' => $snapshot['error'] ?? null,
+            ]
+        );
+    }
+
+    /**
+     * Notify operators that an external/partial payment exists but its
+     * capacity guarantee may no longer be consumed.
+     *
+     * @param  array<string, mixed>  $snapshot
+     */
+    public function notifyPaymentAttention(array $snapshot): void
+    {
+        $recipients = $this->getAdminRecipients();
+        if ($recipients->isEmpty()) {
+            Log::critical('Capacity invoice payment requires refund review', $snapshot);
+
+            return;
+        }
+
+        foreach ($recipients as $recipient) {
+            try {
+                $recipient->notify(new PaymentAttentionNotification($snapshot));
+            } catch (\Throwable $exception) {
+                Log::error('Failed to notify operator about a late capacity payment', [
+                    'invoice_id' => $snapshot['invoice_id'] ?? null,
+                    'recipient_id' => $recipient->id ?? null,
+                    'error' => $exception->getMessage(),
+                ]);
+                $this->reportThrowable($exception);
+            }
+        }
+    }
+
+    /**
      * Get all admin users (non-null role_id = admin in Paymenter).
      */
     private function getAdminRecipients(): Collection
     {
         return User::whereNotNull('role_id')->get();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function configuredNotificationEmails(object $config): array
+    {
+        $emails = $config->notification_emails ?? [];
+        if (is_string($emails)) {
+            $decoded = json_decode($emails, true);
+            $emails = is_array($decoded) ? $decoded : [];
+        }
+        if (! is_array($emails)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($emails as $email) {
+            if (! is_string($email)) {
+                continue;
+            }
+
+            $email = strtolower(trim($email));
+            if (
+                $email !== ''
+                && filter_var($email, FILTER_VALIDATE_EMAIL) !== false
+            ) {
+                $normalized[$email] = $email;
+            }
+        }
+
+        return array_values($normalized);
     }
 
     private function hydrateAlertConfig(object $config): AlertConfig

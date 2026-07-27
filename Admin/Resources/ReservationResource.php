@@ -60,7 +60,15 @@ class ReservationResource extends Resource
                     )),
                 TextColumn::make('calculated_price')
                     ->label('Price')
-                    ->money('usd'),
+                    ->formatStateUsing(
+                        fn (
+                            mixed $state,
+                            ResourceReservation $record
+                        ): string => self::formatPrice(
+                            $state,
+                            $record->currency_code
+                        )
+                    ),
                 TextColumn::make('expires_at')
                     ->label('Expires')
                     ->dateTime()
@@ -92,7 +100,10 @@ class ReservationResource extends Resource
                     ->form([
                         TextInput::make('minutes')
                             ->label('Minutes to add')
-                            ->numeric()
+                            ->integer()
+                            ->minValue(1)
+                            ->maxValue(60)
+                            ->step(1)
                             ->default(15)
                             ->required(),
                     ])
@@ -124,6 +135,33 @@ class ReservationResource extends Resource
                     ->modalDescription('This will mark all expired pending reservations as expired.'),
             ])
             ->poll('30s');
+    }
+
+    private static function formatPrice(
+        mixed $state,
+        mixed $currencyCode
+    ): string {
+        $amount = is_int($state)
+            ? (string) $state
+            : (is_string($state) ? $state : '');
+        if (
+            preg_match(
+                '/^(0|[1-9]\d*)(?:\.(\d{1,2}))?$/D',
+                $amount,
+                $matches
+            ) !== 1
+        ) {
+            return 'Price unavailable';
+        }
+        $amount = $matches[1]
+            .'.'
+            .str_pad($matches[2] ?? '', 2, '0');
+        $currency = strtoupper(trim((string) $currencyCode));
+        if (preg_match('/^[A-Z]{3}$/D', $currency) !== 1) {
+            return "{$amount} (currency unavailable)";
+        }
+
+        return "{$currency} {$amount}";
     }
 
     public static function getPages(): array

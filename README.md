@@ -1,154 +1,76 @@
-# Dynamic Resource Sliders for Pterodactyl Integration
+# Dynamic Pterodactyl
 
-**Version:** 3.1.0  
-**Status:** Final Design  
-**Pattern:** Companion Extension  
+Companion extension for Paymenter 1.5.6 that adds native RAM/CPU/disk
+sliders, live complete-vector stock, exact port reservations, deterministic
+node selection, capacity-aware upgrades, and Filament 5 administration to the
+built-in Pterodactyl server extension.
 
----
+Production deployments require Pterodactyl Panel and Wings 1.12.3 or newer.
+The stock and provisioning API contracts are verified against Panel 1.12.3,
+but a real-panel staging canary remains a release gate.
 
-## Quick Summary
+## Ownership
 
-Enable Paymenter customers to select exact RAM, CPU, and Disk amounts using sliders during checkout for Pterodactyl game servers, with real-time availability tracking and automatic node selection.
+| Concern | Authority |
+|---|---|
+| Slider UI and price calculation | Paymenter core |
+| Checkout capacity identity and node selection | Dynamic Pterodactyl |
+| Server creation and actual allocation | Built-in Pterodactyl extension |
 
----
+The browser never owns a reservation. A synchronous cart listener creates one server-owned hold, checkout binds it to the service, and the provisioner consumes it only after Pterodactyl accepts the server.
 
-## Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Product Configuration                         │
-├─────────────────────────────────────────────────────────────────────┤
-│  Server Extension: Pterodactyl (built-in, unchanged)                │
-│  └── Handles: Server creation, ports, users                         │
-├─────────────────────────────────────────────────────────────────────┤
-│  Configurable Options:                                              │
-│  ├── memory (Number) ─────┐                                         │
-│  ├── cpu (Number) ────────┼── Flow to createServer()                │
-│  ├── disk (Number) ───────┘                                         │
-│  └── location_id (Select) ── Triggers availability fetch            │
-├─────────────────────────────────────────────────────────────────────┤
-│  DynamicPterodactyl (Companion Extension):                          │
-│  ├── Real-time availability API                                     │
-│  ├── Resource reservation system (15-min TTL)                       │
-│  ├── Slider config reads via SliderConfigReaderService             │
-│  ├── No custom frontend assets; native core slider UI               │
-│  ├── Admin dashboard & configuration UI                             │
-│  └── Event hooks for cart/invoice/service lifecycle                 │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A["Native sliders"] --> B["Transactional cart hold"]
+    B --> C["Seven-day invoice guarantee"]
+    C --> D["Paid commitment"]
+    D --> E["Exact node, limits, and ports"]
+    E --> F["Verified Pterodactyl server"]
 ```
 
----
+## Safety properties
 
-## Why Companion Pattern?
+- Paymenter baseline is 1.5.6.
+- Cart create/edit and checkout fail closed for dynamic products.
+- Guest ownership transfers with the cart in one transaction.
+- The immutable fingerprint covers customer, cart, Paymenter server extension, hashed panel identity, product, plan, location, node, resources, quantity, currency, pricing version, and formula version.
+- A 15-minute cart hold becomes an exact seven-day invoice guarantee at
+  checkout. Payment converts it to a non-expiring `paid_committed` commitment.
+- The actual Pterodactyl request uses the reserved `node`, `memory`, `cpu`,
+  `disk`, primary allocation, and additional allocations.
+- The Paymenter service stays `provisioning` until the external server and its
+  complete allocation set match the immutable commitment.
+- Config keys are lowercase and dynamic `ServiceConfig.slider_value` is serialized correctly.
+- CPU is authoritative stock backed by an explicit per-node physical capacity
+  and configurable basis-point overcommit policy. Nodes without an enabled
+  policy are ineligible.
+- Enabled capacity-policy nodes are dedicated to the reservation-backed flow;
+  external administrators and automation must not mutate their stock.
+- Dynamic resource upgrades reserve a positive capacity delta on the server's
+  existing node and reconcile the exact build before local billing state moves.
+- Dynamic products force quantity to one.
+- Customer reservation tokens and reservation endpoints do not exist.
 
-| Factor | Standalone | Companion ✓ |
-|--------|------------|-------------|
-| Lines of code | ~800+ | ~400 |
-| Pterodactyl provisioning | Must reimplement | Reuses existing |
-| Upstream bug fixes | Manual port | Automatic |
-| If extension fails | Product broken | Graceful degradation |
+## Documentation
 
----
+| Document | Topic |
+|---|---|
+| [01-DATABASE.md](01-DATABASE.md) | Reservation schema and lifecycle |
+| [02-SERVICES.md](02-SERVICES.md) | Service responsibilities |
+| [03-API.md](03-API.md) | Live customer/admin routes |
+| [04-EVENTS.md](04-EVENTS.md) | Cart, login, checkout, and provisioning flow |
+| [05-ADMIN-UI.md](05-ADMIN-UI.md) | Filament admin surfaces |
+| [06-FRONTEND.md](06-FRONTEND.md) | Native slider frontend |
+| [07-PRICING-MODELS.md](07-PRICING-MODELS.md) | Core-owned pricing models |
+| [08-ALGORITHMS.md](08-ALGORITHMS.md) | Capacity and concurrency |
+| [09-IMPLEMENTATION.md](09-IMPLEMENTATION.md) | Deployment and verification |
 
-## Document Index
+## Installation boundary
 
-| Document | Purpose | Read When... |
-|----------|---------|--------------|
-| [01-DATABASE.md](01-DATABASE.md) | Schema, migrations, relationships | Setting up tables, understanding data model |
-| [02-SERVICES.md](02-SERVICES.md) | Core business logic services | Implementing backend functionality |
-| [03-API.md](03-API.md) | REST endpoints, controllers | Building API layer |
-| [04-EVENTS.md](04-EVENTS.md) | Cart/invoice event handlers | Integrating with Paymenter lifecycle |
-| [05-ADMIN-UI.md](05-ADMIN-UI.md) | Filament dashboard & resources | Building admin interface |
-| [06-FRONTEND.md](06-FRONTEND.md) | Native slider architecture, Alpine.js | Implementing customer-facing UI |
-| [07-PRICING-MODELS.md](07-PRICING-MODELS.md) | Pricing logic & JSON configs | Understanding/implementing pricing |
-| [08-ALGORITHMS.md](08-ALGORITHMS.md) | Node selection, concurrency | Implementing allocation logic |
-| [09-IMPLEMENTATION.md](09-IMPLEMENTATION.md) | Roadmap, testing, risks | Planning & project management |
+This extension must be deployed with the companion Paymenter remediation
+branch. Enter maintenance mode, deploy and migrate Paymenter core first, run
+the extension migration/readiness gate, restart queue workers, and then leave
+maintenance mode. Migrations are forward-only: a failure after schema
+activation must remain in maintenance for operator recovery.
 
----
-
-## Key Technical Decisions
-
-### Real-Time API (No Caching)
-- Query Pterodactyl API directly at checkout time
-- Eliminates cache staleness issues
-- Proven by PteroSync WHMCS module in production
-
-### Reservation System
-- 15-minute TTL holds resources during checkout
-- Pessimistic database locking prevents overselling
-- Final verification at payment time
-
-### Three Pricing Models
-1. **Linear** - Simple per-unit (e.g., $0.50/GB RAM)
-2. **Tiered** - Volume discounts at breakpoints
-3. **Base + Addon** - Included resources + overage charges
-
-Paymenter core is the pricing authority for `dynamic_slider` options. The fork-only core patches in `dp-core-01` (merged) handle slider pricing at runtime via `Plan::dynamicSliderBasePrice()` and `ConfigOption::calculateDynamicPriceDelta()`. This extension's `SliderConfigReaderService` reads slider config metadata; `PricingConfigValidator` is retired in favour of core `DynamicSliderPricingRule`.
-
-### Frontend Slider
-- Customer-facing sliders use Paymenter core's native `dynamic_slider` component
-- Rendering is a native HTML range input managed by Alpine.js in the core theme
-- Price updates happen client-side, with Livewire entanglement keeping cart state in sync
-
----
-
-## File Structure
-
-```
-extensions/Others/DynamicPterodactyl/
-├── DynamicPterodactyl.php          # Main extension class
-├── database/migrations/            # 7 migration files
-├── Admin/
-│   ├── Pages/                      # Dashboard, Analytics, Settings, etc.
-│   └── Resources/                  # AlertConfig, Reservation
-├── Http/Controllers/               # API and Admin controllers
-├── Models/                         # Eloquent models
-├── resources/views/                # Blade templates
-├── routes/                         # API and web routes
-└── Services/                       # Core business logic
-```
-
----
-
-## Database Tables
-
-| Table | Purpose |
-|-------|---------|
-| `ptero_resource_reservations` | Temporary resource holds during checkout |
-| `ptero_audit_logs` | Admin action tracking |
-| `ptero_alert_configs` | Capacity alert thresholds |
-
----
-
-## Cross-Reference: Common Tasks
-
-| Task | Primary Doc | Also See |
-|------|-------------|----------|
-| Add new pricing model | 07-PRICING-MODELS | 02-SERVICES |
-| Fix reservation bug | 02-SERVICES | 08-ALGORITHMS |
-| Modify admin dashboard | 05-ADMIN-UI | - |
-| Change slider behavior | 06-FRONTEND | 03-API |
-| Add new event hook | 04-EVENTS | 02-SERVICES |
-| Understand node selection | 08-ALGORITHMS | 02-SERVICES |
-
----
-
-## Quick Start for Implementation
-
-1. **Database first**: Follow [01-DATABASE.md](01-DATABASE.md) to create migrations
-2. **Services**: Implement services from [02-SERVICES.md](02-SERVICES.md)
-3. **API**: Build endpoints per [03-API.md](03-API.md)
-4. **Events**: Wire up handlers from [04-EVENTS.md](04-EVENTS.md)
-5. **Admin**: Create Filament UI from [05-ADMIN-UI.md](05-ADMIN-UI.md)
-6. **Frontend**: Add sliders using [06-FRONTEND.md](06-FRONTEND.md)
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | Nov 2025 | Initial cached architecture |
-| 2.0 | Nov 2025 | Real-time API approach |
-| 3.0 | Nov 2025 | Companion Extension pattern |
-| 3.1 | Nov 2025 | Comprehensive Admin UI, split documentation |
+The extension stores no cached Pterodactyl capacity. Customer responses expose aggregate location signals only; raw node data remains admin-only.

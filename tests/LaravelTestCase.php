@@ -2,6 +2,8 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests;
 
+use App\Models\User;
+use App\Models\UserSession;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -12,9 +14,9 @@ abstract class LaravelTestCase extends BaseTestCase
      */
     public function createApplication()
     {
-        $bootstrap = __DIR__ . '/../../../../bootstrap/app.php';
+        $bootstrap = __DIR__.'/../../../../bootstrap/app.php';
 
-        if (!file_exists($bootstrap)) {
+        if (! file_exists($bootstrap)) {
             $bootstrap = '/var/www/paymenter/bootstrap/app.php';
         }
 
@@ -22,6 +24,24 @@ abstract class LaravelTestCase extends BaseTestCase
         $app->make(Kernel::class)->bootstrap();
 
         return $app;
+    }
+
+    /**
+     * Create the persisted session required by Paymenter's web middleware.
+     *
+     * @return array{user_session: string}
+     */
+    protected function loginUser(User $user): array
+    {
+        $userSession = UserSession::create([
+            'user_id' => $user->id,
+            'ip_address' => request()->ip(),
+            'user_agent' => substr(request()->userAgent() ?? '', 0, 512),
+            'last_activity' => now(),
+            'expires_at' => null,
+        ]);
+
+        return ['user_session' => $userSession->ulid];
     }
 
     /**
@@ -163,8 +183,14 @@ abstract class LaravelTestCase extends BaseTestCase
             'node_id' => $nodeId,
             'name' => $name,
             'maintenance_mode' => $maintenance,
+            'eligible' => ! $maintenance,
             'total' => $total,
             'available' => $available,
+            'available_allocations' => [[
+                'id' => ($nodeId * 1000) + 1,
+                'ip' => '192.0.2.'.$nodeId,
+                'port' => 25565,
+            ]],
         ];
     }
 
