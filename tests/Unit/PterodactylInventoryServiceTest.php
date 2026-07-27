@@ -45,6 +45,20 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
         );
     }
 
+    public function test_missing_credentials_fail_only_when_inventory_is_used(): void
+    {
+        $inventory = new PterodactylInventoryService([]);
+
+        $this->assertFalse($inventory->hasExclusiveProvisioningControl());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Pterodactyl inventory credentials are not configured.'
+        );
+
+        $inventory->panelIdentity();
+    }
+
     public function test_nodes_are_paginated_and_location_is_filtered_locally(): void
     {
         Http::fake(function ($request) {
