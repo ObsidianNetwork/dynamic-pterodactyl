@@ -25,21 +25,15 @@ class UpgradeReservationIntegrityService
         return hash('sha256', json_encode(
             $this->canonicalizeSnapshot([
                 'upgrade_id' => (int) $upgrade->id,
-                'source_fingerprint' =>
-                    (string) $upgrade->source_fingerprint,
-                'target_fingerprint' =>
-                    (string) $upgrade->target_fingerprint,
+                'source_fingerprint' => (string) $upgrade->source_fingerprint,
+                'target_fingerprint' => (string) $upgrade->target_fingerprint,
                 'panel_identity' => $context['panel_identity'],
                 'node_id' => $context['node_id'],
                 'location_id' => $context['location_id'],
-                'external_server_id' =>
-                    $context['external_server_id'],
-                'external_server_uuid' =>
-                    $context['external_server_uuid'],
-                'external_server_identifier' =>
-                    $context['external_server_identifier'],
-                'external_server_external_id' =>
-                    $context['external_server_external_id'],
+                'external_server_id' => $context['external_server_id'],
+                'external_server_uuid' => $context['external_server_uuid'],
+                'external_server_identifier' => $context['external_server_identifier'],
+                'external_server_external_id' => $context['external_server_external_id'],
                 'external_user_id' => $context['external_user_id'],
                 'user_external_id' => $context['user_external_id'],
                 'user_email' => $context['user_email'],
@@ -47,16 +41,14 @@ class UpgradeReservationIntegrityService
                 'egg_id' => $context['egg_id'],
                 'preserved_build' => $context['preserved_build'],
                 'allocation_id' => $context['allocation_id'],
-                'assigned_allocation_ids' =>
-                    $context['assigned_allocation_ids'],
+                'assigned_allocation_ids' => $context['assigned_allocation_ids'],
                 'source' => $context['source'],
                 'target' => $context['target'],
                 'delta' => $context['delta'],
                 'quoted_amount' => $this->normalizedMoney(
                     $upgrade->quoted_amount
                 ),
-                'currency_code' =>
-                    strtoupper((string) $upgrade->currency_code),
+                'currency_code' => strtoupper((string) $upgrade->currency_code),
             ]),
             JSON_THROW_ON_ERROR
                 | JSON_PRESERVE_ZERO_FRACTION
@@ -70,8 +62,7 @@ class UpgradeReservationIntegrityService
             'quoted_amount' => $this->normalizedMoney(
                 $upgrade->quoted_amount
             ),
-            'currency_code' =>
-                strtoupper((string) $upgrade->currency_code),
+            'currency_code' => strtoupper((string) $upgrade->currency_code),
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
     }
 
@@ -852,6 +843,7 @@ class UpgradeReservationIntegrityService
         if ($reservationStatus !== 'confirmed' || $consumedAt === null) {
             return false;
         }
+
         return $upgradeStatus === 'completed'
             && $reservationGuard === null
             && $upgradeGuard === null;

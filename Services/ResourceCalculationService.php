@@ -254,8 +254,7 @@ class ResourceCalculationService
             $nodeServers = $servers[$nodeId] ?? [];
             $assignedServerAllocationIds = collect($nodeServers)
                 ->flatMap(
-                    fn (array $server): array =>
-                        $server['assigned_allocation_ids'] ?? []
+                    fn (array $server): array => $server['assigned_allocation_ids'] ?? []
                 )
                 ->map(fn ($id): int => (int) $id)
                 ->unique()
@@ -272,8 +271,7 @@ class ResourceCalculationService
                     )
                 )
                 ->map(
-                    fn (array $allocation): string =>
-                        $this->canonicalIp((string) $allocation['ip'])
+                    fn (array $allocation): string => $this->canonicalIp((string) $allocation['ip'])
                 )
                 ->unique()
                 ->values()
@@ -304,12 +302,11 @@ class ResourceCalculationService
                 ],
                 array_filter(
                     $inventoryAllocations,
-                    fn (array $allocation): bool =>
-                        ! in_array(
-                            (int) $allocation['id'],
-                            $blockedAllocationIds,
-                            true
-                        )
+                    fn (array $allocation): bool => ! in_array(
+                        (int) $allocation['id'],
+                        $blockedAllocationIds,
+                        true
+                    )
                         && ! in_array(
                             $this->canonicalIp((string) $allocation['ip']),
                             $nodeClaims['blocked_ips'],
@@ -570,11 +567,10 @@ class ResourceCalculationService
 
     /**
      * @param  list<int>  $nodeIds
-     * Confirmed commitments remain in the local overlay until the independently
-     * read server snapshot proves the exact target vector. This closes the
-     * handoff window where the local row is consumed before every Pterodactyl
-     * inventory endpoint reflects the create or update.
-     *
+     *                              Confirmed commitments remain in the local overlay until the independently
+     *                              read server snapshot proves the exact target vector. This closes the
+     *                              handoff window where the local row is consumed before every Pterodactyl
+     *                              inventory endpoint reflects the create or update.
      * @param  array<int, list<array<string, mixed>>>  $servers
      * @return array<int, array{memory: int, cpu: int, disk: int}>
      */
@@ -1039,13 +1035,11 @@ class ResourceCalculationService
             $reservation = $reservationRows->first();
             $claims = $reservationRows
                 ->filter(
-                    fn (object $row): bool =>
-                        $row->claim_row_id !== null
+                    fn (object $row): bool => $row->claim_row_id !== null
                 )
                 ->map(fn (object $row): object => (object) [
                     'reservation_id' => (int) $row->reservation_id,
-                    'panel_identity' =>
-                        (string) $row->claim_panel_identity,
+                    'panel_identity' => (string) $row->claim_panel_identity,
                     'node_id' => (int) $row->claim_node_id,
                     'allocation_id' => (int) $row->allocation_id,
                     'ip' => $row->ip,
@@ -1083,48 +1077,28 @@ class ResourceCalculationService
                 $this->upgradeIntegrity->verifiedSnapshot(
                     (object) [
                         'id' => $reservation->upgrade_id,
-                        'service_id' =>
-                            $reservation->upgrade_service_id,
-                        'product_id' =>
-                            $reservation->upgrade_product_id,
-                        'plan_id' =>
-                            $reservation->upgrade_plan_id,
-                        'invoice_id' =>
-                            $reservation->upgrade_invoice_id,
+                        'service_id' => $reservation->upgrade_service_id,
+                        'product_id' => $reservation->upgrade_product_id,
+                        'plan_id' => $reservation->upgrade_plan_id,
+                        'invoice_id' => $reservation->upgrade_invoice_id,
                         'status' => $reservation->upgrade_status,
-                        'active_service_guard_id' =>
-                            $reservation
-                                ->upgrade_active_service_guard_id,
-                        'source_snapshot' =>
-                            $reservation->upgrade_source_snapshot,
-                        'target_snapshot' =>
-                            $reservation->upgrade_target_snapshot,
-                        'source_fingerprint' =>
-                            $reservation->upgrade_source_fingerprint,
-                        'target_fingerprint' =>
-                            $reservation->upgrade_target_fingerprint,
-                        'quoted_amount' =>
-                            $reservation->upgrade_quoted_amount,
-                        'currency_code' =>
-                            $reservation->upgrade_currency_code,
-                        'service_user_id' =>
-                            $reservation->service_user_id,
-                        'service_product_id' =>
-                            $reservation->service_product_id,
-                        'service_plan_id' =>
-                            $reservation->service_plan_id,
-                        'service_quantity' =>
-                            $reservation->service_quantity,
-                        'service_currency_code' =>
-                            $reservation->service_currency_code,
-                        'product_server_id' =>
-                            $reservation->upgrade_product_server_id,
-                        'invoice_status' =>
-                            $reservation->upgrade_invoice_status,
-                        'invoice_user_id' =>
-                            $reservation->upgrade_invoice_user_id,
-                        'invoice_currency_code' =>
-                            $reservation->upgrade_invoice_currency_code,
+                        'active_service_guard_id' => $reservation
+                            ->upgrade_active_service_guard_id,
+                        'source_snapshot' => $reservation->upgrade_source_snapshot,
+                        'target_snapshot' => $reservation->upgrade_target_snapshot,
+                        'source_fingerprint' => $reservation->upgrade_source_fingerprint,
+                        'target_fingerprint' => $reservation->upgrade_target_fingerprint,
+                        'quoted_amount' => $reservation->upgrade_quoted_amount,
+                        'currency_code' => $reservation->upgrade_currency_code,
+                        'service_user_id' => $reservation->service_user_id,
+                        'service_product_id' => $reservation->service_product_id,
+                        'service_plan_id' => $reservation->service_plan_id,
+                        'service_quantity' => $reservation->service_quantity,
+                        'service_currency_code' => $reservation->service_currency_code,
+                        'product_server_id' => $reservation->upgrade_product_server_id,
+                        'invoice_status' => $reservation->upgrade_invoice_status,
+                        'invoice_user_id' => $reservation->upgrade_invoice_user_id,
+                        'invoice_currency_code' => $reservation->upgrade_invoice_currency_code,
                     ],
                     $reservation
                 );

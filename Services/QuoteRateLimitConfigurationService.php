@@ -19,9 +19,7 @@ class QuoteRateLimitConfigurationService
     /**
      * @param  array<string, mixed>|null  $config
      */
-    public function __construct(private readonly ?array $config = null)
-    {
-    }
+    public function __construct(private readonly ?array $config = null) {}
 
     /**
      * @return array{per_ip: int, global: int, panel_identity: string}

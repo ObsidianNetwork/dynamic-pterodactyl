@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Mockery;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidResourceSelectionException;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ProductResourceConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PterodactylInventoryService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
@@ -212,7 +213,7 @@ class ProductResourceConfigurationServiceTest extends LaravelTestCase
         ]);
 
         $this->expectException(
-            \Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException::class
+            InvalidStockConfigurationException::class
         );
         $this->expectExceptionMessage('SERVER_PORT');
 
@@ -284,7 +285,7 @@ class ProductResourceConfigurationServiceTest extends LaravelTestCase
         ]);
 
         $this->expectException(
-            \Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException::class
+            InvalidStockConfigurationException::class
         );
         $this->expectExceptionMessage(
             'may assign exactly one port to QUERY_PORT'
@@ -374,7 +375,7 @@ class ProductResourceConfigurationServiceTest extends LaravelTestCase
         ]);
 
         $this->expectException(
-            \Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException::class
+            InvalidStockConfigurationException::class
         );
         $this->expectExceptionMessage('cannot combine');
 
@@ -413,7 +414,7 @@ class ProductResourceConfigurationServiceTest extends LaravelTestCase
                     "Expected {$case['key']} to fail dynamic stock closed."
                 );
             } catch (
-                \Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException
+                InvalidStockConfigurationException
                 $exception
             ) {
                 $this->assertStringContainsString(

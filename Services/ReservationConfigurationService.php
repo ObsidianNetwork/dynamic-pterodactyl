@@ -314,8 +314,7 @@ class ReservationConfigurationService
         array $payload,
         int $customerId,
         string $customerEmail
-    ): array
-    {
+    ): array {
         $payload['customer_id'] = $customerId;
         $payload['provisioning_identity']['user_external_id']
             = $this->pterodactylUserExternalId($customerId);
@@ -466,8 +465,7 @@ class ReservationConfigurationService
         }
         usort(
             $expected,
-            fn (array $left, array $right): int =>
-                $left['allocation_id'] <=> $right['allocation_id']
+            fn (array $left, array $right): int => $left['allocation_id'] <=> $right['allocation_id']
         );
 
         $claimRows = collect($claims)->values();
@@ -488,12 +486,10 @@ class ReservationConfigurationService
         $status = (string) ($reservation->status ?? '');
         $releaseStateIsValid = match ($status) {
             'pending', 'paid_committed' => ! $claimRows->contains(
-                fn (object $allocation): bool =>
-                    $allocation->released_at !== null
+                fn (object $allocation): bool => $allocation->released_at !== null
             ),
             'confirmed' => ! $claimRows->contains(
-                fn (object $allocation): bool =>
-                    $allocation->released_at === null
+                fn (object $allocation): bool => $allocation->released_at === null
             ),
             default => false,
         };
@@ -541,8 +537,6 @@ class ReservationConfigurationService
      * intentionally not recomputed here: administrators may edit them while a
      * seven-day quote is open. The signed reservation remains authoritative
      * and the provisioner overrides placement and resources from that snapshot.
-     *
-     * @param  object  $reservation
      */
     public function assertServiceMatches(Service $service, object $reservation): void
     {

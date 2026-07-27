@@ -12,8 +12,7 @@ class QuoteRateLimiterService
 
     public function __construct(
         private readonly QuoteRateLimitConfigurationService $configuration
-    ) {
-    }
+    ) {}
 
     public function register(): void
     {

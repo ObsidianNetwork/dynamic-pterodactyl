@@ -24,8 +24,8 @@ return new class extends Migration
             'ptero_alert_configs',
             function (Blueprint $table) use ($addWarning, $addCritical): void {
                 if ($addWarning) {
-                $table->unsignedTinyInteger('cpu_warning_threshold')
-                    ->default(80);
+                    $table->unsignedTinyInteger('cpu_warning_threshold')
+                        ->default(80);
                 }
                 if ($addCritical) {
                     $table->unsignedTinyInteger('cpu_critical_threshold')
@@ -54,9 +54,9 @@ return new class extends Migration
         Schema::table(
             'ptero_alert_configs',
             function (Blueprint $table) use ($columns): void {
-            if ($columns !== []) {
-                $table->dropColumn($columns);
-            }
+                if ($columns !== []) {
+                    $table->dropColumn($columns);
+                }
             }
         );
     }

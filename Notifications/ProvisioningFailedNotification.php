@@ -45,20 +45,20 @@ class ProvisioningFailedNotification extends Notification implements ShouldQueue
             ->when(
                 $upgrade,
                 fn (MailMessage $message) => $message->line(
-                    'Upgrade ID: ' . ($this->snapshot['upgrade_id'] ?? 'unknown')
+                    'Upgrade ID: '.($this->snapshot['upgrade_id'] ?? 'unknown')
                 )
             )
-            ->line('Service ID: ' . $serviceId)
-            ->line('Invoice ID: ' . ($this->snapshot['invoice_id'] ?? 'free service'))
-            ->line('Reservation ID: ' . ($this->snapshot['reservation_id'] ?? 'unknown'))
-            ->line('Node ID: ' . ($this->snapshot['node_id'] ?? 'unknown'))
-            ->line('Attempts: ' . ($this->snapshot['attempts'] ?? 0))
-            ->line('Last error: ' . ($this->snapshot['error'] ?? 'unknown'))
+            ->line('Service ID: '.$serviceId)
+            ->line('Invoice ID: '.($this->snapshot['invoice_id'] ?? 'free service'))
+            ->line('Reservation ID: '.($this->snapshot['reservation_id'] ?? 'unknown'))
+            ->line('Node ID: '.($this->snapshot['node_id'] ?? 'unknown'))
+            ->line('Attempts: '.($this->snapshot['attempts'] ?? 0))
+            ->line('Last error: '.($this->snapshot['error'] ?? 'unknown'))
             ->line(match (true) {
                 $cancellation => 'The cancellation tombstone remains active. Confirm the external server is deleted before resolving it.',
                 $upgrade => 'The paid capacity delta remains committed. Reconcile the panel state before manually resolving the upgrade.',
                 default => 'The paid capacity remains committed and automatic reconciliation will continue.',
             })
-            ->action('View service', url('/admin/services/' . $serviceId . '/edit'));
+            ->action('View service', url('/admin/services/'.$serviceId.'/edit'));
     }
 }

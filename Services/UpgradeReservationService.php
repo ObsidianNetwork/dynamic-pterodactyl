@@ -5,13 +5,15 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 use App\Exceptions\DisplayException;
 use App\Exceptions\PermanentProvisioningException;
 use App\Helpers\ExtensionHelper;
-use App\Jobs\Server\UpgradeJob;
 use App\Models\Invoice;
 use App\Models\Service;
 use App\Models\ServiceUpgrade;
 use App\Services\Invoice\CancelInvoiceService;
 use App\Services\Invoice\CapacityInvoicePaymentService;
+use App\Services\Service\CapacityConfigurationLockService;
 use App\Services\ServiceUpgrade\CapacityUpgradeReservationIdentity;
+use App\Services\ServiceUpgrade\ServiceUpgradeDispatchRecoveryService;
+use App\Services\ServiceUpgrade\ServiceUpgradeMutationCoordinator;
 use App\Services\ServiceUpgrade\ServiceUpgradeService;
 use App\Support\PanelEndpointIdentity;
 use App\Support\StrictInteger;
@@ -115,10 +117,8 @@ class UpgradeReservationService
                 'location_id' => $context['location_id'],
                 'external_server_id' => $context['external_server_id'],
                 'external_server_uuid' => $context['external_server_uuid'],
-                'external_server_identifier' =>
-                    $context['external_server_identifier'],
-                'external_server_external_id' =>
-                    $context['external_server_external_id'],
+                'external_server_identifier' => $context['external_server_identifier'],
+                'external_server_external_id' => $context['external_server_external_id'],
                 'external_user_id' => $context['external_user_id'],
                 'user_external_id' => $context['user_external_id'],
                 'user_email' => $context['user_email'],
@@ -126,8 +126,7 @@ class UpgradeReservationService
                 'egg_id' => $context['egg_id'],
                 'preserved_build' => $context['preserved_build'],
                 'allocation_id' => $context['allocation_id'],
-                'assigned_allocation_ids' =>
-                    $context['assigned_allocation_ids'],
+                'assigned_allocation_ids' => $context['assigned_allocation_ids'],
                 'source' => $context['source'],
                 'target' => $context['target'],
                 'delta' => $context['delta'],
@@ -156,8 +155,7 @@ class UpgradeReservationService
                 'currency_code' => strtoupper((string) $upgrade->currency_code),
                 'configuration_fingerprint' => $fingerprint,
                 'configuration_payload' => $payload,
-                'pricing_version' =>
-                    $this->integrity->pricingVersion($upgrade),
+                'pricing_version' => $this->integrity->pricingVersion($upgrade),
                 'formula_version' => 'dynamic-upgrade-v1',
                 // Full target values are provisioning truth.
                 'memory' => $context['target']['memory'],
@@ -171,8 +169,7 @@ class UpgradeReservationService
                 'external_server_id' => $context['external_server_id'],
                 'external_user_id' => $context['external_user_id'],
                 'external_server_uuid' => $context['external_server_uuid'],
-                'external_server_identifier' =>
-                    $context['external_server_identifier'],
+                'external_server_identifier' => $context['external_server_identifier'],
                 'pricing_breakdown' => [
                     'kind' => 'resource_upgrade',
                     'source' => $context['source'],
@@ -409,7 +406,8 @@ class UpgradeReservationService
                     ? "{$reason} External payment evidence exists; refund or account-credit review is required."
                     : $reason,
                 'failed_at' => now(),
-            ])->save();
+            ]);
+            ServiceUpgradeMutationCoordinator::save($lockedUpgrade);
             if ($reservation !== null && $reservation->status === 'pending') {
                 $reservation->forceFill([
                     'status' => $reservation->guaranteed_until?->isPast()
@@ -433,164 +431,177 @@ class UpgradeReservationService
 
     public function expireUnpaidUpgrades(int $limit = 100): int
     {
-        $candidateIds = UpgradeReservation::query()
-            ->where('purpose', 'upgrade')
-            ->where('status', 'pending')
-            ->where('guaranteed_until', '<=', now())
-            ->orderBy('id')
-            ->limit($limit)
-            ->pluck('id');
-        $expired = 0;
+        $limit = max(1, min($limit, 500));
 
-        foreach ($candidateIds as $reservationId) {
-            $didExpire = DB::transaction(function () use ($reservationId): bool {
-                $candidate = UpgradeReservation::query()->find($reservationId);
-                if ($candidate === null) {
-                    return false;
-                }
+        return app(SchedulerHealthService::class)->processEligibleRows(
+            SchedulerHealthService::TASK_EXPIRE_UPGRADES,
+            'resource_reservation',
+            $limit,
+            fn () => UpgradeReservation::query()
+                ->where('purpose', 'upgrade')
+                ->where('status', 'pending')
+                ->where('guaranteed_until', '<=', now()),
+            function (int $reservationId): bool {
+                return DB::transaction(function () use (
+                    $reservationId
+                ): bool {
+                    $candidate = UpgradeReservation::query()
+                        ->find($reservationId);
+                    if ($candidate === null) {
+                        return false;
+                    }
 
-                $invoice = $candidate->invoice_id !== null
-                    ? Invoice::query()
-                        ->whereKey($candidate->invoice_id)
+                    $invoice = $candidate->invoice_id !== null
+                        ? Invoice::query()
+                            ->whereKey($candidate->invoice_id)
+                            ->lockForUpdate()
+                            ->first()
+                        : null;
+                    $serviceId = ServiceUpgrade::query()
+                        ->whereKey($candidate->service_upgrade_id)
+                        ->value('service_id');
+                    if ($serviceId !== null) {
+                        Service::query()
+                            ->whereKey($serviceId)
+                            ->lockForUpdate()
+                            ->firstOrFail();
+                    }
+                    $upgrade = ServiceUpgrade::query()
+                        ->whereKey($candidate->service_upgrade_id)
                         ->lockForUpdate()
-                        ->first()
-                    : null;
-                $serviceId = ServiceUpgrade::query()
-                    ->whereKey($candidate->service_upgrade_id)
-                    ->value('service_id');
-                if ($serviceId !== null) {
-                    Service::query()
-                        ->whereKey($serviceId)
+                        ->first();
+                    $reservation = UpgradeReservation::query()
+                        ->whereKey($reservationId)
                         ->lockForUpdate()
-                        ->firstOrFail();
-                }
-                $upgrade = ServiceUpgrade::query()
-                    ->whereKey($candidate->service_upgrade_id)
-                    ->lockForUpdate()
-                    ->first();
-                $reservation = UpgradeReservation::query()
-                    ->whereKey($reservationId)
-                    ->lockForUpdate()
-                    ->first();
-                if ($invoice !== null) {
-                    $invoice->items()
-                        ->orderBy('id')
-                        ->lockForUpdate()
-                        ->get();
-                }
+                        ->first();
+                    if ($invoice !== null) {
+                        $invoice->items()
+                            ->orderBy('id')
+                            ->lockForUpdate()
+                            ->get();
+                    }
 
-                if (
-                    $reservation === null
-                    || $reservation->status !== 'pending'
-                    || $reservation->guaranteed_until?->isFuture()
-                    || $invoice?->status === Invoice::STATUS_PAID
-                ) {
-                    return false;
-                }
+                    if (
+                        $reservation === null
+                        || $reservation->status !== 'pending'
+                        || $reservation->guaranteed_until?->isFuture()
+                        || $invoice?->status === Invoice::STATUS_PAID
+                    ) {
+                        return false;
+                    }
 
-                $reason = 'The unpaid upgrade capacity guarantee expired.';
-                $paymentAttention = $invoice !== null
-                    && $invoice->status === Invoice::STATUS_PENDING
-                    && app(CapacityInvoicePaymentService::class)
-                        ->hasInFlightOrSucceededPayment($invoice);
-                $reservation->forceFill([
-                    'status' => 'expired',
-                    'upgrade_guard_id' => null,
-                    'admin_notes' => $reason,
-                ])->save();
-                if ($upgrade !== null && in_array($upgrade->status, [
-                    ServiceUpgrade::STATUS_PENDING,
-                    ServiceUpgrade::STATUS_AWAITING_PAYMENT,
-                ], true)) {
-                    $upgrade->forceFill([
-                        'status' => $paymentAttention
-                            ? ServiceUpgrade::STATUS_NEEDS_ATTENTION
-                            : ServiceUpgrade::STATUS_CANCELLED,
-                        'active_service_guard_id' => $paymentAttention
-                            ? $upgrade->service_id
-                            : null,
-                        'last_error' => $paymentAttention
-                            ? 'The capacity guarantee expired with payment activity; refund or account-credit review is required.'
-                            : $reason,
-                        'failed_at' => now(),
+                    $reason = 'The unpaid upgrade capacity guarantee expired.';
+                    $paymentAttention = $invoice !== null
+                        && $invoice->status === Invoice::STATUS_PENDING
+                        && app(CapacityInvoicePaymentService::class)
+                            ->hasInFlightOrSucceededPayment($invoice);
+                    $reservation->forceFill([
+                        'status' => 'expired',
+                        'upgrade_guard_id' => null,
+                        'admin_notes' => $reason,
                     ])->save();
-                }
-                if ($paymentAttention) {
-                    app(CapacityInvoicePaymentService::class)->requireAttention(
-                        $invoice,
-                        'The seven-day upgrade capacity guarantee expired after a partial or in-flight payment. Capacity was released; refund or account-credit review is required.'
-                    );
-                } elseif ($invoice?->status === Invoice::STATUS_PENDING) {
-                    app(CancelInvoiceService::class)
-                        ->markCancelledAfterFulfillment($invoice);
-                }
+                    if ($upgrade !== null && in_array($upgrade->status, [
+                        ServiceUpgrade::STATUS_PENDING,
+                        ServiceUpgrade::STATUS_AWAITING_PAYMENT,
+                    ], true)) {
+                        $upgrade->forceFill([
+                            'status' => $paymentAttention
+                                ? ServiceUpgrade::STATUS_NEEDS_ATTENTION
+                                : ServiceUpgrade::STATUS_CANCELLED,
+                            'active_service_guard_id' => $paymentAttention
+                                ? $upgrade->service_id
+                                : null,
+                            'last_error' => $paymentAttention
+                                ? 'The capacity guarantee expired with payment activity; refund or account-credit review is required.'
+                                : $reason,
+                            'failed_at' => now(),
+                        ]);
+                        ServiceUpgradeMutationCoordinator::save($upgrade);
+                    }
+                    if ($paymentAttention) {
+                        app(CapacityInvoicePaymentService::class)
+                            ->requireAttention(
+                                $invoice,
+                                'The seven-day upgrade capacity guarantee expired after a partial or in-flight payment. Capacity was released; refund or account-credit review is required.'
+                            );
+                    } elseif (
+                        $invoice?->status === Invoice::STATUS_PENDING
+                    ) {
+                        app(CancelInvoiceService::class)
+                            ->markCancelledAfterFulfillment($invoice);
+                    }
 
-                return true;
-            }, 5);
-
-            $expired += $didExpire ? 1 : 0;
-        }
-
-        return $expired;
+                    return true;
+                }, 5);
+            }
+        );
     }
 
     public function reconcileStalledUpgrades(int $limit = 100): int
     {
-        $upgradeIds = ServiceUpgrade::query()
-            ->where('status', ServiceUpgrade::STATUS_PROVISIONING)
-            ->where('provisioning_started_at', '<=', now()->subMinutes(10))
-            ->orderBy('id')
-            ->limit($limit)
-            ->pluck('id');
-        $requeued = 0;
+        $limit = max(1, min($limit, 500));
 
-        foreach ($upgradeIds as $upgradeId) {
-            $didRequeue = DB::transaction(function () use ($upgradeId): bool {
-                $upgrade = ServiceUpgrade::query()
-                    ->whereKey($upgradeId)
-                    ->lockForUpdate()
-                    ->first();
-                $reservation = UpgradeReservation::query()
-                    ->where('purpose', 'upgrade')
-                    ->where('service_upgrade_id', $upgradeId)
-                    ->lockForUpdate()
-                    ->first();
+        return app(SchedulerHealthService::class)->processEligibleRows(
+            SchedulerHealthService::TASK_RECONCILE_UPGRADES,
+            'service_upgrade',
+            $limit,
+            fn () => ServiceUpgrade::query()
+                ->where('status', ServiceUpgrade::STATUS_PROVISIONING)
+                ->where(
+                    'provisioning_started_at',
+                    '<=',
+                    now()->subMinutes(10)
+                ),
+            function (int $upgradeId): bool {
+                return DB::transaction(function () use (
+                    $upgradeId
+                ): bool {
+                    $upgrade = ServiceUpgrade::query()
+                        ->whereKey($upgradeId)
+                        ->lockForUpdate()
+                        ->first();
+                    $reservation = UpgradeReservation::query()
+                        ->where('purpose', 'upgrade')
+                        ->where('service_upgrade_id', $upgradeId)
+                        ->lockForUpdate()
+                        ->first();
 
-                if (
-                    $upgrade === null
-                    || $reservation === null
-                    || $upgrade->status !== ServiceUpgrade::STATUS_PROVISIONING
-                    || $upgrade->provisioning_started_at?->isAfter(now()->subMinutes(10))
-                    || $reservation->status !== 'paid_committed'
-                ) {
-                    return false;
-                }
+                    if (
+                        $upgrade === null
+                        || $reservation === null
+                        || $upgrade->status
+                            !== ServiceUpgrade::STATUS_PROVISIONING
+                        || $upgrade->provisioning_started_at?->isAfter(
+                            now()->subMinutes(10)
+                        )
+                        || $reservation->status !== 'paid_committed'
+                    ) {
+                        return false;
+                    }
 
-                $message = 'A stale upgrade worker lease was recovered for retry.';
-                $reservation->forceFill([
-                    'provisioning_lease_id' => null,
-                    'provisioning_started_at' => null,
-                    'last_provisioning_error' => $message,
-                ])->save();
-                $upgrade->forceFill([
-                    'status' => ServiceUpgrade::STATUS_RETRYABLE_FAILED,
-                    'last_error' => $message,
-                    'failed_at' => now(),
-                ])->save();
+                    $message = 'A stale upgrade worker lease was recovered for retry.';
+                    $reservation->forceFill([
+                        'provisioning_lease_id' => null,
+                        'provisioning_started_at' => null,
+                        'last_provisioning_error' => $message,
+                    ])->save();
+                    $upgrade->forceFill([
+                        'status' => ServiceUpgrade::STATUS_RETRYABLE_FAILED,
+                        'last_error' => $message,
+                        'failed_at' => now(),
+                    ]);
+                    ServiceUpgradeMutationCoordinator::save($upgrade);
 
-                DB::afterCommit(
-                    fn () => UpgradeJob::dispatch(
-                        ServiceUpgrade::query()->findOrFail($upgradeId)
-                    )
-                );
+                    DB::afterCommit(
+                        fn () => app(
+                            ServiceUpgradeDispatchRecoveryService::class
+                        )->dispatchById($upgradeId)
+                    );
 
-                return true;
-            }, 5);
-
-            $requeued += $didRequeue ? 1 : 0;
-        }
-
-        return $requeued;
+                    return true;
+                }, 5);
+            }
+        );
     }
 
     /**
@@ -671,16 +682,11 @@ class UpgradeReservationService
                 'source' => (array) ($payload['source'] ?? []),
                 'target' => (array) ($payload['target'] ?? []),
                 'external_server_id' => (int) ($payload['external_server_id'] ?? 0),
-                'external_server_uuid' =>
-                    (string) ($payload['external_server_uuid'] ?? ''),
-                'external_server_identifier' =>
-                    (string) ($payload['external_server_identifier'] ?? ''),
-                'external_server_external_id' =>
-                    (string) ($payload['external_server_external_id'] ?? ''),
-                'external_user_id' =>
-                    (int) ($payload['external_user_id'] ?? 0),
-                'user_external_id' =>
-                    (string) ($payload['user_external_id'] ?? ''),
+                'external_server_uuid' => (string) ($payload['external_server_uuid'] ?? ''),
+                'external_server_identifier' => (string) ($payload['external_server_identifier'] ?? ''),
+                'external_server_external_id' => (string) ($payload['external_server_external_id'] ?? ''),
+                'external_user_id' => (int) ($payload['external_user_id'] ?? 0),
+                'user_external_id' => (string) ($payload['user_external_id'] ?? ''),
                 'user_email' => (string) ($payload['user_email'] ?? ''),
                 'nest_id' => (int) ($payload['nest_id'] ?? 0),
                 'egg_id' => (int) ($payload['egg_id'] ?? 0),
@@ -830,7 +836,7 @@ class UpgradeReservationService
         }
 
         $lockedProduct = app(
-            \App\Services\Service\CapacityConfigurationLockService::class
+            CapacityConfigurationLockService::class
         )->lockProduct((int) $service->product_id);
         $service->setRelation('product', $lockedProduct);
         $this->inventory->assertExclusiveProvisioningControl();
@@ -1074,10 +1080,8 @@ class UpgradeReservationService
             'location_id' => (int) $node['location_id'],
             'external_server_id' => $checkoutIdentity['id'],
             'external_server_uuid' => $checkoutIdentity['uuid'],
-            'external_server_identifier' =>
-                $checkoutIdentity['identifier'],
-            'external_server_external_id' =>
-                (string) $upgrade->service_id,
+            'external_server_identifier' => $checkoutIdentity['identifier'],
+            'external_server_external_id' => (string) $upgrade->service_id,
             'external_user_id' => $checkoutIdentity['external_user_id'],
             'user_external_id' => $checkoutIdentity['user_external_id'],
             'user_email' => $checkoutIdentity['user_email'],

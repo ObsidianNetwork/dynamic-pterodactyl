@@ -70,8 +70,7 @@ class AllocationSelectionService
 
         usort(
             $available,
-            fn (array $left, array $right): int =>
-                $left['id'] <=> $right['id']
+            fn (array $left, array $right): int => $left['id'] <=> $right['id']
         );
 
         $ids = array_column($available, 'id');
@@ -108,8 +107,7 @@ class AllocationSelectionService
             }
             usort(
                 $candidates,
-                fn (array $left, array $right): int =>
-                    min(array_column($left, 'id'))
+                fn (array $left, array $right): int => min(array_column($left, 'id'))
                     <=> min(array_column($right, 'id'))
             );
 
@@ -157,15 +155,13 @@ class AllocationSelectionService
         }
         foreach ($requiredPorts as $requiredPort) {
             if (collect($selected)->contains(
-                fn (array $allocation): bool =>
-                    $allocation['port'] === $requiredPort
+                fn (array $allocation): bool => $allocation['port'] === $requiredPort
             )) {
                 continue;
             }
             $matches = array_values(array_filter(
                 $available,
-                fn (array $allocation): bool =>
-                    $allocation['port'] === $requiredPort
+                fn (array $allocation): bool => $allocation['port'] === $requiredPort
                     && ! isset($selectedIds[$allocation['id']])
             ));
             if ($matches === []) {

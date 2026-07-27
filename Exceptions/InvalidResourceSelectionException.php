@@ -2,6 +2,4 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions;
 
-class InvalidResourceSelectionException extends \InvalidArgumentException
-{
-}
+class InvalidResourceSelectionException extends \InvalidArgumentException {}

@@ -22,7 +22,7 @@ return new class extends Migration
             (float) DB::table('ptero_resource_reservations')
                 ->max('calculated_price') > 99_999_999.99
         ) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 'Reservation prices no longer fit the legacy DECIMAL(10,2) column.'
             );
         }

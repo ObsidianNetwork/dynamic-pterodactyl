@@ -121,7 +121,7 @@ class ResourceReservation extends Model
     public function scopePending($query)
     {
         return $query->where('status', 'pending')
-                     ->where('expires_at', '>', now());
+            ->where('expires_at', '>', now());
     }
 
     public function scopeHoldingCapacity($query)
@@ -140,6 +140,6 @@ class ResourceReservation extends Model
     public function scopeExpired($query)
     {
         return $query->where('status', 'pending')
-                     ->where('expires_at', '<=', now());
+            ->where('expires_at', '<=', now());
     }
 }

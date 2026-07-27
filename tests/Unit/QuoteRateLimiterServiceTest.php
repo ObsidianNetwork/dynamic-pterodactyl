@@ -6,11 +6,11 @@ use App\Support\PanelEndpointIdentity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimitConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class QuoteRateLimiterServiceTest extends LaravelTestCase
 {

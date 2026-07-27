@@ -8,11 +8,12 @@ use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Price;
 use App\Models\Product;
+use App\Models\Server;
 use App\Models\Service;
 use App\Models\ServiceUpgrade;
-use App\Models\Server;
 use App\Models\User;
 use App\Services\Service\CapacityServiceCreationCoordinator;
+use App\Services\ServiceUpgrade\ServiceUpgradeMutationCoordinator;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\LegacyReservationReadinessService;
@@ -118,9 +119,8 @@ class LegacyReservationReadinessTest extends LaravelTestCase
                     $payload,
                     JSON_THROW_ON_ERROR
                 ),
-                'configuration_fingerprint' =>
-                    (new UpgradeReservationIntegrityService)
-                        ->fingerprint($upgrade, $payload),
+                'configuration_fingerprint' => (new UpgradeReservationIntegrityService)
+                    ->fingerprint($upgrade, $payload),
                 'updated_at' => now(),
             ]);
 
@@ -229,8 +229,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
         $blocker = collect(
             (new LegacyReservationReadinessService)->blockers()
         )->first(
-            fn (array $row): bool =>
-                $row['purpose'] === 'upgrade'
+            fn (array $row): bool => $row['purpose'] === 'upgrade'
                 && in_array(
                     "dynamic service upgrade #{$upgradeId} "
                         .'requires exactly one coherent capacity reservation',
@@ -259,8 +258,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
         );
         $this->assertTrue(
             $blockers->contains(
-                fn (array $row): bool =>
-                    $row['purpose'] === 'upgrade'
+                fn (array $row): bool => $row['purpose'] === 'upgrade'
                     && in_array(
                         "dynamic service upgrade #{$upgradeId} "
                             .'requires exactly one coherent capacity reservation',
@@ -327,8 +325,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'status' => 'cancelled',
             'configuration_fingerprint' => null,
             'configuration_payload' => null,
-            'admin_notes' =>
-                'Retired during migration to server-owned reservations.',
+            'admin_notes' => 'Retired during migration to server-owned reservations.',
         ]);
 
         $blocker = collect(
@@ -349,8 +346,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             $fixture['reservation_id'],
             [
                 'status' => 'cancelled',
-                'admin_notes' =>
-                    'Retired duplicate service commitment during '
+                'admin_notes' => 'Retired duplicate service commitment during '
                     .'durable-fulfillment migration.',
             ]
         );
@@ -509,17 +505,15 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'status' => 'confirmed',
             'server_extension_id' => 41,
             'panel_identity' => $panel,
-            'configuration_fingerprint' =>
-                (new ReservationConfigurationService)
-                    ->fingerprint($payload),
+            'configuration_fingerprint' => (new ReservationConfigurationService)
+                ->fingerprint($payload),
             'configuration_payload' => json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR
             ),
             'external_server_id' => 71,
             'external_user_id' => 44,
-            'external_server_uuid' =>
-                '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+            'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
             'external_server_identifier' => 'server-71',
         ]);
         $this->insertReleasedAllocation($reservationId, $panel);
@@ -553,17 +547,15 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'quantity' => 2,
             'server_extension_id' => 41,
             'panel_identity' => $panel,
-            'configuration_fingerprint' =>
-                (new ReservationConfigurationService)
-                    ->fingerprint($payload),
+            'configuration_fingerprint' => (new ReservationConfigurationService)
+                ->fingerprint($payload),
             'configuration_payload' => json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR
             ),
             'external_server_id' => 71,
             'external_user_id' => 44,
-            'external_server_uuid' =>
-                '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+            'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
             'external_server_identifier' => 'server-71',
         ]);
         $this->insertReleasedAllocation($reservationId, $panel);
@@ -620,8 +612,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             collect(
                 (new LegacyReservationReadinessService)->blockers()
             )->contains(
-                fn (array $row): bool =>
-                    $row['purpose'] === 'checkout'
+                fn (array $row): bool => $row['purpose'] === 'checkout'
                     && $row['service_id'] === $fixture['service']->id
                     && in_array(
                         "dynamic service #{$fixture['service']->id} "
@@ -652,8 +643,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
         $blocker = collect(
             (new LegacyReservationReadinessService)->blockers()
         )->first(
-            fn (array $row): bool =>
-                $row['purpose'] === 'checkout'
+            fn (array $row): bool => $row['purpose'] === 'checkout'
                 && $row['reservation_id'] === 0
                 && $row['service_id'] === $fixture['service']->id
         );
@@ -803,8 +793,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             collect(
                 (new LegacyReservationReadinessService)->blockers()
             )->contains(
-                fn (array $row): bool =>
-                    $row['purpose'] === 'upgrade'
+                fn (array $row): bool => $row['purpose'] === 'upgrade'
                     && in_array(
                         "dynamic service upgrade #{$upgradeId} "
                             .'requires exactly one coherent capacity '
@@ -827,8 +816,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             collect(
                 (new LegacyReservationReadinessService)->blockers()
             )->contains(
-                fn (array $row): bool =>
-                    $row['purpose'] === 'upgrade'
+                fn (array $row): bool => $row['purpose'] === 'upgrade'
                     && $row['reservation_id'] === 0
                     && in_array(
                         "dynamic service upgrade #{$upgradeId} "
@@ -970,9 +958,8 @@ class LegacyReservationReadinessTest extends LaravelTestCase
                     $payload,
                     JSON_THROW_ON_ERROR
                 ),
-                'configuration_fingerprint' =>
-                    (new UpgradeReservationIntegrityService)
-                        ->fingerprint($upgrade, $payload),
+                'configuration_fingerprint' => (new UpgradeReservationIntegrityService)
+                    ->fingerprint($upgrade, $payload),
                 'updated_at' => now(),
             ]);
 
@@ -1065,9 +1052,8 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'service_guard_id' => $service->id,
             'server_extension_id' => $server->id,
             'panel_identity' => $panel,
-            'configuration_fingerprint' =>
-                (new ReservationConfigurationService)
-                    ->fingerprint($payload),
+            'configuration_fingerprint' => (new ReservationConfigurationService)
+                ->fingerprint($payload),
             'configuration_payload' => json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR
@@ -1248,8 +1234,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
         $payload = [
             'customer_id' => $service->user_id,
             'cart_id' => 99,
-            'server_extension_id' =>
-                (int) ($service->product?->server_id ?? 41),
+            'server_extension_id' => (int) ($service->product?->server_id ?? 41),
             'panel_identity' => $panel,
             'product_id' => $service->product_id,
             'plan_id' => $service->plan_id,
@@ -1271,8 +1256,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'provisioning_identity' => [
                 'nest_id' => 1,
                 'egg_id' => 2,
-                'user_external_id' =>
-                    "paymenter-user-{$service->user_id}",
+                'user_external_id' => "paymenter-user-{$service->user_id}",
                 'user_email' => (string) $service->user->email,
             ],
             'allocations' => [[
@@ -1418,10 +1402,10 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             server: $server
         );
 
-        $invoice = \App\Models\Invoice::factory()->create([
+        $invoice = Invoice::factory()->create([
             'user_id' => $service->user_id,
             'currency_code' => 'USD',
-            'status' => \App\Models\Invoice::STATUS_PENDING,
+            'status' => Invoice::STATUS_PENDING,
         ]);
         $upgrade = ServiceUpgrade::create([
             'service_id' => $service->id,
@@ -1456,7 +1440,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'configs.configValue',
         ]);
         $upgrade->captureSnapshots();
-        $upgrade->save();
+        ServiceUpgradeMutationCoordinator::save($upgrade);
         $invoice->items()->create([
             'description' => 'Resource upgrade',
             'price' => '100.00',
@@ -1475,13 +1459,11 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'node_id' => 7,
             'location_id' => 3,
             'external_server_id' => 71,
-            'external_server_uuid' =>
-                '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+            'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
             'external_server_identifier' => 'server-71',
             'external_server_external_id' => (string) $service->id,
             'external_user_id' => 44,
-            'user_external_id' =>
-                "paymenter-user-{$service->user_id}",
+            'user_external_id' => "paymenter-user-{$service->user_id}",
             'user_email' => (string) $service->user->email,
             'nest_id' => 1,
             'egg_id' => 2,
@@ -1508,9 +1490,8 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'service_upgrade_id' => $upgradeId,
             'upgrade_guard_id' => $upgradeId,
             'panel_identity' => $panel,
-            'configuration_fingerprint' =>
-                (new UpgradeReservationIntegrityService)
-                    ->fingerprint($upgrade, $payload),
+            'configuration_fingerprint' => (new UpgradeReservationIntegrityService)
+                ->fingerprint($upgrade, $payload),
             'configuration_payload' => json_encode(
                 $payload,
                 JSON_THROW_ON_ERROR
@@ -1525,13 +1506,11 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'reserved_disk' => $delta['disk'],
             'external_server_id' => 71,
             'external_user_id' => 44,
-            'external_server_uuid' =>
-                '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+            'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
             'external_server_identifier' => 'server-71',
             'calculated_price' => '100.00',
-            'pricing_version' =>
-                (new UpgradeReservationIntegrityService)
-                    ->pricingVersion($upgrade),
+            'pricing_version' => (new UpgradeReservationIntegrityService)
+                ->pricingVersion($upgrade),
             'formula_version' => 'dynamic-upgrade-v1',
             'invoice_id' => $invoice->id,
             'expires_at' => now()->addDay(),
@@ -1735,8 +1714,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
                 'token' => bin2hex(random_bytes(32)),
                 'purpose' => 'checkout',
                 'server_extension_id' => 41,
-                'panel_identity' =>
-                    hash('sha256', 'https://panel.example.com'),
+                'panel_identity' => hash('sha256', 'https://panel.example.com'),
                 'service_id' => $service->id,
                 'service_guard_id' => $service->id,
                 'user_id' => $service->user_id,

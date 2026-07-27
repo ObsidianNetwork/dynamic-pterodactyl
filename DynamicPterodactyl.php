@@ -14,12 +14,15 @@ use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemCreatedListener;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Listeners\CartItemDeletedListener;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Models\Observers\AlertConfigObserver;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\ResourceReservation;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Policies\ResourceReservationPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\LegacyReservationReadinessService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\SchedulerHealthService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\UpgradeReservationService;
 
 #[ExtensionMeta(
@@ -146,44 +149,83 @@ class DynamicPterodactyl extends Extension
         app(QuoteRateLimiterService::class)->register();
 
         // Register routes
-        require __DIR__ . '/routes/api.php';
+        require __DIR__.'/routes/api.php';
 
         // Register views (for admin pages if any)
-        View::addNamespace('dynamic-pterodactyl', __DIR__ . '/resources/views');
+        View::addNamespace('dynamic-pterodactyl', __DIR__.'/resources/views');
 
         // Register event listeners for cart and checkout flow (reservations)
         $this->registerEventListeners();
 
-        \Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig::observe(
-            \Paymenter\Extensions\Others\DynamicPterodactyl\Models\Observers\AlertConfigObserver::class
+        AlertConfig::observe(
+            AlertConfigObserver::class
         );
 
         // Note: Frontend sliders now handled by native Paymenter dynamic_slider config option type
         // The extension now only manages resource reservations and availability checks
 
-        // Scheduled cleanup: transition expired pending reservations.
-        // Keeps admin dashboards accurate and preserves the TTL guarantee on confirm().
-        Schedule::call(function (): void {
-            app(UpgradeReservationService::class)->expireUnpaidUpgrades();
-            app(ReservationService::class)->cleanupExpired();
-        })
+        // Each lifecycle type owns an independent scheduler event and overlap
+        // lock. A failure in one task cannot suppress another task type.
+        Schedule::call(
+            fn () => app(SchedulerHealthService::class)->run(
+                SchedulerHealthService::TASK_EXPIRE_CHECKOUT,
+                fn () => app(ReservationService::class)->cleanupExpired()
+            )
+        )
             ->everyMinute()
-            ->name('dynamic-pterodactyl:cleanup-expired-reservations')
+            ->name('dynamic-pterodactyl:expire-checkout-reservations')
             ->withoutOverlapping(5);
 
         Schedule::call(
-            function (): void {
-                app(ReservationService::class)->reconcileStalledPaidCommitments();
-                app(UpgradeReservationService::class)->reconcileStalledUpgrades();
-            }
+            fn () => app(SchedulerHealthService::class)->run(
+                SchedulerHealthService::TASK_EXPIRE_UPGRADES,
+                fn () => app(UpgradeReservationService::class)
+                    ->expireUnpaidUpgrades()
+            )
+        )
+            ->everyMinute()
+            ->name('dynamic-pterodactyl:expire-upgrade-reservations')
+            ->withoutOverlapping(5);
+
+        Schedule::call(
+            fn () => app(SchedulerHealthService::class)->run(
+                SchedulerHealthService::TASK_RECONCILE_CHECKOUT,
+                fn () => app(ReservationService::class)
+                    ->reconcileStalledPaidCommitments()
+            )
         )
             ->everyTenMinutes()
-            ->name('dynamic-pterodactyl:reconcile-paid-commitments')
+            ->name(
+                'dynamic-pterodactyl:reconcile-paid-checkout-commitments'
+            )
             ->withoutOverlapping(15);
 
-        Schedule::call(fn () => app(AlertService::class)->checkCapacityAlerts())
+        Schedule::call(
+            fn () => app(SchedulerHealthService::class)->run(
+                SchedulerHealthService::TASK_RECONCILE_UPGRADES,
+                fn () => app(UpgradeReservationService::class)
+                    ->reconcileStalledUpgrades()
+            )
+        )
+            ->everyTenMinutes()
+            ->name('dynamic-pterodactyl:reconcile-paid-upgrades')
+            ->withoutOverlapping(15);
+
+        Schedule::call(
+            fn () => app(SchedulerHealthService::class)->run(
+                SchedulerHealthService::TASK_CAPACITY_ALERTS,
+                fn () => app(AlertService::class)->checkCapacityAlerts()
+            )
+        )
             ->everyFiveMinutes()
             ->name('dynamic-pterodactyl:check-capacity-alerts')
+            ->withoutOverlapping(10);
+
+        Schedule::call(
+            fn () => app(SchedulerHealthService::class)->checkForLag()
+        )
+            ->everyFiveMinutes()
+            ->name('dynamic-pterodactyl:monitor-scheduler-health')
             ->withoutOverlapping(10);
     }
 

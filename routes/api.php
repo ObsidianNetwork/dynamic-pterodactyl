@@ -7,11 +7,11 @@
  */
 
 use Illuminate\Support\Facades\Route;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ResourceQuoteController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\UpgradeQuoteController;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 

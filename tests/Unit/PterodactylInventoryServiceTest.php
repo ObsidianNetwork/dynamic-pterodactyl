@@ -26,8 +26,7 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
     public function test_panel_identity_preserves_case_sensitive_path(): void
     {
         $inventory = new PterodactylInventoryService([
-            'pterodactyl_url' =>
-                'HTTPS://Panel.Example.com:443/PanelA/',
+            'pterodactyl_url' => 'HTTPS://Panel.Example.com:443/PanelA/',
             'pterodactyl_api_key' => 'application-key',
             'exclusive_provisioning_control' => true,
         ]);

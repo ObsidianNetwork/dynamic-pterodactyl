@@ -2,6 +2,4 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions;
 
-class StockUnavailableException extends \RuntimeException
-{
-}
+class StockUnavailableException extends \RuntimeException {}

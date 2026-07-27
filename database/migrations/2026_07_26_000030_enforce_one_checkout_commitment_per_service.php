@@ -65,8 +65,7 @@ return new class extends Migration
             );
             Schema::table(
                 'ptero_resource_reservations',
-                fn (Blueprint $table) =>
-                    $table->dropColumn('service_guard_id')
+                fn (Blueprint $table) => $table->dropColumn('service_guard_id')
             );
         } else {
             Schema::table('ptero_resource_reservations', function (Blueprint $table) {
@@ -137,7 +136,7 @@ return new class extends Migration
             })
             ->implode('; ');
 
-        throw new \RuntimeException(
+        throw new RuntimeException(
             'Dynamic Pterodactyl found duplicate active checkout '
             .'commitments and refused to retire or release any obligation. '
             .'Reconcile every invoice, signed configuration, allocation, and '

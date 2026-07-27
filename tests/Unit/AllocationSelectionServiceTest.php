@@ -9,7 +9,7 @@ class AllocationSelectionServiceTest extends TestCase
 {
     public function test_dedicated_claim_uses_one_otherwise_unused_ip(): void
     {
-        $selected = (new AllocationSelectionService())->select([
+        $selected = (new AllocationSelectionService)->select([
             [
                 'id' => 1,
                 'ip' => '192.0.2.10',
@@ -41,7 +41,7 @@ class AllocationSelectionServiceTest extends TestCase
 
     public function test_equivalent_ipv6_spellings_share_one_dedicated_ip_group(): void
     {
-        $selected = (new AllocationSelectionService())->select([
+        $selected = (new AllocationSelectionService)->select([
             [
                 'id' => 10,
                 'ip' => '2001:db8::1',
@@ -61,7 +61,7 @@ class AllocationSelectionServiceTest extends TestCase
 
     public function test_port_range_constrains_primary_but_not_preclaimed_extras(): void
     {
-        $selected = (new AllocationSelectionService())->select([
+        $selected = (new AllocationSelectionService)->select([
             [
                 'id' => 20,
                 'ip' => '192.0.2.20',
@@ -83,7 +83,7 @@ class AllocationSelectionServiceTest extends TestCase
 
     public function test_dedicated_fixed_ports_must_exist_on_the_same_ip(): void
     {
-        $selected = (new AllocationSelectionService())->select([
+        $selected = (new AllocationSelectionService)->select([
             [
                 'id' => 30,
                 'ip' => '192.0.2.30',
@@ -103,7 +103,7 @@ class AllocationSelectionServiceTest extends TestCase
 
     public function test_repeated_port_across_ips_uses_lowest_allocation_id(): void
     {
-        $selected = (new AllocationSelectionService())->select([
+        $selected = (new AllocationSelectionService)->select([
             [
                 'id' => 101,
                 'ip' => '192.0.2.11',
@@ -121,7 +121,7 @@ class AllocationSelectionServiceTest extends TestCase
 
     public function test_dedicated_repeated_port_uses_lowest_eligible_ip_group(): void
     {
-        $selected = (new AllocationSelectionService())->select([
+        $selected = (new AllocationSelectionService)->select([
             [
                 'id' => 202,
                 'ip' => '192.0.2.22',

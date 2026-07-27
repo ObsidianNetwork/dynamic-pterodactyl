@@ -12,8 +12,7 @@ class ResourceQuoteService
         private readonly ProductResourceConfigurationService $configuration,
         private readonly ResourceCalculationService $resources,
         private readonly AllocationSelectionService $allocations
-    ) {
-    }
+    ) {}
 
     /**
      * Return customer-safe, complete-vector slider bounds. No node identity or

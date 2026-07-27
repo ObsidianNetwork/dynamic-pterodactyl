@@ -44,7 +44,7 @@ class ConfigOptionSetupServiceTest extends LaravelTestCase
         parent::tearDown();
     }
 
-    public function test_createDynamicSliderOptions_rolls_back_on_mid_batch_failure(): void
+    public function test_create_dynamic_slider_options_rolls_back_on_mid_batch_failure(): void
     {
         $product = $this->eligibleProduct();
 
@@ -73,7 +73,7 @@ class ConfigOptionSetupServiceTest extends LaravelTestCase
         $this->assertSame(0, $this->countOptionsForProduct($product->id));
     }
 
-    public function test_createDynamicSliderOptions_happy_path_creates_all_four(): void
+    public function test_create_dynamic_slider_options_happy_path_creates_all_four(): void
     {
         $product = $this->eligibleProduct();
 

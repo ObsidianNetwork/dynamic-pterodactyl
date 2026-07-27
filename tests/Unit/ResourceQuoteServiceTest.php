@@ -4,7 +4,6 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\Product;
 use Mockery;
-use PHPUnit\Framework\Attributes\DataProvider;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\InvalidStockConfigurationException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Exceptions\StockUnavailableException;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AllocationSelectionService;
@@ -13,6 +12,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ProductResourceConfi
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceQuoteService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 class ResourceQuoteServiceTest extends TestCase
 {
@@ -110,7 +110,7 @@ class ResourceQuoteServiceTest extends TestCase
             ['id' => 101, 'ip' => '192.0.2.2', 'port' => 25570],
         ];
 
-        $product = new Product();
+        $product = new Product;
         $product->id = 99;
         $configurations = Mockery::mock(ProductResourceConfigurationService::class);
         $configurations->shouldReceive('forQuote')
@@ -122,7 +122,7 @@ class ResourceQuoteServiceTest extends TestCase
             ->twice()
             ->with(1, null)
             ->andReturn(['nodes' => [$node]]);
-        $allocations = new AllocationSelectionService();
+        $allocations = new AllocationSelectionService;
 
         $quote = (new ResourceQuoteService(
             $configurations,
@@ -163,7 +163,7 @@ class ResourceQuoteServiceTest extends TestCase
     public function test_unbounded_inventory_is_configuration_failure(string $reason): void
     {
         $configuration = $this->configuration();
-        $product = new Product();
+        $product = new Product;
         $product->id = 99;
         $configurations = Mockery::mock(ProductResourceConfigurationService::class);
         $configurations->shouldReceive('forQuote')->andReturn($configuration);
@@ -181,7 +181,7 @@ class ResourceQuoteServiceTest extends TestCase
         (new ResourceQuoteService(
             $configurations,
             $resources,
-            new AllocationSelectionService()
+            new AllocationSelectionService
         ))
             ->quote($product, []);
     }
@@ -206,7 +206,7 @@ class ResourceQuoteServiceTest extends TestCase
 
     private function runQuote(array $configuration, array $nodes): array
     {
-        $product = new Product();
+        $product = new Product;
         $product->id = 99;
         $configurations = Mockery::mock(ProductResourceConfigurationService::class);
         $configurations->shouldReceive('forQuote')
@@ -222,7 +222,7 @@ class ResourceQuoteServiceTest extends TestCase
         return (new ResourceQuoteService(
             $configurations,
             $resources,
-            new AllocationSelectionService()
+            new AllocationSelectionService
         ))
             ->quote($product, []);
     }

@@ -151,8 +151,7 @@ class ConfigOptionSetupService
         string $resourceType,
         array $config,
         array $defaults
-    ): array
-    {
+    ): array {
         $pricingModel = $config['pricing_model'] ?? 'linear';
 
         $divisor = $defaults['display_divisor'] ?? 1;
@@ -198,7 +197,7 @@ class ConfigOptionSetupService
         }
 
         $errors = [];
-        (new DynamicSliderMetadataRule())->validate(
+        (new DynamicSliderMetadataRule)->validate(
             'metadata',
             $metadata,
             function (string $message) use (&$errors): void {
@@ -433,8 +432,7 @@ class ConfigOptionSetupService
         int $productId,
         string $name,
         bool $failOnConflict = true
-    ): ?ConfigOption
-    {
+    ): ?ConfigOption {
         $name = strtolower($name);
         $candidates = $this->productOptions($productId)
             ->filter(function (ConfigOption $option) use ($name): bool {

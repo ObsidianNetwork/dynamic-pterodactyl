@@ -204,10 +204,8 @@ class NodeCapacityPolicy extends Model
             ];
         }
         $scopes = collect($scopes)
-            ->unique(fn (array $scope): string =>
-                "{$scope['panel_identity']}:{$scope['location_id']}")
-            ->sortBy(fn (array $scope): string =>
-                "{$scope['panel_identity']}:"
+            ->unique(fn (array $scope): string => "{$scope['panel_identity']}:{$scope['location_id']}")
+            ->sortBy(fn (array $scope): string => "{$scope['panel_identity']}:"
                 .str_pad((string) $scope['location_id'], 10, '0', STR_PAD_LEFT))
             ->values();
 

@@ -3,10 +3,11 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Enums\InvoiceTransactionStatus;
+use App\Exceptions\DisplayException;
 use App\Exceptions\PermanentProvisioningException;
+use App\Helpers\ExtensionHelper;
 use App\Jobs\Server\CreateJob;
 use App\Jobs\Server\SuspendJob;
-use App\Helpers\ExtensionHelper;
 use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\ConfigOption;
@@ -38,6 +39,8 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Services\NodeSelectionService
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ProductResourceConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationConfigurationService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ReservationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\SchedulerHealthService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\SchedulerOperatorAlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class ReservationServiceTest extends LaravelTestCase
@@ -89,8 +92,7 @@ class ReservationServiceTest extends LaravelTestCase
         DB::table('ptero_resource_reservations')
             ->where('id', $reservationId)
             ->update([
-                'configuration_fingerprint' =>
-                    $this->configurationService->fingerprint($payload),
+                'configuration_fingerprint' => $this->configurationService->fingerprint($payload),
                 'configuration_payload' => json_encode(
                     $payload,
                     JSON_THROW_ON_ERROR
@@ -186,7 +188,7 @@ class ReservationServiceTest extends LaravelTestCase
             $stockConfiguration
         );
 
-        $this->expectException(\App\Exceptions\DisplayException::class);
+        $this->expectException(DisplayException::class);
         $this->expectExceptionMessage(
             'Reload checkout and explicitly select every resource again.'
         );
@@ -253,10 +255,7 @@ class ReservationServiceTest extends LaravelTestCase
         $token = (string) DB::table('ptero_resource_reservations')
             ->where('id', $reservationId)
             ->value('token');
-        $service = new class(
-            $this->nodeService,
-            $this->configurationService
-        ) extends ReservationService
+        $service = new class($this->nodeService, $this->configurationService) extends ReservationService
         {
             protected function releaseAllocationClaims(
                 int $reservationId
@@ -288,10 +287,145 @@ class ReservationServiceTest extends LaravelTestCase
         );
     }
 
+    public function test_admin_extension_rejects_minutes_outside_the_short_hold_limit(): void
+    {
+        $reservationId = $this->insertReservation();
+        $token = (string) DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('token');
+        $originalExpiry = now()->addMinutes(15);
+        DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->update([
+                'expires_at' => $originalExpiry,
+                'guaranteed_until' => $originalExpiry,
+            ]);
+
+        foreach ([-1, 0, 61] as $minutes) {
+            try {
+                $this->service()->extend($token, $minutes);
+                $this->fail(
+                    "Expected {$minutes} extension minutes to be rejected."
+                );
+            } catch (\InvalidArgumentException $exception) {
+                $this->assertSame(
+                    'A reservation extension must be between 1 and 60 minutes.',
+                    $exception->getMessage()
+                );
+            }
+        }
+
+        $reservation = ResourceReservation::query()->findOrFail(
+            $reservationId
+        );
+        $this->assertSame(
+            $originalExpiry->toDateTimeString(),
+            $reservation->expires_at->toDateTimeString()
+        );
+        $this->assertSame(
+            $originalExpiry->toDateTimeString(),
+            $reservation->guaranteed_until->toDateTimeString()
+        );
+    }
+
+    public function test_admin_extension_is_capped_to_a_sixty_minute_short_hold_horizon(): void
+    {
+        Carbon::setTestNow('2026-07-27 12:00:00');
+
+        try {
+            $reservationId = $this->insertReservation();
+            $token = (string) DB::table(
+                'ptero_resource_reservations'
+            )
+                ->where('id', $reservationId)
+                ->value('token');
+            DB::table('ptero_resource_reservations')
+                ->where('id', $reservationId)
+                ->update([
+                    'expires_at' => now()->addMinutes(50),
+                    'guaranteed_until' => now()->addMinutes(50),
+                ]);
+
+            $this->assertTrue($this->service()->extend($token, 30));
+
+            $reservation = ResourceReservation::query()->findOrFail(
+                $reservationId
+            );
+            $maximum = now()->addMinutes(60);
+            $this->assertTrue(
+                $reservation->expires_at->equalTo($maximum)
+            );
+            $this->assertTrue(
+                $reservation->guaranteed_until->equalTo($maximum)
+            );
+        } finally {
+            Carbon::setTestNow();
+        }
+    }
+
+    public function test_admin_extension_cannot_modify_a_bound_guarantee(): void
+    {
+        $service = $this->makeService();
+        $invoice = Invoice::factory()->create([
+            'user_id' => $service->user_id,
+            'status' => Invoice::STATUS_PENDING,
+            'currency_code' => 'USD',
+        ]);
+        $guaranteedUntil = now()->addDays(7);
+        $reservationId = $this->insertReservation(
+            serviceId: $service->id,
+            invoiceId: $invoice->id,
+            userId: $service->user_id,
+            guaranteedUntil: $guaranteedUntil
+        );
+        $token = (string) DB::table('ptero_resource_reservations')
+            ->where('id', $reservationId)
+            ->value('token');
+
+        $this->assertFalse($this->service()->extend($token, 15));
+
+        $reservation = ResourceReservation::query()->findOrFail(
+            $reservationId
+        );
+        $this->assertSame($service->id, $reservation->service_id);
+        $this->assertSame($invoice->id, $reservation->invoice_id);
+        $this->assertSame(
+            $guaranteedUntil->toDateTimeString(),
+            $reservation->guaranteed_until->toDateTimeString()
+        );
+    }
+
+    public function test_admin_extension_locks_rechecks_and_conditionally_updates(): void
+    {
+        $source = file_get_contents(
+            __DIR__.'/../../Services/ReservationService.php'
+        );
+        $methodStart = strpos($source, 'public function extend(');
+        $methodEnd = strpos(
+            $source,
+            'public function getByToken(',
+            $methodStart
+        );
+        $method = substr(
+            $source,
+            $methodStart,
+            $methodEnd - $methodStart
+        );
+
+        $this->assertOrderedSourceMarkers($method, [
+            'DB::transaction(',
+            '->lockForUpdate()',
+            'ResourceReservation::STATUS_PENDING',
+            "->whereNull('service_id')",
+            "->whereNull('invoice_id')",
+            '->update([',
+        ]);
+    }
+
     public function test_reservation_snapshot_is_built_under_the_configuration_lock(): void
     {
         $source = file_get_contents(
-            __DIR__ . '/../../Services/ReservationService.php'
+            __DIR__.'/../../Services/ReservationService.php'
         );
         $method = strpos(
             $source,
@@ -338,7 +472,7 @@ class ReservationServiceTest extends LaravelTestCase
     public function test_checkout_binding_uses_global_capacity_invoice_lock_order(): void
     {
         $source = file_get_contents(
-            __DIR__ . '/../../Services/ReservationService.php'
+            __DIR__.'/../../Services/ReservationService.php'
         );
         $method = strpos(
             $source,
@@ -1754,6 +1888,116 @@ class ReservationServiceTest extends LaravelTestCase
         }
     }
 
+    public function test_cleanup_continues_after_corrupt_earlier_reservation(): void
+    {
+        $validService = $this->makeService();
+        $paidInvoice = Invoice::factory()->create([
+            'user_id' => $validService->user_id,
+            'status' => Invoice::STATUS_PAID,
+            'due_at' => now()->subMinute(),
+        ]);
+        $corruptReservationId = $this->insertReservation(
+            invoiceId: $paidInvoice->id,
+            userId: $validService->user_id,
+            guaranteedUntil: now()->subMinute()
+        );
+        $validReservationId = $this->insertReservation(
+            serviceId: $validService->id,
+            userId: $validService->user_id,
+            guaranteedUntil: now()->subMinute()
+        );
+        $operatorAlerts = Mockery::mock(SchedulerOperatorAlertService::class);
+        $operatorAlerts->shouldReceive('notify')
+            ->once()
+            ->with(Mockery::on(
+                fn (array $context): bool => $context['entity_type']
+                    === 'resource_reservation'
+                    && $context['entity_id'] === $corruptReservationId
+            ));
+        $this->app->instance(
+            SchedulerOperatorAlertService::class,
+            $operatorAlerts
+        );
+
+        $this->assertSame(1, $this->service()->cleanupExpired());
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $corruptReservationId,
+            'status' => ResourceReservation::STATUS_PENDING,
+        ]);
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $validReservationId,
+            'status' => ResourceReservation::STATUS_EXPIRED,
+        ]);
+        $this->assertSame(
+            Service::STATUS_CANCELLED,
+            $validService->fresh()->status
+        );
+    }
+
+    public function test_cleanup_cursor_reaches_valid_row_beyond_failed_page(): void
+    {
+        $validService = $this->makeService();
+        $paidInvoice = Invoice::factory()->create([
+            'user_id' => $validService->user_id,
+            'status' => Invoice::STATUS_PAID,
+            'due_at' => now()->subMinute(),
+        ]);
+        $corruptReservationIds = [];
+        for ($index = 0; $index < 2; $index++) {
+            $corruptReservationIds[] = $this->insertReservation(
+                invoiceId: $paidInvoice->id,
+                userId: $validService->user_id,
+                guaranteedUntil: now()->subMinute()
+            );
+        }
+        $validReservationId = $this->insertReservation(
+            serviceId: $validService->id,
+            userId: $validService->user_id,
+            guaranteedUntil: now()->subMinute()
+        );
+        $operatorAlerts = Mockery::mock(
+            SchedulerOperatorAlertService::class
+        );
+        $health = Mockery::mock(
+            SchedulerHealthService::class,
+            [$operatorAlerts]
+        )->makePartial();
+        $health->shouldReceive('recordRowFailure')->times(2);
+        $this->app->instance(SchedulerHealthService::class, $health);
+        DB::table('ptero_scheduler_heartbeats')
+            ->where(
+                'task_name',
+                SchedulerHealthService::TASK_EXPIRE_CHECKOUT
+            )
+            ->update(['last_scanned_entity_id' => 0]);
+
+        $this->assertSame(0, $this->service()->cleanupExpired(2));
+        $this->assertSame(1, $this->service()->cleanupExpired(1));
+        foreach ($corruptReservationIds as $corruptReservationId) {
+            $this->assertDatabaseHas('ptero_resource_reservations', [
+                'id' => $corruptReservationId,
+                'status' => ResourceReservation::STATUS_PENDING,
+            ]);
+        }
+        $this->assertDatabaseHas('ptero_resource_reservations', [
+            'id' => $validReservationId,
+            'status' => ResourceReservation::STATUS_EXPIRED,
+        ]);
+        $this->assertSame(
+            $validReservationId,
+            (int) DB::table('ptero_scheduler_heartbeats')
+                ->where(
+                    'task_name',
+                    SchedulerHealthService::TASK_EXPIRE_CHECKOUT
+                )
+                ->value('last_scanned_entity_id')
+        );
+        $this->assertSame(
+            Service::STATUS_CANCELLED,
+            $validService->fresh()->status
+        );
+    }
+
     public function test_late_gateway_payment_is_preserved_for_refund_review(): void
     {
         Carbon::setTestNow('2026-07-26 12:00:01');
@@ -2183,8 +2427,7 @@ class ReservationServiceTest extends LaravelTestCase
         $reservationService->shouldReceive('commitPaidService')
             ->once()
             ->withArgs(
-                fn (Service $candidate, Invoice $paidInvoice): bool =>
-                    $candidate->is($dynamicService) && $paidInvoice->is($invoice)
+                fn (Service $candidate, Invoice $paidInvoice): bool => $candidate->is($dynamicService) && $paidInvoice->is($invoice)
             )
             ->andReturnTrue();
         $this->app->instance(ReservationService::class, $reservationService);
@@ -2310,7 +2553,7 @@ class ReservationServiceTest extends LaravelTestCase
 
     public function test_reconciler_recovers_a_stale_crashed_worker_lease(): void
     {
-        Bus::fake([CreateJob::class]);
+        Queue::fake();
         $service = $this->makeService(status: 'provisioning');
         $reservationId = $this->insertReservation(
             serviceId: $service->id,
@@ -2325,10 +2568,16 @@ class ReservationServiceTest extends LaravelTestCase
         $this->assertNull($reservation->provisioning_started_at);
         $this->assertNull($reservation->provisioning_lease_id);
         $this->assertNotNull($reservation->next_provisioning_attempt_at);
-        Bus::assertDispatched(
+        Queue::assertPushed(
             CreateJob::class,
-            fn (CreateJob $job) => $job->service->is($service)
+            fn (CreateJob $job): bool => $job->service->is($service)
+                && $job->dispatchId !== null
+                && $job->dispatchToken !== null
         );
+        $this->assertDatabaseHas('service_job_dispatches', [
+            'service_id' => $service->id,
+            'action' => 'create',
+        ]);
     }
 
     public function test_fixed_port_is_claimed_before_an_earlier_wildcard_mapping(): void
@@ -2370,6 +2619,25 @@ class ReservationServiceTest extends LaravelTestCase
                 'is_primary' => true,
             ],
         ], $mapped);
+    }
+
+    /**
+     * @param  array<int, string>  $markers
+     */
+    private function assertOrderedSourceMarkers(
+        string $source,
+        array $markers
+    ): void {
+        $offset = 0;
+
+        foreach ($markers as $marker) {
+            $position = strpos($source, $marker, $offset);
+            $this->assertNotFalse(
+                $position,
+                "Expected source marker [{$marker}] after offset {$offset}."
+            );
+            $offset = $position + strlen($marker);
+        }
     }
 
     private function service(): ReservationService
@@ -2661,13 +2929,11 @@ class ReservationServiceTest extends LaravelTestCase
                     $payload,
                     JSON_THROW_ON_ERROR
                 ),
-                'configuration_fingerprint' =>
-                    $this->configurationService->fingerprint($payload),
+                'configuration_fingerprint' => $this->configurationService->fingerprint($payload),
                 'paid_committed_at' => now()->subMonth(),
                 'external_server_id' => 71,
                 'external_user_id' => 44,
-                'external_server_uuid' =>
-                    '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
                 'external_server_identifier' => 'created',
                 'updated_at' => now(),
             ]);
@@ -2699,8 +2965,7 @@ class ReservationServiceTest extends LaravelTestCase
         return [
             'attributes' => [
                 'id' => 71,
-                'uuid' =>
-                    '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
+                'uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
                 'identifier' => 'created',
                 'external_id' => (string) $serviceId,
                 'user' => 44,
