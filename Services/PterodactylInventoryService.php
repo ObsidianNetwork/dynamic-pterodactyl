@@ -52,16 +52,18 @@ class PterodactylInventoryService
             FILTER_VALIDATE_BOOLEAN
         );
 
-        if ($this->apiUrl === '' || $this->apiKey === '') {
-            throw new \RuntimeException('Pterodactyl inventory credentials are not configured.');
-        }
-        if (filter_var($this->apiUrl, FILTER_VALIDATE_URL) === false) {
+        if (
+            $this->apiUrl !== ''
+            && filter_var($this->apiUrl, FILTER_VALIDATE_URL) === false
+        ) {
             throw new \RuntimeException('The Pterodactyl inventory URL is invalid.');
         }
     }
 
     public function panelIdentity(): string
     {
+        $this->assertConfigured();
+
         return PanelEndpointIdentity::hash($this->apiUrl);
     }
 
@@ -78,6 +80,8 @@ class PterodactylInventoryService
      */
     public function assertExclusiveProvisioningControl(): void
     {
+        $this->assertConfigured();
+
         if (! $this->exclusiveProvisioningControl) {
             throw new \RuntimeException(
                 'Dynamic stock requires administrator-confirmed exclusive provisioning control '
@@ -872,6 +876,8 @@ class PterodactylInventoryService
 
     private function get(string $path, array $query): array
     {
+        $this->assertConfigured();
+
         try {
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer '.$this->apiKey,
@@ -915,6 +921,15 @@ class PterodactylInventoryService
         }
 
         return $payload;
+    }
+
+    private function assertConfigured(): void
+    {
+        if ($this->apiUrl === '' || $this->apiKey === '') {
+            throw new \RuntimeException(
+                'Pterodactyl inventory credentials are not configured.'
+            );
+        }
     }
 
     private function attributes(array $resource, string $expectedObject): array
