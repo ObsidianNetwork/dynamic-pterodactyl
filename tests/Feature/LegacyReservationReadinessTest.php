@@ -4,6 +4,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Feature;
 
 use App\Models\ConfigOption;
 use App\Models\ConfigOptionProduct;
+use App\Models\Currency;
 use App\Models\Invoice;
 use App\Models\Plan;
 use App\Models\Price;
@@ -1309,6 +1310,15 @@ class LegacyReservationReadinessTest extends LaravelTestCase
 
     private function insertCompleteUpgradeReservation(): int
     {
+        Currency::query()->firstOrCreate(
+            ['code' => 'USD'],
+            [
+                'name' => 'US Dollar',
+                'prefix' => '$',
+                'suffix' => '',
+                'format' => '1,000.00',
+            ]
+        );
         $panel = hash('sha256', 'https://panel.example.com');
         $server = Server::create([
             'name' => 'Pterodactyl',
@@ -1329,6 +1339,10 @@ class LegacyReservationReadinessTest extends LaravelTestCase
         $plan = Plan::factory()->create([
             'priceable_id' => $product->id,
             'priceable_type' => Product::class,
+            'name' => 'Monthly',
+            'billing_unit' => 'month',
+            'billing_period' => 1,
+            'type' => 'recurring',
         ]);
         foreach ([
             'location_ids' => [[3], 'array'],
@@ -1363,6 +1377,16 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'cpu' => 200,
             'disk' => 20480,
         ];
+        $sourceRecurringPrice = number_format(
+            10 + array_sum($source),
+            2,
+            '.',
+            ''
+        );
+        $pricingLedgerStartedAt = now()->startOfDay();
+        $pricingPeriodEndsAt = $pricingLedgerStartedAt
+            ->copy()
+            ->addMonth();
         $options = [];
         foreach ($source as $resource => $value) {
             $options[$resource] = $this->dynamicOption(
@@ -1374,17 +1398,25 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             $product,
             $plan,
             $options,
-            $source
+            $source,
+            $sourceRecurringPrice,
+            $pricingLedgerStartedAt,
+            $pricingPeriodEndsAt
         ): Service {
             $service = Service::factory()->create([
                 'user_id' => User::factory()->create()->id,
                 'product_id' => $product->id,
                 'plan_id' => $plan->id,
                 'status' => Service::STATUS_ACTIVE,
-                'price' => 10,
+                'price' => $sourceRecurringPrice,
+                'period_base_price' => $sourceRecurringPrice,
+                'current_period_price' => $sourceRecurringPrice,
+                'pricing_ledger_started_at' => $pricingLedgerStartedAt,
+                'pricing_ledger_verified_at' => now(),
+                'billing_cycles_completed' => 1,
                 'quantity' => 1,
                 'currency_code' => 'USD',
-                'expires_at' => now()->addMonth(),
+                'expires_at' => $pricingPeriodEndsAt,
             ]);
             foreach ($source as $resource => $value) {
                 $service->configs()->create([
@@ -1415,7 +1447,8 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'status' => 'awaiting_payment',
             'active_service_guard_id' => $service->id,
             'type' => 'config_options',
-            'quoted_amount' => '100.00',
+            'capacity_mode' => ServiceUpgrade::CAPACITY_MODE_DYNAMIC,
+            'quoted_amount' => null,
             'currency_code' => 'USD',
             'credit_amount' => 0,
             'provisioning_attempts' => 0,
@@ -1440,10 +1473,21 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'configs.configValue',
         ]);
         $upgrade->captureSnapshots();
+        $targetSnapshot = (array) $upgrade->target_snapshot;
+        $quotedAmount = (string) (
+            $targetSnapshot['upgrade_price'] ?? ''
+        );
+        $creditAmount = (string) (
+            $targetSnapshot['credit_amount'] ?? ''
+        );
+        $upgrade->forceFill([
+            'quoted_amount' => $quotedAmount,
+            'credit_amount' => $creditAmount,
+        ]);
         ServiceUpgradeMutationCoordinator::save($upgrade);
         $invoice->items()->create([
             'description' => 'Resource upgrade',
-            'price' => '100.00',
+            'price' => $quotedAmount,
             'quantity' => 1,
             'reference_id' => $upgrade->id,
             'reference_type' => ServiceUpgrade::class,
@@ -1508,7 +1552,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
             'external_user_id' => 44,
             'external_server_uuid' => '2f4f28b0-0f36-4e6b-a2aa-a686c3466696',
             'external_server_identifier' => 'server-71',
-            'calculated_price' => '100.00',
+            'calculated_price' => $quotedAmount,
             'pricing_version' => (new UpgradeReservationIntegrityService)
                 ->pricingVersion($upgrade),
             'formula_version' => 'dynamic-upgrade-v1',
@@ -1575,6 +1619,7 @@ class LegacyReservationReadinessTest extends LaravelTestCase
                 ->where('id', $upgrade->service_id)
                 ->update([
                     'price' => $target['recurring_price'],
+                    'current_period_price' => $target['recurring_price'],
                     'updated_at' => now(),
                 ]);
         }

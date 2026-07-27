@@ -238,10 +238,15 @@ class AlertServiceTest extends TestCase
 
     public function test_capacity_alert_email_fans_out_to_all_admins(): void
     {
-        $recipientA = new class
+        $query = Mockery::mock();
+        $user = Mockery::mock('alias:App\\Models\\User');
+
+        $recipientA = new class extends User
         {
             public int $id = 101;
 
+            public string $email = 'admin-a@example.com';
+
             public array $notifications = [];
 
             public function notify($notification): void
@@ -250,10 +255,12 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $recipientB = new class
+        $recipientB = new class extends User
         {
             public int $id = 202;
 
+            public string $email = 'admin-b@example.com';
+
             public array $notifications = [];
 
             public function notify($notification): void
@@ -262,10 +269,7 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $query = Mockery::mock();
         $query->shouldReceive('get')->once()->andReturn(new Collection([$recipientA, $recipientB]));
-
-        $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
         $service = $this->makeService();
@@ -334,9 +338,14 @@ class AlertServiceTest extends TestCase
 
     public function test_capacity_alert_email_uses_evaluated_location_for_global_scope(): void
     {
-        $recipient = new class
+        $query = Mockery::mock();
+        $user = Mockery::mock('alias:App\\Models\\User');
+
+        $recipient = new class extends User
         {
             public int $id = 303;
+
+            public string $email = 'admin@example.com';
 
             public array $notifications = [];
 
@@ -346,10 +355,7 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $query = Mockery::mock();
         $query->shouldReceive('get')->once()->andReturn(new Collection([$recipient]));
-
-        $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
         $service = $this->makeService();
@@ -384,9 +390,14 @@ class AlertServiceTest extends TestCase
     {
         Log::spy();
 
-        $failingRecipient = new class
+        $query = Mockery::mock();
+        $user = Mockery::mock('alias:App\\Models\\User');
+
+        $failingRecipient = new class extends User
         {
             public int $id = 7;
+
+            public string $email = 'failing-admin@example.com';
 
             public function notify($notification): void
             {
@@ -394,9 +405,11 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $healthyRecipient = new class
+        $healthyRecipient = new class extends User
         {
             public int $id = 8;
+
+            public string $email = 'healthy-admin@example.com';
 
             public array $notifications = [];
 
@@ -406,10 +419,7 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $query = Mockery::mock();
         $query->shouldReceive('get')->once()->andReturn(new Collection([$failingRecipient, $healthyRecipient]));
-
-        $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
         $service = $this->makeService();

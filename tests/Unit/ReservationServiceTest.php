@@ -1632,7 +1632,7 @@ class ReservationServiceTest extends LaravelTestCase
         $service->currency_code = 'AUD';
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Reservation-backed service identity');
+        $this->expectExceptionMessage('capacity-aware fulfillment coordinator');
 
         $service->save();
     }
@@ -1659,7 +1659,7 @@ class ReservationServiceTest extends LaravelTestCase
         $host->value = 'https://different-panel.example.com';
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('pinned by active capacity commitments');
+        $this->expectExceptionMessage('pinned by active services or upgrade commitments');
 
         $host->save();
     }
@@ -1831,7 +1831,7 @@ class ReservationServiceTest extends LaravelTestCase
         );
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('retained as fulfillment records');
+        $this->expectExceptionMessage('cannot be hard deleted');
 
         $service->delete();
     }
