@@ -1,0 +1,1 @@
+Navigation entries must be registered under the `Dynamic Pterodactyl` group with explicit sort numbers; each Page class must declare a matching `protected string $view` that maps 1:1 to a Blade file under `../resources/views/admin/`.

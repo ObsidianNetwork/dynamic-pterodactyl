@@ -1,0 +1,6 @@
+- Cross-cutting audit writes go through the `AuditsExtensionActions` trait's `safeAudit()` method rather than direct DB inserts, ensuring audit failures are logged and reported without breaking caller flow.
+- Sensitive tokens are never stored verbatim in audit logs; only the first 8 characters plus a trailing ellipsis (`substr($token, 0, 8) . '...'`) are recorded.
+- External API calls to Pterodactyl are funneled through private helpers (`pterodactylGet`, `pterodactylGetPaginatedData`) that enforce Bearer auth, timeouts, retries, and translate upstream errors into sanitized `RuntimeException`s.
+- Authorization-sensitive mutations accept an optional `?User $actor` parameter and gate operations via `Gate::forUser($actor)->authorize(...)` against `ResourceReservationPolicy`, allowing system callers to pass null.
+- Database mutations on reservation state use explicit status transitions (`pending` → `confirmed`/`cancelled`/`expired`) guarded by `where('status', 'pending')` predicates to prevent double-confirmations.
+- Configuration is read at construction time from the `Extension` model's settings keyed by `extension = 'DynamicPterodactyl'`, decoupling service behavior from environment variables.

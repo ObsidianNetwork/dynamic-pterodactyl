@@ -1,0 +1,4 @@
+- Notification classes extend `Illuminate\Notifications\Notification`, use the `Queueable` trait, and expose their payload via constructor property promotion with public typed properties.
+- Notifications implement `via()` returning only `['mail']` and build messages through fluent `MailMessage` chaining ending in an `action()` link back into the admin UI.
+- The policy uses a `before()` hook to grant full access to users who can access the Filament `admin` panel, then falls back to per-record ownership checks for user-scoped abilities.
+- User-scoped policy methods (`view`, `cancel`, `extend`, `confirm`) enforce ownership by comparing `$reservation->user_id === $user->id` rather than delegating to the service layer.

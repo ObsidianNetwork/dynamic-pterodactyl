@@ -1,0 +1,1 @@
+Endpoints are registered exclusively through `routes/api.php`; there is no RouteServiceProvider wiring here — this file is consumed by the extension's boot process. Rate limits are hard-coded per route group: 30 req/min for availability/pricing and 10 req/min for reservation mutations.

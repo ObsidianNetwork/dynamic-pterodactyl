@@ -1,0 +1,1 @@
+Laravel notification classes for capacity threshold breaches and reservation shortfalls, plus a Filament-backed policy governing who may view or act on ResourceReservation records.

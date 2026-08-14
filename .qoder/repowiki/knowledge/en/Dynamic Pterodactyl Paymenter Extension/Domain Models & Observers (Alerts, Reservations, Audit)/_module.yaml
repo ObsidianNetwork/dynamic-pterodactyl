@@ -1,0 +1,9 @@
+schema_version: 1
+module_path: domain_models
+title: Domain Models & Observers (Alerts, Reservations, Audit)
+scope:
+    - Models/
+source_files: []
+depends_on: []
+related_to:
+    - path: admin_panel

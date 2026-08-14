@@ -1,0 +1,6 @@
+- Tests choose between `TestCase` (no app/facade/DB needed) and `LaravelTestCase` (app boot, factories, facades, routes, policies) based on whether they touch the Paymenter container.
+- Any test that writes to the database uses `Illuminate\Foundation\Testing\DatabaseTransactions` to guarantee row cleanup after each test.
+- Shared fixtures are built through helper methods (`standardResources`, `createNodeData`, `createConfigOption`) instead of inline arrays or ad-hoc mocks.
+- External panel calls are faked via `Http::fake()` combined with `Http::preventStrayRequests()` so live network requests cannot leak into tests.
+- Feature API tests explicitly register `routes/api.php` in `setUp()` rather than relying on automatic route discovery.
+- Audit-related assertions check `token_prefix` (first 8 chars) rather than full tokens, matching the production `AuditsExtensionActions` behavior.

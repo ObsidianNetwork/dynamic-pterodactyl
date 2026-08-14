@@ -1,0 +1,1 @@
+Laravel routing with grouped middleware pipelines (web, auth, throttle, custom checkout + EnsureUserIsAdmin); FormRequest-based validation against Paymenter's `products` and `config_options` tables; JSON API responses using `Illuminate\Http\JsonResponse`.

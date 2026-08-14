@@ -1,0 +1,1 @@
+The extension installs migrations via ExtensionHelper::runMigrations('extensions/Others/DynamicPterodactyl/database/migrations') on install and rolls them back on uninstall; tests run against a real Paymenter app bootstrap rather than isolated unit fixtures.

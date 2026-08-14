@@ -1,0 +1,1 @@
+AlertService must be registered as a scheduled task with `withoutOverlapping` to avoid concurrent scans; reservation creation uses `DB::transaction(..., 5)` to auto-retry deadlocks up to 5 times, and relies on a unique index `ptero_reservations_active_idempotency_unique` to deduplicate concurrent requests sharing an `idempotency_key`.

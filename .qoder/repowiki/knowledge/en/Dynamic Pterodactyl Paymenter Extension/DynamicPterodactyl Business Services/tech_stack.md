@@ -1,0 +1,1 @@
+Laravel Query Builder and HTTP client for Pterodactyl REST API calls (Bearer token auth, 3s timeout, retry on connection errors); Carbon for time math; Laravel Notifications for email alerts; JSON-encoded pricing breakdowns stored as strings in `ptero_resource_reservations`.

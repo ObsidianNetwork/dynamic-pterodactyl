@@ -1,0 +1,1 @@
+Laravel events (`Illuminate\Foundation\Events\Dispatchable`, `Queue\SerializesModels`), Paymenter core events from `App\Events\*`, and the extension's own `ReservationService` / `ResourceCalculationService` / `AlertService`.

@@ -1,0 +1,12 @@
+schema_version: 1
+module_path: services
+title: DynamicPterodactyl Business Services
+scope:
+    - Services/
+source_files: []
+depends_on: []
+related_to:
+    - path: admin_panel
+    - path: event_adapters
+    - path: http_layer
+    - path: notifications_and_policies

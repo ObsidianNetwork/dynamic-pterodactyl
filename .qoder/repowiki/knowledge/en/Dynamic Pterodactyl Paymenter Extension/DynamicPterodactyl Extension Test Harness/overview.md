@@ -1,0 +1,1 @@
+Isolated PHPUnit harness for the DynamicPterodactyl extension that boots a real Paymenter application to exercise services, HTTP routes, schedules, model observers, and audit side effects against a test database.

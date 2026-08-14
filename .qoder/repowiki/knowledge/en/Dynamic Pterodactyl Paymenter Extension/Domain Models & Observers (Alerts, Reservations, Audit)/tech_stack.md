@@ -1,0 +1,1 @@
+Laravel Eloquent ORM with JSON column casts (`array`, `datetime`, `decimal:2`) and model observers for audit-side effects.

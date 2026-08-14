@@ -1,0 +1,56 @@
+version: 1
+
+scope:
+  include:
+    - "DynamicPterodactyl.php"
+    - "Admin/**"
+    - "Http/**"
+    - "Listeners/**"
+    - "Models/**"
+    - "Notifications/**"
+    - "Policies/**"
+    - "Services/**"
+    - "Events/**"
+    - "database/**"
+    - "resources/**"
+    - "routes/**"
+    - "tests/**"
+    - "DECISIONS.md"
+    - "AGENTS.md"
+    - "phpunit.xml"
+  exclude:
+    - ".omc/**"
+    - ".omo/**"
+    - ".opencode/**"
+    - ".sisyphus/**"
+    - "01-DATABASE.md"
+    - "02-SERVICES.md"
+    - "03-API.md"
+    - "04-EVENTS.md"
+    - "05-ADMIN-UI.md"
+    - "06-FRONTEND.md"
+    - "07-PRICING-MODELS.md"
+    - "08-ALGORITHMS.md"
+    - "09-IMPLEMENTATION.md"
+
+repowiki:
+  template: "architecture"
+  notes:
+    - text: "This is a nested Paymenter 'Other' extension (not standalone). It lives at extensions/Others/DynamicPterodactyl/ inside a Paymenter installation. It has no local composer.json; autoloading and dependencies come from the outer Paymenter app."
+    - text: "Paymenter core owns all pricing logic for dynamic_slider options via Plan::dynamicSliderBasePrice() and ConfigOption::calculateDynamicPriceDelta(). This extension NEVER calculates prices — it only reads slider config metadata and manages reservations/availability."
+    - text: "The reservation lifecycle is strictly: pending → confirmed | expired | cancelled. The 'released' state was deliberately removed. Reservations use pessimistic DB locking (lockForUpdate) with deadlock retry."
+    - text: "Pterodactyl API responses are NEVER cached. Real-time availability is a settled architectural decision. ResourceCalculationService::buildClusterSnapshot() batches API calls but does not cache results."
+    - text: "Customer-facing endpoints never expose raw node-level data (names, FQDNs, per-node capacity). Only aggregate per-location maxima are returned. Node-level detail is admin-only."
+    - text: "Routes are loaded by DynamicPterodactyl::boot() — not by framework auto-discovery. Schedules are inline closures in boot(), not Job/Command classes."
+    - text: "The test harness is fully isolated: phpunit.xml forces array cache/session/queue, sync queue, and bootstrap.php aborts if DB_DATABASE is not a test database. Tests run via the outer Paymenter vendor phpunit binary."
+    - text: "Filament version is 4 (not v3). Admin resources use Filament 4 APIs. Standalone pages own 1:1 namespaced Blade views in resources/views/admin/."
+
+knowledgecard:
+  notes:
+    - text: "Module boundary: DynamicPterodactyl.php is the single boot entry point. It registers routes, policies, model observers, event listeners, and scheduled tasks. Treat it as the composition root."
+    - text: "Module boundary: Services/ contains all business logic. Controllers validate and authorize, then delegate to services. Services never call controllers or directly return HTTP responses."
+    - text: "Module boundary: Listeners/ are thin adapters that translate Paymenter lifecycle events (CartItemCreated, CartItemDeleted, InvoicePaid, ServiceCreated) into ReservationService calls."
+    - text: "Module boundary: Admin/ has two patterns — Resources (Filament CRUD for AlertConfig and Reservations) and Pages (standalone dashboard/monitoring/wizard/audit views with 1:1 Blade templates)."
+    - text: "Module boundary: tests/ is a self-contained harness with its own bootstrap.php, TestCase, and LaravelTestCase. Unit tests mock Pterodactyl; Feature tests exercise the full HTTP stack against a test DB."
+    - text: "Cross-cutting concern: AuditsExtensionActions trait (Services/Concerns/) provides audit-log writes across services. Audit entries store token_prefix (first 8 chars) never full tokens."
+    - text: "The AlertService scheduled task (every 5 min, withoutOverlapping) is the single entry point for capacity threshold scanning. It delivers via mail and/or webhook, with per-alert cooldown tracking via AlertDeliveryLog."

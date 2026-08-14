@@ -1,0 +1,10 @@
+schema_version: 1
+module_path: admin_panel
+title: Filament Admin Panel (Dashboard, Reservations & Alert Configs)
+scope:
+    - Admin/
+source_files: []
+depends_on: []
+related_to:
+    - path: domain_models
+    - path: services

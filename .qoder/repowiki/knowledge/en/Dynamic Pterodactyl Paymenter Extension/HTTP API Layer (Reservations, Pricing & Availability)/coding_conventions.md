@@ -1,0 +1,6 @@
+- Controllers return a uniform JSON shape with `success`, optional `data`, and optional `message` keys rather than raw model objects.
+- Business logic is delegated to service classes (e.g. `ReservationService`) injected via constructor; controllers perform only validation, authorization, and response formatting.
+- Authorization is expressed per-action using Laravel's `$this->authorize('verb', $model)` pattern on domain models instead of inline checks.
+- Error responses consistently map runtime failures to specific HTTP status codes (404 for not found, 422 for validation/runtime errors, 500 for unexpected exceptions) within try/catch blocks.
+- Route groups apply shared middleware (`web`, `auth`, `throttle:N,M`) at the prefix level so individual actions stay free of repetitive guards.
+- Input validation is centralized in dedicated `FormRequest` classes (e.g. `StoreReservationRequest`) that combine rule definitions, cross-field validation in `withValidator`, and authorization in `authorize()`.

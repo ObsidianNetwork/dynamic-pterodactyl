@@ -1,0 +1,1 @@
+Paymenter extension that adds dynamic RAM/CPU/disk sliders to Pterodactyl products by reserving node capacity during checkout and enforcing availability via a Pterodactyl API-backed service layer.

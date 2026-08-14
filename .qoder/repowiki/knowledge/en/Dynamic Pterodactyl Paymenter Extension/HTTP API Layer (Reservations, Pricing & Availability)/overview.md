@@ -1,0 +1,1 @@
+Laravel HTTP layer exposing REST endpoints for dynamic resource reservations, pricing calculation, availability lookup, and admin reservation management behind route-level middleware.

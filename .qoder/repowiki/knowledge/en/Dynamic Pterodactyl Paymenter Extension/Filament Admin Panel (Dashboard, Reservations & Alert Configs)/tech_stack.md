@@ -1,0 +1,1 @@
+Filament 4 (Schema, Forms, Tables, Actions) on top of Laravel; uses Heroicons for navigation icons and Blade templates in the parent package's `resources/views/admin/` namespace.

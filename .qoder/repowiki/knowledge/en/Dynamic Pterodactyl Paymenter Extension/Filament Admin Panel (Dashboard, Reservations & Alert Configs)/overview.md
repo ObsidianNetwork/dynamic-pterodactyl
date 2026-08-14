@@ -1,0 +1,1 @@
+Filament 4 admin interface providing a Dynamic Pterodactyl dashboard, reservation management, alert configuration CRUD, node monitoring, setup wizard, and audit log views backed by dedicated services.

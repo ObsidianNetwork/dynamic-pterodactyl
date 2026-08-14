@@ -1,0 +1,1 @@
+PHPUnit with Mockery for unit-level mocking; Laravel Foundation testing (`DatabaseTransactions`, `Http::fake`, `Notification::fake`, `Event::fake`, `Log::spy`) for feature tests; runs inside the host Paymenter application container rather than a self-contained PHP project.

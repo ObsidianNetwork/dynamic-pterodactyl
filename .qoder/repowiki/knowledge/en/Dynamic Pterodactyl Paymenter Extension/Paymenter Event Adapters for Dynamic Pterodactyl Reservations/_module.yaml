@@ -1,0 +1,11 @@
+schema_version: 1
+module_path: event_adapters
+title: Paymenter Event Adapters for Dynamic Pterodactyl Reservations
+scope:
+    - Listeners/
+    - Events/
+source_files: []
+depends_on: []
+related_to:
+    - path: services
+    - path: tests

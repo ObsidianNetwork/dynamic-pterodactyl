@@ -1,0 +1,5 @@
+- Each listener exposes a single `handle(Event $event): void` method and delegates all side effects to services resolved via `app(Service::class)` rather than constructor injection.
+- External service calls are wrapped in try/catch blocks that log errors but never rethrow, ensuring a failing reservation step does not block the Paymenter lifecycle event.
+- Reservation tokens are stored under `_reservation_token` in both `checkout_config` and `service->properties()` and are logged truncated to the first 8 characters followed by `...`.
+- Early-return guards are used to skip processing when prerequisites are missing (e.g., no dynamic_slider options, no location, no reservation token found).
+- Domain events in Events/ use the standard Laravel pattern of `use Dispatchable, SerializesModels` with a constructor that holds public readonly properties.

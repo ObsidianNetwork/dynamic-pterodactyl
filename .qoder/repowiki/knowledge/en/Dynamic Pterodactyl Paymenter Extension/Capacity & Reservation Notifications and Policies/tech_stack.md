@@ -1,0 +1,1 @@
+Laravel Notifications with `Illuminate\Notifications\Notification` and `MailMessage`; Filament panels (`Filament::getPanel('admin')`) for admin-role detection in the policy.

@@ -1,0 +1,1 @@
+Core business logic for resource reservation, node selection, capacity alerting, and Pterodactyl API integration that controllers delegate to after validation.

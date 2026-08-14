@@ -1,0 +1,1 @@
+Eloquent domain models for alert configuration, resource reservations, audit logs, and alert delivery tracking, plus an observer that redacts sensitive fields before auditing.

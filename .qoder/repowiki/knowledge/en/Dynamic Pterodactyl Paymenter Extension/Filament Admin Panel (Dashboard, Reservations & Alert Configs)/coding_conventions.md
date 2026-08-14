@@ -1,0 +1,6 @@
+- Standalone screens extend `Filament\Pages\Page` and bind their Blade template via a `protected string $view` property using the `dynamic-pterodactyl::admin.*` namespace.
+- Model-backed admin surfaces extend `Filament\Resources\Resource`, declare `$model`, `$navigationGroup = 'Dynamic Pterodactyl'`, and register nested pages through `getPages()` returning `Xxx::route('/...')` mappings.
+- State-changing table actions call domain services (`ReservationService`, `AlertService`) via `app(Service::class)` instead of writing to models directly, and resolve the authenticated actor with `auth()->user()` before invoking mutations.
+- Read-only resources such as reservations disable creation by overriding `canCreate()` to return `false` and expose only record-level actions plus header toolbar actions.
+- Form schemas compose Filament 4 components (`Select`, `Toggle`, `TextInput`, `TagsInput`, `Section`, `Grid`) with inline validation rules (`numeric`, `minValue`, `maxValue`, `url`) and conditional visibility driven by `fn (Get $get) => get('field')`.
+- Navigation entries use static properties `$navigationIcon`, `$navigationGroup`, and `$navigationSort` to place items predictably under the `Dynamic Pterodactyl` menu group.

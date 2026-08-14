@@ -1,0 +1,1 @@
+Thin event listeners that translate Paymenter lifecycle events (cart item create/delete, invoice paid, service created) into ReservationService calls to reserve and confirm Pterodactyl node capacity.

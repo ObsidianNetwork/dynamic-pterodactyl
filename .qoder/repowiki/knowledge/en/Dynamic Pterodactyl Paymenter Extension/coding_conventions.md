@@ -1,0 +1,5 @@
+- Controllers validate and authorize requests then delegate all business work to Services; services never return HTTP responses or call controllers.
+- Checkout-side integrations are implemented as thin Paymenter event listeners that translate CartItem/Invoice/Service events into ReservationService method calls.
+- Admin UI uses Filament Resources for CRUD entities and Pages for standalone dashboard/monitoring/wizard views with one Blade template per page.
+- Audit entries written from any service use the AuditsExtensionActions trait and store only token_prefix (first 8 characters), never full secrets.
+- Scheduled tasks are registered in DynamicPterodactyl::boot using Schedule::call()->withoutOverlapping() with explicit namespaced names.

@@ -1,0 +1,5 @@
+- Each model explicitly sets a custom `$table` using the `ptero_*` naming convention instead of relying on Laravel's pluralized table inference.
+- Sensitive or complex columns are declared via `$casts` (e.g. `notification_emails`, `pricing_breakdown`, `channels_tried` as `array`; `last_notification_at`, `expires_at` as `datetime`; `calculated_price` as `decimal:2`).
+- Reusable query filters are exposed as Eloquent scopes (`scopeGlobal`, `scopeForLocation`, `scopePending`, `scopeExpired`) rather than ad-hoc where chains.
+- Cross-entity relationships are expressed through typed Eloquent relation methods (`BelongsTo`, `HasMany`) returning strongly-typed relation objects.
+- Model observers wrap all audit writes in try/catch blocks that call `report($e)` so observer failures never break the originating Eloquent operation.
