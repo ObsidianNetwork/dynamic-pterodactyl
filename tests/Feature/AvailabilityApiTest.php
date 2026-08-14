@@ -44,6 +44,9 @@ class AvailabilityApiTest extends LaravelTestCase
                 ],
             ],
         ]);
+
+        $this->assertArrayNotHasKey('nodes', $response->json('data'),
+            'Customer availability response must not expose node-level data');
     }
 
     public function test_has_capacity_true_when_all_resources_positive(): void
@@ -70,6 +73,9 @@ class AvailabilityApiTest extends LaravelTestCase
                 ],
             ],
         ]);
+
+        $this->assertArrayNotHasKey('nodes', $response->json('data'),
+            'Customer availability response must not expose node-level data');
     }
 
     private function bindAvailabilityServices(array $maxAvailable): void

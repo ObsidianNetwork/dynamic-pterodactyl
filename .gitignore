@@ -5,7 +5,6 @@ vendor/
 .env.local
 .phpunit.result.cache
 .phpunit.cache/
-/.omc/state/sessions
+/.omc/state
 /.omo/run-continuation
-/.opencode/cache
 /.opencode/cache

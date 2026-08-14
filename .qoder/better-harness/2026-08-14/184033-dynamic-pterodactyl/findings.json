@@ -1,0 +1,235 @@
+{
+  "summary": {
+    "projectName": "dynamic-pterodactyl",
+    "locale": "en",
+    "modelId": "agent-work-loop-v4",
+    "reportContractVersion": 26,
+    "overview": "Navigation is a real strength here: AGENTS.md routes tasks to named owners and states which source wins when documents disagree. The weakness is downstream of that: the project's checks, review rules, and verifier scripts exist but are not reachable or exercised where changes are actually made, so edits close without evidence.",
+    "aiAgentPractice": {
+      "inspectedSurfaces": [
+        "Rules",
+        "Skills"
+      ],
+      "coverageRows": [
+        {
+          "surface": "Rules",
+          "scopes": [
+            "Project"
+          ],
+          "count": 1,
+          "paths": [
+            "AGENTS.md"
+          ]
+        },
+        {
+          "surface": "Skills",
+          "scopes": [
+            "Global",
+            "Plugin"
+          ],
+          "count": 13,
+          "paths": [
+            "~/.agents/skills/microsoft-foundry/models/deploy-model/capacity/SKILL.md",
+            "~/.agents/skills/microsoft-foundry/models/deploy-model/customize/SKILL.md",
+            "~/.agents/skills/debug-live/SKILL.md",
+            "~/.agents/skills/microsoft-foundry/models/deploy-model/SKILL.md",
+            "~/.agents/skills/microsoft-foundry/finetuning/SKILL.md",
+            "~/.agents/skills/hephaestus-cloud/SKILL.md",
+            "~/.agents/skills/hephaestus-network/SKILL.md",
+            "~/.agents/skills/microsoft-foundry/SKILL.md",
+            "~/.agents/skills/microsoft-foundry/models/deploy-model/preset/SKILL.md",
+            "~/.agents/skills/software-factory/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/skills/better-harness/SKILL.md",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin/skills/create-plugin/SKILL.md"
+          ]
+        },
+        {
+          "surface": "Hooks",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 2,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/security-scan/.qoder-plugin/qoder-hooks.json"
+          ]
+        },
+        {
+          "surface": "Plugins",
+          "scopes": [
+            "Plugin"
+          ],
+          "count": 3,
+          "paths": [
+            "~/.qoder/plugins/cache/qoder-bundler/better-harness/.qoder-plugin/plugin.json",
+            "~/.qoder/plugins/cache/qoder-bundler/qoder-create-plugin",
+            "~/.qoder/plugins/cache/qoder-bundler/security-scan/.qoder-plugin/plugin.json"
+          ]
+        },
+        {
+          "surface": "Commands",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Custom Agents",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "MCP",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Workflows",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        },
+        {
+          "surface": "Memories",
+          "scopes": [
+            "Project"
+          ],
+          "count": 0
+        }
+      ],
+      "repositorySourceRows": [
+        {
+          "surface": "Rules",
+          "provider": "claude",
+          "owner": ".",
+          "count": 1,
+          "paths": [
+            "CLAUDE.md"
+          ]
+        }
+      ]
+    },
+    "assignmentSummaries": [],
+    "dimensions": [
+      {
+        "id": "task-understanding",
+        "label": "Task Understanding",
+        "score": 66,
+        "summary": "AGENTS.md gives a task-to-owner router and an explicit authority order, but agent scratch state leaks into the tracked change boundary and a committed script sits outside every documented route.",
+        "findingRefs": [
+          "agent-state-in-tracked-diffs",
+          "unrouted-duplicate-verifier"
+        ]
+      },
+      {
+        "id": "controlled-execution",
+        "label": "Controlled Execution",
+        "score": 48,
+        "summary": "Commands are documented, yet their prerequisites are absent from this checkout, so the supported route cannot be started here.",
+        "findingRefs": []
+      },
+      {
+        "id": "change-validation",
+        "label": "Change Validation",
+        "score": 42,
+        "summary": "A real PHPUnit suite and a configured review gate exist, but no check is runnable in this checkout and one declared invariant has no covering assertion.",
+        "findingRefs": [
+          "unrunnable-check-route",
+          "unchecked-node-capacity-rule"
+        ]
+      },
+      {
+        "id": "reliable-delivery",
+        "label": "Reliable Delivery",
+        "score": 52,
+        "summary": "CodeRabbit is configured to block merges on the active branch pattern; no current-revision decision was opened, and the one hard safety abort points nowhere.",
+        "findingRefs": [
+          "dead-end-abort-pointer"
+        ]
+      },
+      {
+        "id": "learning-capture",
+        "label": "Learning Capture",
+        "score": 40,
+        "summary": "This window holds no comparable later outcome and no intervention ledger, so no reusable improvement can yet be judged effective either way.",
+        "findingRefs": []
+      }
+    ]
+  },
+  "findings": [
+    {
+      "id": "unrunnable-check-route",
+      "title": "Changes edited in this checkout cannot be checked before they are committed",
+      "severity": "High",
+      "reason": "Fact: tests/bootstrap.php resolves autoloading through a relative parent-tree path with a deployed-container fallback; neither location exists for this checkout, and no php interpreter is on PATH, so neither the documented ../../../vendor/bin/phpunit -c phpunit.xml invocation nor a php -l syntax check can run. AGENTS.md states this directly at its COMMANDS section: this mirror has no vendor tree. Fact: AGENTS.md also requires commits to be made from this directory rather than the outer Paymenter worktree, so the surface where changes are authored and the surface where they can be verified are different machines. Corroboration (qoder session envelope, 15 of 15 eligible sessions analyzed, 2026-07-15 to 2026-08-14): 8 of 8 retained episodes contained edits, none closed with a validation event, and 9 edit events were observed with no later validation command. Inference: the missing local route is the plausible cause of the unvalidated closures, not agent carelessness. Owner: the COMMANDS section of AGENTS.md, which names a deployed container but gives no invocation an agent can copy and run. Uncertainty: this is not a claim that the documented phpunit command is broken or that any test fails; neither was executed. Deliberate absence of CI, composer.json, and a lint command is declared project policy and is not treated as a defect.",
+      "expectedOutput": [
+        "Update the existing Document owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Document",
+      "aiFixPrompt": "/better-harness fix this issue\n\nMake at least one check reachable from this checkout, without adding a local composer.json or frontend bundle (both are forbidden by AGENTS.md).\n\n## Bounded discovery first\n\n- Confirm the current state: check whether the parent-tree vendor autoload and ../../../vendor/bin/phpunit exist, and whether a php interpreter is available.\n- Ask the maintainer which environment actually runs the suite today: the deployed Paymenter tree, or the container named in the COMMANDS section of AGENTS.md. Do not invent a container command, shell, or path that discovery did not confirm.\n\n## Change\n\n- In the COMMANDS section of AGENTS.md, record the exact copy-pasteable invocation for the confirmed environment, including the working directory it must run from and how to run only the Unit or only the Feature suite.\n- State plainly what an agent should do when no such environment is reachable, so an unverifiable change is reported as unverified rather than closed silently.\n\n## Validation\n\n- Run the recorded invocation in the confirmed environment and paste its exact output, including failures.\n- Confirm the command in AGENTS.md was executed as written, with no undocumented step added by hand.",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "unchecked-node-capacity-rule",
+      "title": "A customer endpoint could start returning node-level capacity without any check failing",
+      "severity": "Medium",
+      "reason": "Fact: AGENTS.md heads six rules with an ENFORCEABLE RULES (CODERABBIT READS THESE) claim, one of which is that customer endpoints must not return raw node-level capacity. Fact: .coderabbit.yaml sets inheritance: false and scopes reviews.path_instructions to six directory globs (DynamicPterodactyl.php, skeleton/**, database/migrations/**, Services/**, Http/Controllers/**, Admin/**); its Http/Controllers/** block only asks controllers to stay thin and not reimplement provisioning, and a search for node-level, node_level, token_prefix, or Models/ across the file returns zero matches. Fact: in tests/Feature/AvailabilityApiTest.php the customer route /api/dynamic-pterodactyl/availability/1 is exercised with a mocked ResourceCalculationService whose payload deliberately contains node-level data ('nodes' => [['node_id' => 1, 'name' => 'Node 1']]), and both tests assert only with assertJson on has_capacity and resource_capacity. Because assertJson is a subset assertion, a controller change that passed that node array through to the customer response would still pass. Inference: this specific invariant has no covering check in either the review gate or the suite, while the sibling redaction rule is genuinely covered (tests/Unit/ReservationServiceTest.php asserts token_prefix equals substr($token, 0, 8) at several points), which shows the project can and does assert rules of this kind. Owner: tests/Feature/AvailabilityApiTest.php, the smallest deterministic owner. Uncertainty: no leak was observed; AvailabilityController was not opened, so this is a gap in the checker, not evidence of a current violation. The sixth rule about commit provenance has no discoverable executable owner in this repository and no repair is claimed for it.",
+      "expectedOutput": [
+        "Update the existing Test owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Test",
+      "aiFixPrompt": "/better-harness fix this issue\n\nGive the customer-facing availability response a check that fails if node-level capacity is ever returned.\n\n## Change\n\n- In tests/Feature/AvailabilityApiTest.php, keep the existing mocked payload that contains the node array, and add a negative assertion on the customer response body confirming that no node-level key reaches the client. Mirror the assertion style already used in this suite: tests/Feature/AdminApiTest.php asserts the admin route with assertArrayHasKey('nodes', $response->json('data')), so assert the inverse on the customer route.\n- Do not weaken or remove the existing has_capacity and resource_capacity assertions, and do not change the admin route expectations, where node data is intentionally present.\n\n## Validation\n\n- Run the Feature suite and paste the exact result for this test.\n- Confirm the new assertion actually fails when the node array is deliberately allowed through, then restore the correct behavior.",
+      "dimensionRefs": [
+        "change-validation"
+      ]
+    },
+    {
+      "id": "agent-state-in-tracked-diffs",
+      "title": "Agent scratch state keeps landing in commits and consuming review attention",
+      "severity": "Medium",
+      "reason": "Fact: .opencode/cache/cortex-loop-compliance.json is tracked by git while simultaneously matching an ignore rule (git check-ignore reports .gitignore:11:/.opencode/cache), because ignore rules do not apply to already-tracked paths. Fact: .gitignore lines 10 and 11 are the identical string /.opencode/cache, a duplicated rule. Fact: .omc/state/idle-notif-cooldown.json is tracked and matches no ignore rule at all, since .gitignore only covers /.omc/state/sessions. Fact: within the reviewed 30-day window the only files touched by commits are exactly these agent-state and .gitignore paths; no source file changed. Inference: every agent run can dirty the working tree and produce commits that carry no project meaning, and because .coderabbit.yaml sets commit_status and fail_commit_status to true on the active branch pattern, that noise reaches the review gate. Owner: .gitignore plus one untracking command. Uncertainty: none material; each leg is a direct command result. Confidence is high.",
+      "expectedOutput": [
+        "Update the existing Config owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Config",
+      "aiFixPrompt": "/better-harness fix this issue\n\nStop agent runtime state from appearing in the tracked change boundary.\n\n## Change\n\n- In .gitignore, remove the duplicated /.opencode/cache line so the rule appears once, and broaden /.omc/state/sessions to cover the whole /.omc/state directory.\n- Untrack the state files that are already committed, keeping them on disk: git rm --cached .opencode/cache/cortex-loop-compliance.json .omc/state/idle-notif-cooldown.json\n- Leave the tracked template files under .omo/templates and .sisyphus/templates alone; they are content, not runtime state.\n\n## Validation\n\n- Run git ls-files .opencode .omc and confirm it returns nothing.\n- Run git status --porcelain after an agent session and confirm no cache or state file appears.\n- Confirm both state files still exist on disk and were not deleted.",
+      "dimensionRefs": [
+        "task-understanding"
+      ]
+    },
+    {
+      "id": "dead-end-abort-pointer",
+      "title": "The database safety abort sends the operator to a file that does not exist",
+      "severity": "Low",
+      "reason": "Fact: tests/bootstrap.php is the repository's only hard stop against running the suite against a non-test database; it refuses any DB_DATABASE other than paymenter_test, :memory:, or empty and exits with code 2. Fact: the abort message it prints directs the reader to a notepad path under .sisyphus/notepads/, which is absent; the tracked .sisyphus subtree contains only templates/SYNC.md, templates/ralph-loop-contract.md, and templates/ralph-loop-verify.sh. Inference: the guard itself works, but its escalation route dead-ends at the exact moment it fires, so whoever hits it has nowhere to record or look up the incident. Owner: the stderr message string in tests/bootstrap.php. Uncertainty: intent is unclear rather than the absence. .coderabbit.yaml establishes that this project sometimes deliberately references the outer Paymenter fork's .sisyphus/plans/, so the defect may be a missing qualifier on an outer-tree path rather than a missing file; the repair should resolve that question before choosing. Severity stays Low because the protective behavior is intact.",
+      "expectedOutput": [
+        "Update the existing Code owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Code",
+      "aiFixPrompt": "/better-harness fix this issue\n\nMake the abort message point somewhere the operator can actually reach.\n\n## Bounded discovery first\n\n- Determine whether the referenced notepad path is meant to resolve inside this repository or inside the outer Paymenter fork, as .coderabbit.yaml does for that fork's .sisyphus/plans/. Do not create a notepad tree on a guess.\n\n## Change\n\n- Edit only the stderr message string in tests/bootstrap.php so it names a location that resolves, or states plainly that the incident record lives in the outer Paymenter fork and how to identify it.\n- Do not change the guard's accepted database names or its exit code.\n\n## Validation\n\n- Trigger the guard with a deliberately wrong DB_DATABASE value and paste the exact message and exit code.\n- Confirm the location named in the new message resolves for the reader.",
+      "dimensionRefs": [
+        "reliable-delivery"
+      ]
+    },
+    {
+      "id": "unrouted-duplicate-verifier",
+      "title": "Two identical copies of a committed verification script sit with nothing pointing to either",
+      "severity": "Low",
+      "reason": "Fact: .omo/templates/ralph-loop-verify.sh and .sisyphus/templates/ralph-loop-verify.sh are byte-identical, confirmed by matching SHA-256 checksums, and both are tracked and were added in the same commit. Fact: AGENTS.md contains zero occurrences of ralph or verify, and its COMMANDS section lists only PHPUnit invocations, so no documented route reaches either copy. Inference: the project has already committed a verification script, but an agent following the project's own guidance cannot find it, and an edit to one copy silently diverges from the other with no canonical version to compare against. Owner: the COMMANDS section of AGENTS.md, to name one canonical path. Uncertainty: the scripts' contents were not opened and no claim is made that they are correct, useful, or should be run; consolidating or deleting either copy is a separate decision needing its own authority.",
+      "expectedOutput": [
+        "Update the existing Document owner identified by the reviewed evidence and retain a focused validation result."
+      ],
+      "expectedArtifact": "Document",
+      "aiFixPrompt": "/better-harness fix this issue\n\nMake the committed verification script findable from the project's own guidance, and remove the ambiguity about which copy is canonical.\n\n## Bounded discovery first\n\n- Open both .omo/templates/ralph-loop-verify.sh and .sisyphus/templates/ralph-loop-verify.sh and confirm they are still identical.\n- Determine what the script actually verifies and whether it is intended for this repository or is an inherited template. If it is not intended to be run here, say so explicitly instead of wiring it in.\n\n## Change\n\n- If it is intended to be run: name one canonical path in the COMMANDS section of AGENTS.md, state when an agent should run it and what a pass looks like.\n- If it is an inherited template: record that in AGENTS.md so the next reader stops treating it as a project verifier.\n- Do not delete or merge either copy in this step; removing a tracked file needs separate authorization.\n\n## Validation\n\n- Confirm AGENTS.md now names exactly one path, and that the path exists.\n- If the script was declared runnable, run it once and paste its exact output.",
+      "dimensionRefs": [
+        "task-understanding"
+      ]
+    }
+  ]
+}
