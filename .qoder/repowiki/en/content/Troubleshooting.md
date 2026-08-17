@@ -96,12 +96,12 @@ participant S as "ResourceCalculationService"
 participant P as "Pterodactyl API"
 C->>R : GET /api/dynamic-pterodactyl/availability/{locationId}
 R->>A : getByLocation(locationId)
-A->>N : getMaxAvailable(locationId)
-N->>S : getLocationAvailability(locationId)
-S->>P : GET /api/application/nodes (with filters)
+A->>S : getLocationAvailability(locationId)
+S->>P : GET /api/application/locations/{id}?include=nodes,servers
 P-->>S : nodes + servers
-S-->>N : locationData
-N-->>A : max_available
+S-->>A : locationData
+A->>N : getMaxAvailable(locationId, locationData)
+N-->>A : max_available from same snapshot
 A-->>C : {success,data}
 ```
 

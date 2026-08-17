@@ -93,12 +93,12 @@ participant N as "NodeSelectionService"
 participant R as "ResourceCalculationService"
 participant P as "Pterodactyl API"
 C->>A : GET /availability/{locationId}
-A->>N : getMaxAvailable(locationId)
-N->>R : getLocationAvailability(locationId)
+A->>R : getLocationAvailability(locationId)
 R->>P : GET /locations/{id}?include=nodes,servers
 P-->>R : JSON payload
-R-->>N : location availability
-N-->>A : max_available
+R-->>A : location availability
+A->>N : getMaxAvailable(locationId, locationData)
+N-->>A : max_available from same snapshot
 A-->>C : {max_memory,max_cpu,max_disk,...}
 ```
 

@@ -85,12 +85,12 @@ participant S as "ResourceCalculationService"
 participant P as "Pterodactyl API"
 participant D as "Local DB"
 C->>A : GET /availability/{locationId}
-A->>N : getMaxAvailable(locationId)
-N->>S : getLocationAvailability(locationId)
+A->>S : getLocationAvailability(locationId)
 S->>P : GET /locations/{id}?include=nodes,servers
 S->>D : SUM pending reservations (node_id, pending, not expired)
-S-->>N : Node availability arrays
-N-->>A : Max available per resource
+S-->>A : Node availability arrays
+A->>N : getMaxAvailable(locationId, locationData)
+N-->>A : Max available per resource from same snapshot
 A-->>C : {has_capacity, max_memory/cpu/disk, node_count}
 ```
 
@@ -144,7 +144,7 @@ LoopNodes --> |No| ReturnLoc["Return location data"]
 
 ### AvailabilityController
 Exposes customer-facing availability endpoints:
-- getByLocation(locationId): Combines NodeSelectionService.getMaxAvailable with ResourceCalculationService.getLocationAvailability to return has_capacity and per-resource booleans indicating whether memory, CPU, and disk have positive headroom.
+- getByLocation(locationId): Fetches location availability once, then passes that snapshot to NodeSelectionService.getMaxAvailable to return has_capacity and per-resource booleans from one consistent panel read.
 - getNodes(locationId): Returns location-level availability data for admin purposes.
 
 Error handling:

@@ -41,8 +41,8 @@ graph TB
 Client["Customer Client"] --> Routes["API Routes<br/>/api/dynamic-pterodactyl"]
 Routes --> MW["Middleware: web, auth, throttle:30,1"]
 MW --> Ctrl["AvailabilityController::getByLocation"]
-Ctrl --> NodeSel["NodeSelectionService::getMaxAvailable"]
 Ctrl --> ResCalc["ResourceCalculationService::getLocationAvailability"]
+Ctrl --> NodeSel["NodeSelectionService::getMaxAvailable with preloaded snapshot"]
 ResCalc --> Ptero["Pterodactyl API"]
 Ctrl --> Security["Security Layer<br/>Data Sanitization"]
 Security --> Response["Secure JSON Response<br/>No Node Details"]
@@ -51,7 +51,7 @@ Security --> Response["Secure JSON Response<br/>No Node Details"]
 **Diagram sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
 - [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-86](file://Services/NodeSelectionService.php#L78-L86)
+- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 
 **Section sources**
@@ -74,14 +74,14 @@ Key responsibilities:
 **Section sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
 - [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-86](file://Services/NodeSelectionService.php#L78-L86)
+- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 
 ## Architecture Overview
 The GET /api/dynamic-pterodactyl/availability/{locationId} flow:
 1. Request enters the route group with web + auth + throttle middleware.
-2. AvailabilityController::getByLocation resolves max available resources via NodeSelectionService.
-3. It also fetches location availability via ResourceCalculationService to compute node_count and resource_capacity booleans.
+2. AvailabilityController::getByLocation fetches one location snapshot via ResourceCalculationService.
+3. It passes that same snapshot to NodeSelectionService to read max_available, then computes node_count and resource_capacity booleans without another panel request.
 4. A compact JSON response is returned with only aggregate fields; no node identifiers or internal details are exposed.
 5. **Enhanced**: Comprehensive test coverage ensures security boundaries are maintained.
 
@@ -97,14 +97,12 @@ participant P as "Pterodactyl API"
 C->>R : GET /api/dynamic-pterodactyl/availability/{locationId}
 R->>M : Apply web, auth, throttle : 30,1
 M-->>A : Proceed if authenticated and within limit
-A->>N : getMaxAvailable(locationId)
-N->>S : getLocationAvailability(locationId)
+A->>S : getLocationAvailability(locationId)
 S->>P : Batched calls to list nodes/servers
 P-->>S : Node and server data
-S-->>N : Aggregated availability
-N-->>A : Max available {memory, cpu, disk}
-A->>S : getLocationAvailability(locationId)
-S-->>A : Location data including nodes[]
+S-->>A : Aggregated location data including nodes[]
+A->>N : getMaxAvailable(locationId, locationData)
+N-->>A : Max available from the same snapshot
 A->>A : Security sanitization<br/>Remove node details
 A-->>C : {success, data : {location_id, max_memory, max_cpu, max_disk, node_count, has_capacity, resource_capacity}}
 ```
@@ -112,7 +110,7 @@ A-->>C : {success, data : {location_id, max_memory, max_cpu, max_disk, node_coun
 **Diagram sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
 - [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-86](file://Services/NodeSelectionService.php#L78-L86)
+- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 
 ## Detailed Component Analysis
@@ -221,7 +219,7 @@ ForEachNode --> |No| ReturnData["Return {location_id, nodes[], max_available, to
 - [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 **Section sources**
-- [NodeSelectionService.php:78-86](file://Services/NodeSelectionService.php#L78-L86)
+- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 - [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 

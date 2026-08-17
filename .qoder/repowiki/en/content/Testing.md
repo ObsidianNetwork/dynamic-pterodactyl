@@ -100,7 +100,7 @@ Key components under test:
 ## Architecture Overview
 The testing architecture isolates external dependencies and enforces deterministic environments:
 - phpunit.xml forces array cache/session/queue and sync queue.
-- tests/bootstrap.php requires `APP_ENV=testing` and accepts only `paymenter_test`, `:memory:`, or the `:temporary:` sentinel. The sentinel generates and atomically claims an unpredictable private SQLite path before Paymenter boots; caller-supplied SQLite paths are rejected.
+- tests/bootstrap.php requires `APP_ENV=testing` and accepts only `paymenter_test`, `:memory:`, or the `:temporary:` sentinel. The sentinel generates an unpredictable process-private named in-memory SQLite database and retains an anchor connection before Paymenter boots; caller-supplied SQLite paths and URI names are rejected.
 - Feature tests load routes and use DatabaseTransactions to keep state isolated per test.
 - Unit tests mock or fake HTTP and DB interactions to avoid real calls.
 
@@ -354,7 +354,7 @@ The test suite provides robust coverage across service logic, API endpoints, and
 ## Appendices
 
 ### How to Run the Test Suite
-- Set `DB_DATABASE` to `paymenter_test`, `:memory:`, or `:temporary:`. The standalone `:temporary:` database is generated, migrated on first application boot, and cleaned up at process shutdown.
+- Set `DB_DATABASE` to `paymenter_test`, `:memory:`, or `:temporary:`. The standalone `:temporary:` database is generated in memory, shared with Laravel through its private URI, migrated on first application boot, and discarded at process shutdown.
 - Use the outer Paymenter vendor PHPUnit binary as configured by the project.
 - Run unit tests: vendor/bin/phpunit --testsuite=Unit
 - Run feature tests: vendor/bin/phpunit --testsuite=Feature
@@ -398,7 +398,7 @@ The test suite provides robust coverage across service logic, API endpoints, and
 ### Test Database Setup and Fixtures
 - Database isolation:
   - phpunit.xml sets DB_CONNECTION and DB_DATABASE for tests.
-  - tests/bootstrap.php enforces the test database guard and atomically owns any standalone SQLite path before use.
+  - tests/bootstrap.php enforces the test database guard and retains the anchor connection for the process-private standalone SQLite database.
 - Fixtures:
   - Create minimal required records (products, config options, carts, cart items) within tests.
   - Use factories where available; otherwise insert raw rows via DB facade.

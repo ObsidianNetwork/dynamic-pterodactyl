@@ -88,11 +88,12 @@ participant ResCalc as "ResourceCalculationService"
 participant Ptero as "Pterodactyl API"
 Client->>Routes : GET /api/dynamic-pterodactyl/availability/{locationId}
 Routes->>AvailCtrl : getByLocation(locationId)
-AvailCtrl->>NodeSel : getMaxAvailable(locationId)
 AvailCtrl->>ResCalc : getLocationAvailability(locationId)
 ResCalc->>Ptero : fetch nodes/servers (real-time)
 Ptero-->>ResCalc : node/server data
 ResCalc-->>AvailCtrl : aggregated availability
+AvailCtrl->>NodeSel : getMaxAvailable(locationId, locationData)
+NodeSel-->>AvailCtrl : max_available from same snapshot
 AvailCtrl-->>Client : {success,data : {location_id,max_memory,max_cpu,max_disk,node_count,has_capacity,resource_capacity}}
 ```
 
