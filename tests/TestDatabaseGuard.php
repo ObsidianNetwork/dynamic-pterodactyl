@@ -4,8 +4,8 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests;
 
 final class TestDatabaseGuard
 {
-    /** @var array<string, resource> */
-    private static array $claimedDatabaseHandles = [];
+    /** @var array<string, \PDO> */
+    private static array $claimedDatabaseConnections = [];
 
     private static bool $cleanupRegistered = false;
 
@@ -31,44 +31,22 @@ final class TestDatabaseGuard
             return null;
         }
 
-        return self::claimDisposableSqliteDatabase();
+        return self::claimIsolatedSqliteDatabase();
     }
 
-    private static function claimDisposableSqliteDatabase(): ?string
+    private static function claimIsolatedSqliteDatabase(): ?string
     {
-        $temporaryDirectory = realpath(sys_get_temp_dir());
-        if ($temporaryDirectory === false) {
+        $database = 'file:dynamic-pterodactyl-test-'.bin2hex(random_bytes(16)).'?mode=memory&cache=shared';
+
+        try {
+            $connection = new \PDO('sqlite:'.$database, null, null, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            ]);
+        } catch (\PDOException) {
             return null;
         }
 
-        $databaseDirectory = $temporaryDirectory.DIRECTORY_SEPARATOR
-            .'dynamic-pterodactyl-test-'.bin2hex(random_bytes(16));
-        if (! @mkdir($databaseDirectory, 0700)) {
-            return null;
-        }
-
-        $resolvedDirectory = realpath($databaseDirectory);
-        if ($resolvedDirectory === false || ! self::pathsEqual(dirname($resolvedDirectory), $temporaryDirectory)) {
-            @rmdir($databaseDirectory);
-
-            return null;
-        }
-
-        $database = $resolvedDirectory.DIRECTORY_SEPARATOR.'database.sqlite';
-        $handle = @fopen($database, 'x+b');
-        $fileStatus = $handle === false ? false : fstat($handle);
-
-        if ($handle === false || ! is_array($fileStatus) || ($fileStatus['nlink'] ?? 0) !== 1) {
-            if (is_resource($handle)) {
-                fclose($handle);
-            }
-            @unlink($database);
-            @rmdir($databaseDirectory);
-
-            return null;
-        }
-
-        self::$claimedDatabaseHandles[$database] = $handle;
+        self::$claimedDatabaseConnections[$database] = $connection;
         if (! self::$cleanupRegistered) {
             register_shutdown_function(static function (): void {
                 self::releaseClaims();
@@ -81,19 +59,6 @@ final class TestDatabaseGuard
 
     private static function releaseClaims(): void
     {
-        foreach (self::$claimedDatabaseHandles as $database => $handle) {
-            fclose($handle);
-            @unlink($database);
-            @rmdir(dirname($database));
-        }
-
-        self::$claimedDatabaseHandles = [];
-    }
-
-    private static function pathsEqual(string $left, string $right): bool
-    {
-        return PHP_OS_FAMILY === 'Windows'
-            ? strcasecmp($left, $right) === 0
-            : $left === $right;
+        self::$claimedDatabaseConnections = [];
     }
 }

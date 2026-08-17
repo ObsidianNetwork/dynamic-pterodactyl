@@ -22,13 +22,32 @@ class TestDatabaseGuardTest extends TestCase
         }
     }
 
-    public function test_allows_disposable_sqlite_database_in_system_temp_directory(): void
+    public function test_creates_isolated_named_memory_sqlite_database(): void
     {
         $database = TestDatabaseGuard::claim(':temporary:', 'sqlite', 'testing');
 
         $this->assertIsString($database);
-        $this->assertStringStartsWith(realpath(sys_get_temp_dir()).DIRECTORY_SEPARATOR, $database);
-        $this->assertFileExists($database);
+        $this->assertMatchesRegularExpression(
+            '/^file:dynamic-pterodactyl-test-[a-f0-9]{32}\?mode=memory&cache=shared$/',
+            $database,
+        );
+
+        $writer = new \PDO('sqlite:'.$database);
+        $writer->exec('CREATE TABLE claim_probe (value TEXT NOT NULL)');
+        $writer->exec("INSERT INTO claim_probe (value) VALUES ('owned')");
+        unset($writer);
+
+        $reader = new \PDO('sqlite:'.$database);
+        $this->assertSame('owned', $reader->query('SELECT value FROM claim_probe')->fetchColumn());
+    }
+
+    public function test_rejects_caller_supplied_named_memory_database(): void
+    {
+        $this->assertNull(TestDatabaseGuard::claim(
+            'file:shared-production?mode=memory&cache=shared',
+            'sqlite',
+            'testing',
+        ));
     }
 
     public function test_rejects_disposable_name_outside_system_temp_directory(): void
