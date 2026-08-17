@@ -7,6 +7,8 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class LaravelTestCase extends BaseTestCase
 {
+    private static bool $standaloneSqliteMigrated = false;
+
     /**
      * Creates the application.
      */
@@ -26,7 +28,26 @@ abstract class LaravelTestCase extends BaseTestCase
         }
 
         $app = require $bootstrap;
-        $app->make(Kernel::class)->bootstrap();
+        $kernel = $app->make(Kernel::class);
+        $kernel->bootstrap();
+
+        $database = getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? '');
+        if (! self::$standaloneSqliteMigrated
+            && (getenv('DB_CONNECTION') ?: ($_ENV['DB_CONNECTION'] ?? '')) === 'sqlite'
+            && $database !== ':memory:'
+        ) {
+            $kernel->call('migrate', [
+                '--database' => 'sqlite',
+                '--force' => true,
+            ]);
+            $kernel->call('migrate', [
+                '--database' => 'sqlite',
+                '--path' => dirname(__DIR__).'/database/migrations',
+                '--realpath' => true,
+                '--force' => true,
+            ]);
+            self::$standaloneSqliteMigrated = true;
+        }
 
         return $app;
     }

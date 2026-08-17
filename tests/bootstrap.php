@@ -26,13 +26,13 @@ $db = getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? '');
 $connection = getenv('DB_CONNECTION') ?: ($_ENV['DB_CONNECTION'] ?? '');
 $appEnvironment = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? '');
 
-if (! \Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestDatabaseGuard::allows(
+if (! \Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestDatabaseGuard::claim(
     $db,
     $connection,
     $appEnvironment,
 )) {
     fwrite(STDERR, "ABORT: phpunit would run against DB_DATABASE='$db'. "
-        . "Expected 'paymenter_test', ':memory:', or a disposable dynamic-pterodactyl-test-*.sqlite file in the system temp directory. "
+        . "Expected 'paymenter_test', ':memory:', or a new system-temp dynamic-pterodactyl-test-*/database.sqlite path claimed by this process. "
         . "See .sisyphus/notepads/dp-11-authorization-surface-reduction/incidents.md.\n");
     exit(2);
 }
