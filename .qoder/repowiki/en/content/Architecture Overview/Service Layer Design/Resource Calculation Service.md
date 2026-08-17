@@ -87,7 +87,7 @@ participant D as "Local DB"
 C->>A : GET /availability/{locationId}
 A->>N : getMaxAvailable(locationId)
 N->>S : getLocationAvailability(locationId)
-S->>P : GET nodes (filtered by location)
+S->>P : GET /locations/{id}?include=nodes,servers
 S->>P : GET node + servers (include=servers)
 S->>D : SUM pending reservations (node_id, pending, not expired)
 S-->>N : Node availability arrays
@@ -125,7 +125,7 @@ Examples of usage patterns:
 
 ```mermaid
 flowchart TD
-Start(["getLocationAvailability"]) --> FetchNodes["Fetch nodes in location"]
+Start(["getLocationAvailability"]) --> FetchNodes["Fetch location with nodes and servers"]
 FetchNodes --> LoopNodes{"For each node"}
 LoopNodes --> |Yes| CalcNode["Calculate node availability"]
 CalcNode --> UpdateMax["Update max_available per resource"]

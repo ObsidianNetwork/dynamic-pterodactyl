@@ -201,7 +201,7 @@ participant RSC as "ResourceCalculationService"
 participant Ptero as "Pterodactyl API"
 participant DB as "Reservations DB"
 Controller->>RSC : getLocationAvailability(locationId)
-RSC->>Ptero : GET nodes (filtered by location)
+RSC->>Ptero : GET /locations/{id}?include=nodes,servers
 Ptero-->>RSC : nodes
 loop For each node
 RSC->>Ptero : GET node with servers

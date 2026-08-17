@@ -131,7 +131,7 @@ Error handling:
 
 ```mermaid
 flowchart TD
-Start(["getLocationAvailability"]) --> FetchNodes["Fetch nodes in location"]
+Start(["getLocationAvailability"]) --> FetchNodes["Fetch location with nodes and servers"]
 FetchNodes --> ForEachNode["For each node"]
 ForEachNode --> CalcNode["Calculate node availability<br/>+ pending reservations"]
 CalcNode --> Aggregate["Aggregate totals and max available"]

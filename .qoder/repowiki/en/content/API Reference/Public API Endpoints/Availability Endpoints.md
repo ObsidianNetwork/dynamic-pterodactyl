@@ -207,7 +207,7 @@ Why node-level details are not exposed
 
 ```mermaid
 flowchart TD
-Start(["getLocationAvailability(locationId)"]) --> FetchNodes["Fetch nodes in location"]
+Start(["getLocationAvailability(locationId)"]) --> FetchNodes["Fetch location with nodes and servers"]
 FetchNodes --> ForEachNode{"For each node"}
 ForEachNode --> |Yes| CalcNode["Calculate node availability<br/>from servers + reservations"]
 CalcNode --> UpdateMax["Update max_available per resource"]

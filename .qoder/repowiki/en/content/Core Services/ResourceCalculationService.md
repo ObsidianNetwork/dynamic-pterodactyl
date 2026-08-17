@@ -132,8 +132,8 @@ Return value:
   - total_allocated: sum of allocated resources across nodes
 
 Processing logic:
-- Fetches nodes in the location via Pterodactyl
-- For each node, fetches servers and pending reservations
+- Fetches the location with included nodes and servers in one Pterodactyl request
+- Groups included servers by node and fetches pending reservations for each node
 - Computes effective totals using overallocation settings
 - Subtracts allocated and reserved resources to derive available
 - Aggregates max and totals across nodes

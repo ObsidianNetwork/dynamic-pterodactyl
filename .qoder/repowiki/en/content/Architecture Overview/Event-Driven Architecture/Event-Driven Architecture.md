@@ -333,7 +333,7 @@ Responsibilities:
 
 ```mermaid
 flowchart TD
-A["verifyAvailability(nodeId, requirements, excludeToken)"] --> B["Fetch nodes in location"]
+A["verifyAvailability(nodeId, requirements, excludeToken)"] --> B["Fetch location with nodes and servers"]
 B --> C["Find target node"]
 C --> D["Calculate node availability"]
 D --> E["Sum allocated resources across servers"]
