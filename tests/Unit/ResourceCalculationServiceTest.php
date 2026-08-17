@@ -208,6 +208,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
 
         $result = $this->service->getLocationAvailability(1);
 
+        Http::assertSentCount(1);
+        Http::assertSent(function ($request): bool {
+            $query = [];
+            parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
+
+            return parse_url($request->url(), PHP_URL_PATH) === '/api/application/locations/1'
+                && ($query['include'] ?? null) === 'nodes,servers';
+        });
         $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $result['nodes'][0]['allocated']);
         $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
     }

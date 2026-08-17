@@ -244,7 +244,7 @@ Unit coverage accepted for dp-06. The full Filament-action lifecycle end-to-end 
 
 ### 6. Test Isolation Mandate (dp-13, Apr 2026)
 
-Extension phpunit MUST set `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array`, `BCRYPT_ROUNDS=4`, `PULSE_ENABLED=false`, `TELESCOPE_ENABLED=false` — mirroring the root `phpunit.xml`. Failure to do so risks polluting the shared Redis/file cache on a development host, corrupting the settings key read by running web workers. This caused a production outage on 2026-04-23. The `bootstrap.php` guard provides a second line of defence (aborts if `DB_DATABASE` is not a recognised test DB). See `incidents.md` for forensics.
+Extension phpunit MUST set `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array`, `BCRYPT_ROUNDS=4`, `PULSE_ENABLED=false`, `TELESCOPE_ENABLED=false` — mirroring the root `phpunit.xml`. Failure to do so risks polluting the shared Redis/file cache on a development host, corrupting the settings key read by running web workers. This caused a production outage on 2026-04-23. The `bootstrap.php` guard provides a second line of defence: it accepts only `paymenter_test`, `:memory:`, or a strictly named `dynamic-pterodactyl-test-*.sqlite` file directly inside the system temp directory. Empty database names and arbitrary SQLite paths remain forbidden. See `incidents.md` for forensics.
 
 ### 7. SetupWizard Atomicity Contract (dp-13, Apr 2026)
 

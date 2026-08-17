@@ -19,17 +19,20 @@ $loader->addPsr4(
     dirname(__DIR__) . '/',
 );
 
+require __DIR__ . '/TestDatabaseGuard.php';
+
 // dp-13 guard: refuse to boot against a non-test database.
 $db = getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? '');
 $connection = getenv('DB_CONNECTION') ?: ($_ENV['DB_CONNECTION'] ?? '');
 $appEnvironment = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? '');
-$isSqliteTestDatabase = $appEnvironment === 'testing'
-    && $connection === 'sqlite'
-    && ($db === ':memory:' || str_ends_with(strtolower($db), '.sqlite'));
 
-if ($db !== 'paymenter_test' && $db !== '' && ! $isSqliteTestDatabase) {
+if (! \Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestDatabaseGuard::allows(
+    $db,
+    $connection,
+    $appEnvironment,
+)) {
     fwrite(STDERR, "ABORT: phpunit would run against DB_DATABASE='$db'. "
-        . "Expected 'paymenter_test' or a testing-only SQLite database. "
+        . "Expected 'paymenter_test', ':memory:', or a disposable dynamic-pterodactyl-test-*.sqlite file in the system temp directory. "
         . "See .sisyphus/notepads/dp-11-authorization-surface-reduction/incidents.md.\n");
     exit(2);
 }
