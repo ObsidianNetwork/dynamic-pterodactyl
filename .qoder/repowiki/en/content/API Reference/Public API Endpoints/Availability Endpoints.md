@@ -138,7 +138,7 @@ A-->>C : {success, data : {location_id, max_memory, max_cpu, max_disk, node_coun
       - cpu: boolean (true if max_cpu > 0)
       - disk: boolean (true if max_disk > 0)
 - Error responses:
-  - On exceptions during processing, returns success: false with message and error fields, HTTP 500.
+  - On exceptions during processing, returns HTTP 500 with `success: false` and the generic message `Failed to fetch availability`. Exception details are reported server-side and are not returned to customers.
 
 Request examples
 - Basic request:
@@ -181,9 +181,9 @@ Request examples
 
 Error handling
 - Invalid or missing locationId:
-  - If the location does not exist or cannot be resolved, upstream errors propagate through services and are caught by the controller, returning success: false with a generic message and error details.
+  - If the location does not exist or cannot be resolved, the controller returns `success: false` with a generic message and reports the underlying exception server-side.
 - Pterodactyl API failures:
-  - Network timeouts, connection errors, or non-2xx responses result in exceptions thrown by the service layer and surfaced as success: false with a descriptive message.
+  - Network timeouts, connection errors, or non-2xx responses result in a generic `success: false` response; upstream details remain in server-side diagnostics.
 - Rate limiting exceeded:
   - Requests beyond 30 per minute receive a standard throttle response from the framework's throttle middleware.
 
@@ -342,7 +342,7 @@ Common issues and how they manifest:
 - Invalid location:
   - If the locationId does not resolve to any nodes, the service may return empty aggregates; the controller wraps errors into a consistent failure response.
 - Pterodactyl API errors:
-  - Network timeouts, connection failures, or non-2xx responses cause exceptions in the service layer; these are caught and returned as success: false with a message and error details.
+  - Network timeouts, connection failures, or non-2xx responses are caught, reported server-side, and returned as `success: false` with only the generic availability failure message.
 - Unexpected payload:
   - Malformed or non-JSON responses from Pterodactyl are treated as errors and logged for diagnostics.
 - **Enhanced**: Security validation failures:

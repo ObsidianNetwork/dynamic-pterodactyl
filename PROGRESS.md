@@ -72,11 +72,15 @@ All dp-NN backlog items are implemented. The active reconciliation is staged on 
 **Status**: Panel changes are preserved on the reconciliation branch; Qoder Wiki pages are migrated to GitHub Wiki and refreshed for the final batched location API flow.
 **Current file**: PROGRESS.md
 **Next action**: Complete exact-SHA review, then merge draft PR #23 when approved. Resume Mutagen only as a separately authorized deployment step.
-**Blockers**: None
+**Blockers**: PR #22 overlaps this reconciliation and must be rebased after PR #23; merging it unchanged would restore superseded test-guard and error-response behavior. No CI checks are configured on PR #23.
 
 ### This Session's Changes:
 
-1. dp-19 — direct commits on `dynamic-slider` (extension) and `dynamic-slider/1.4.7` (outer Paymenter).
+1. Preserved the dp-20 panel close-out without restoring obsolete deployment guidance.
+2. Reconciled the location availability path to one `locations/{id}?include=nodes,servers` request and fail-closed capacity parsing.
+3. Replaced caller-selected SQLite test paths with the internally generated `:temporary:` database workflow.
+4. Migrated the retained Qoder page set to GitHub Wiki and synchronized API, deployment, and testing contracts.
+5. Published draft PR #23 for exact-SHA review; Mutagen deployment remains paused.
 
 ---
 

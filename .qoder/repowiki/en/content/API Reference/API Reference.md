@@ -145,7 +145,7 @@ AvailCtrl-->>Client : {success,data : {location_id,max_memory,max_cpu,max_disk,n
       - has_capacity: boolean
       - resource_capacity: object with memory/cpu/disk booleans
   - Errors:
-    - 500: failure to fetch availability (includes message and error fields)
+    - 500: failure to fetch availability (returns only the generic message; exception details are reported server-side)
 
 - GET /api/dynamic-pterodactyl/admin/availability/{locationId}/nodes
   - Auth: web + auth + admin

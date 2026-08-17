@@ -100,7 +100,7 @@ Key components under test:
 ## Architecture Overview
 The testing architecture isolates external dependencies and enforces deterministic environments:
 - phpunit.xml forces array cache/session/queue and sync queue.
-- tests/bootstrap.php aborts if DB_DATABASE is not a test database.
+- tests/bootstrap.php requires `APP_ENV=testing` and accepts only `paymenter_test`, `:memory:`, or the `:temporary:` sentinel. The sentinel generates and atomically claims an unpredictable private SQLite path before Paymenter boots; caller-supplied SQLite paths are rejected.
 - Feature tests load routes and use DatabaseTransactions to keep state isolated per test.
 - Unit tests mock or fake HTTP and DB interactions to avoid real calls.
 
@@ -124,7 +124,7 @@ sequenceDiagram
 
 **Diagram sources**
 - [phpunit.xml:28-41](file://phpunit.xml#L28-L41)
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
+- [tests/bootstrap.php:23-48](file://tests/bootstrap.php#L23-L48)
 - [tests/LaravelTestCase.php:13-25](file://tests/LaravelTestCase.php#L13-L25)
 
 ## Detailed Component Analysis
@@ -329,7 +329,7 @@ ALS --> NOTIF["Notifications"]
 
 ## Troubleshooting Guide
 Common issues and fixes:
-- Running against wrong database: tests/bootstrap.php aborts unless DB_DATABASE is paymenter_test or :memory:. Ensure your environment matches.
+- Running against wrong database: tests/bootstrap.php aborts unless `DB_DATABASE` is `paymenter_test`, `:memory:`, or `:temporary:`. Use `:temporary:` for standalone SQLite; do not provide a filesystem path.
 - Stray HTTP requests: enable Http::preventStrayRequests() in setUp to catch unexpected network calls during unit tests.
 - Stale global state in alert tests: use #[RunTestsInSeparateProcesses] and #[PreserveGlobalState(false)] to isolate Facade containers.
 - Authorization failures: ensure Gate policies are registered and actors are set up correctly in tests.
@@ -341,7 +341,7 @@ Debugging tips:
 - Use assertDatabaseHas/assertDatabaseMissing to validate exact state changes in reservations and audit logs.
 
 **Section sources**
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
+- [tests/bootstrap.php:23-48](file://tests/bootstrap.php#L23-L48)
 - [tests/Unit/ResourceCalculationServiceTest.php:18-33](file://tests/Unit/ResourceCalculationServiceTest.php#L18-L33)
 - [tests/Unit/AlertServiceTest.php:26-62](file://tests/Unit/AlertServiceTest.php#L26-L62)
 - [tests/Unit/ReservationServiceTest.php:29-46](file://tests/Unit/ReservationServiceTest.php#L29-L46)
@@ -354,7 +354,7 @@ The test suite provides robust coverage across service logic, API endpoints, and
 ## Appendices
 
 ### How to Run the Test Suite
-- Ensure DB_DATABASE is set to paymenter_test or :memory:.
+- Set `DB_DATABASE` to `paymenter_test`, `:memory:`, or `:temporary:`. The standalone `:temporary:` database is generated, migrated on first application boot, and cleaned up at process shutdown.
 - Use the outer Paymenter vendor PHPUnit binary as configured by the project.
 - Run unit tests: vendor/bin/phpunit --testsuite=Unit
 - Run feature tests: vendor/bin/phpunit --testsuite=Feature
@@ -363,7 +363,7 @@ The test suite provides robust coverage across service logic, API endpoints, and
 **Section sources**
 - [phpunit.xml:13-20](file://phpunit.xml#L13-L20)
 - [phpunit.xml:28-41](file://phpunit.xml#L28-L41)
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
+- [tests/bootstrap.php:23-48](file://tests/bootstrap.php#L23-L48)
 
 ### Writing New Tests
 - Unit tests:
@@ -398,14 +398,14 @@ The test suite provides robust coverage across service logic, API endpoints, and
 ### Test Database Setup and Fixtures
 - Database isolation:
   - phpunit.xml sets DB_CONNECTION and DB_DATABASE for tests.
-  - tests/bootstrap.php enforces test database guard.
+  - tests/bootstrap.php enforces the test database guard and atomically owns any standalone SQLite path before use.
 - Fixtures:
   - Create minimal required records (products, config options, carts, cart items) within tests.
   - Use factories where available; otherwise insert raw rows via DB facade.
 
 **Section sources**
 - [phpunit.xml:34-36](file://phpunit.xml#L34-L36)
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
+- [tests/bootstrap.php:23-48](file://tests/bootstrap.php#L23-L48)
 - [tests/Feature/ReservationApiTest.php:402-446](file://tests/Feature/ReservationApiTest.php#L402-L446)
 
 ### Assertion Patterns

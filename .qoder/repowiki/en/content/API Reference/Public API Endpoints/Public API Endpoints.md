@@ -132,7 +132,7 @@ Example request:
 - Success response example:
   - { "success": true, "data": { "location_id": 1, "max_memory": 1000, "max_cpu": 100, "max_disk": 1000, "node_count": 3, "has_capacity": true, "resource_capacity": { "memory": true, "cpu": true, "disk": true } } }
 - Error response example:
-  - { "success": false, "message": "Failed to fetch availability", "error": "<exception message>" }
+  - { "success": false, "message": "Failed to fetch availability" }
 
 Implementation notes:
 - Uses NodeSelectionService to compute maximum available resources per location.
@@ -345,7 +345,7 @@ Common issues and resolutions:
   - You do not own the reservation and are not an admin.
 
 Error response patterns:
-- Availability failures: 500 with generic message and optional error details.
+- Availability failures: 500 with a generic message only; exception details are reported server-side.
 - Pricing failures: 500 with generic message; detailed error only when debug is enabled.
 - Reservation failures: 422 for validation/runtime errors; 404 for not found; 403 for unauthorized.
 

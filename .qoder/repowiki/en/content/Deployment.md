@@ -144,6 +144,7 @@ Operational requirements:
 - Scheduler must be running to execute cleanup and alert checks.
 - Database must support transactions and pessimistic locking.
 - Network access to the Pterodactyl Panel API must be allowed from the Paymenter host.
+- Node payloads must provide a numeric `cpu_threads` capacity value; missing or malformed node/server capacity fields fail closed instead of advertising unverified capacity.
 
 **Section sources**
 - [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)
