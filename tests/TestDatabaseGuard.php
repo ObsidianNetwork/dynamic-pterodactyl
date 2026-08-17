@@ -9,14 +9,21 @@ final class TestDatabaseGuard
 
     private static bool $cleanupRegistered = false;
 
-    public static function claim(string $database, string $connection, string $environment): ?string
-    {
+    public static function claim(
+        string $database,
+        string $connection,
+        string $environment,
+        string $host = '',
+    ): ?string {
         if ($environment !== 'testing') {
             return null;
         }
 
         if ($database === 'paymenter_test') {
-            return in_array($connection, ['mysql', 'mariadb'], true) ? $database : null;
+            return in_array($connection, ['mysql', 'mariadb'], true)
+                && self::isLoopbackHost($host)
+                    ? $database
+                    : null;
         }
 
         if ($connection !== 'sqlite') {
@@ -32,6 +39,19 @@ final class TestDatabaseGuard
         }
 
         return self::claimIsolatedSqliteDatabase();
+    }
+
+    private static function isLoopbackHost(string $host): bool
+    {
+        $host = strtolower(trim($host, " \t\n\r\0\x0B[]"));
+
+        if ($host === 'localhost' || $host === '::1') {
+            return true;
+        }
+
+        $address = filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4);
+
+        return is_string($address) && str_starts_with($address, '127.');
     }
 
     private static function claimIsolatedSqliteDatabase(): ?string

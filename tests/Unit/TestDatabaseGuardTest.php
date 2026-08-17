@@ -68,8 +68,27 @@ class TestDatabaseGuardTest extends TestCase
 
     public function test_rejects_paymenter_test_database_outside_testing_environment(): void
     {
-        $this->assertNull(TestDatabaseGuard::claim('paymenter_test', 'mysql', 'production'));
-        $this->assertSame('paymenter_test', TestDatabaseGuard::claim('paymenter_test', 'mariadb', 'testing'));
+        $this->assertNull(TestDatabaseGuard::claim('paymenter_test', 'mysql', 'production', '127.0.0.1'));
+        $this->assertSame(
+            'paymenter_test',
+            TestDatabaseGuard::claim('paymenter_test', 'mariadb', 'testing', '127.0.0.1')
+        );
+    }
+
+    public function test_rejects_paymenter_test_database_on_non_loopback_host(): void
+    {
+        $this->assertNull(TestDatabaseGuard::claim(
+            'paymenter_test',
+            'mariadb',
+            'testing',
+            'database.internal',
+        ));
+        $this->assertNull(TestDatabaseGuard::claim(
+            'paymenter_test',
+            'mariadb',
+            'testing',
+            '127.999.999.999',
+        ));
     }
 
     public function test_rejects_pre_existing_disposable_database_directory(): void
