@@ -2,7 +2,7 @@
 
 ## Runtime boundaries
 
-- Paymenter 1.5.6, Filament 5, Livewire 4.
+- Paymenter 1.5.7, Filament 5, Livewire 4.
 - Paymenter core owns pricing, cart/order/service persistence, and the built-in Pterodactyl provisioner.
 - Dynamic Pterodactyl owns capacity reads, node selection, reservation identity, and lifecycle validation.
 - Pterodactyl Panel and Wings 1.12.3+ own actual server state after a verified
@@ -34,13 +34,13 @@ The extension branch must include:
 - exact allocation claims and fixed-node upgrade deltas;
 - legacy readiness and forward-only migration gates.
 
-Deploy the Paymenter 1.5.6 baseline and extension migrations together. Migrating the extension without the companion core leaves no caller for service binding/provisioning consumption.
+Deploy the Paymenter 1.5.7 baseline and extension migrations together. Migrating the extension without the companion core leaves no caller for service binding/provisioning consumption.
 
 ## Verification matrix
 
 | Area | Required proof |
 |---|---|
-| Upgrade | Paymenter reports 1.5.6 dependency versions |
+| Upgrade | Paymenter reports 1.5.7 dependency versions |
 | Cart | reservation failure rolls back create and edit |
 | Identity | resource, plan, location, quantity, currency, or price change changes fingerprint |
 | Guest | cart owner and pending holds transfer atomically |

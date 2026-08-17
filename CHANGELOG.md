@@ -24,7 +24,7 @@ Milestone and release notes. For day-to-day progress, see PROGRESS.md.
 - PHP 8.3/8.4 cross-repository CI on SQLite, MariaDB 11, and MariaDB 12.
 
 ### Changed
-- Rebased the companion implementation onto Paymenter 1.5.6, Filament 5,
+- Rebased the companion implementation onto Paymenter 1.5.7, Filament 5,
   and Livewire 4.
 - Replaced customer reservation tokens and independent availability maxima
   with one server-owned cart hold and complete-vector quote contract.

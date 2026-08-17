@@ -208,7 +208,7 @@ These decisions supersede the earlier Filament 4, browser-reservation, invoice-c
 
 ### 12. Paymenter baseline
 
-The companion fork targets Paymenter 1.5.6, Filament 5, and Livewire 4. The previous 1.4.7 baseline is release-blocking because it predates applicable security fixes.
+The companion fork targets Paymenter 1.5.7, Filament 5, and Livewire 4. The previous 1.4.7 baseline is release-blocking because it predates applicable security fixes.
 
 ### 13. Reservation ownership
 

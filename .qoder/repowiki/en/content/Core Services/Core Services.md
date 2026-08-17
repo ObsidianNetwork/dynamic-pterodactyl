@@ -17,7 +17,7 @@
   `SchedulerHealthService`, and the audit/configuration services provide the
   supporting policies and operator visibility.
 
-[Current service guide](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/cb677ddb5f7e5f961128425b06c54b598eb79e3c/02-SERVICES.md)
+[Current service guide](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/f7f0a8c0816ff28c386277798cce9f4aa92e1b36/02-SERVICES.md)
 
 
 <cite>

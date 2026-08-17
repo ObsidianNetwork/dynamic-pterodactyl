@@ -17,7 +17,7 @@ DynamicPterodactyl/
 ├── Listeners/                   # transactional cart lifecycle adapters
 ├── Services/                    # reservation, capacity, alert, setup, audit core
 ├── Models/                      # 9 capacity, reservation, alert, and lifecycle models
-├── database/migrations/         # 21 migrations, including durable lifecycle and encrypted-key upgrades
+├── database/migrations/         # 22 migrations, including durable lifecycle and encrypted-key upgrades
 ├── resources/views/admin/       # 1:1 Blade views for standalone admin pages
 ├── routes/api.php               # required from boot(); /api/dynamic-pterodactyl/*
 ├── tests/                       # isolated harness; see tests/AGENTS.md

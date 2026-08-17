@@ -24,10 +24,10 @@ by the cross-repository workflow. Before enabling dynamic stock:
 7. Resume deployment synchronization only after the exact commits are reviewed
    and approved.
 
-The API key migration encrypts the stored credential. Customer errors remain
-generic; detailed upstream failures belong only in protected logs.
+The API key and alert webhook migrations encrypt stored credentials. Customer
+errors remain generic; detailed upstream failures belong only in protected logs.
 
-[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/cb677ddb5f7e5f961128425b06c54b598eb79e3c/09-IMPLEMENTATION.md)
+[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/f7f0a8c0816ff28c386277798cce9f4aa92e1b36/09-IMPLEMENTATION.md)
 
 
 <cite>
@@ -174,7 +174,7 @@ Operational requirements:
 - Scheduler must be running to execute cleanup and alert checks.
 - Database must support transactions and pessimistic locking.
 - Network access to the Pterodactyl Panel API must be allowed from the Paymenter host.
-- Node payloads must provide an integer `cpu_threads` capacity value; missing, fractional, or malformed node/server capacity fields and incomplete pagination fail closed instead of advertising unverified capacity. Stock Pterodactyl does not expose this node field and uses zero server limits to mean unlimited, while this branch does not yet encrypt/migrate the stored API key. Keep deployment paused until PR #22 is fully rebased so its `NodeCapacityPolicy`, zero-as-unlimited rejection, and API-key encryption migration are all retained alongside every PR #23 safety and Wiki change. A partial CPU-only cherry-pick is not deployable.
+- CPU capacity comes from a configured local `NodeCapacityPolicy`; stock Pterodactyl does not expose a `cpu_threads` node field. Missing, fractional, malformed, zero-as-unlimited, or incomplete inventory data fails closed instead of advertising unverified capacity. The Pterodactyl API key and alert webhook URLs are encrypted at rest. Keep deployment paused until the exact reviewed extension successor and Paymenter companion are merged and every current deployment gate above is satisfied.
 
 **Section sources**
 - [DynamicPterodactyl.php:48-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L48-L75)

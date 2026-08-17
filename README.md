@@ -1,6 +1,6 @@
 # Dynamic Pterodactyl
 
-Companion extension for Paymenter 1.5.6 that adds native RAM/CPU/disk
+Companion extension for Paymenter 1.5.7 that adds native RAM/CPU/disk
 sliders, live complete-vector stock, exact port reservations, deterministic
 node selection, capacity-aware upgrades, and Filament 5 administration to the
 built-in Pterodactyl server extension.
@@ -30,7 +30,7 @@ flowchart TD
 
 ## Safety properties
 
-- Paymenter baseline is 1.5.6.
+- Paymenter baseline is 1.5.7.
 - Cart create/edit and checkout fail closed for dynamic products.
 - Guest ownership transfers with the cart in one transaction.
 - The immutable fingerprint covers customer, cart, Paymenter server extension, hashed panel identity, product, plan, location, node, resources, quantity, currency, pricing version, and formula version.
