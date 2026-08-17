@@ -106,7 +106,7 @@ final class WebhookEndpointPolicy
         }
 
         $scheme = strtolower((string) ($parts['scheme'] ?? ''));
-        $host = strtolower(rtrim((string) ($parts['host'] ?? ''), '.'));
+        $host = strtolower((string) ($parts['host'] ?? ''));
         if ($scheme !== 'https' || $host === '') {
             throw new \InvalidArgumentException(
                 'The webhook URL must use HTTPS and include a host.'

@@ -50,6 +50,7 @@ class WebhookEndpointPolicyTest extends TestCase
             'plain HTTP' => ['http://hooks.example.com/path', ['93.184.216.34']],
             'credentials' => ['https://user:pass@hooks.example.com/path', ['93.184.216.34']],
             'fragment' => ['https://hooks.example.com/path#internal', ['93.184.216.34']],
+            'trailing-dot hostname' => ['https://hooks.example.com./path', ['93.184.216.34']],
             'loopback IPv4' => ['https://127.0.0.1/path', ['127.0.0.1']],
             'private IPv4' => ['https://10.0.0.1/path', ['10.0.0.1']],
             'carrier-grade NAT IPv4' => ['https://100.64.0.1/path', ['100.64.0.1']],
