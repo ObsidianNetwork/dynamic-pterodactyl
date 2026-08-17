@@ -144,7 +144,7 @@ Operational requirements:
 - Scheduler must be running to execute cleanup and alert checks.
 - Database must support transactions and pessimistic locking.
 - Network access to the Pterodactyl Panel API must be allowed from the Paymenter host.
-- Node payloads must provide an integer `cpu_threads` capacity value; missing, fractional, or malformed node/server capacity fields and incomplete pagination fail closed instead of advertising unverified capacity. Stock Pterodactyl does not expose this node field. Keep deployment paused until PR #22's explicit local `NodeCapacityPolicy` is rebased onto this reconciliation (or an equivalent trusted capacity source is installed).
+- Node payloads must provide an integer `cpu_threads` capacity value; missing, fractional, or malformed node/server capacity fields and incomplete pagination fail closed instead of advertising unverified capacity. Stock Pterodactyl does not expose this node field and uses zero server limits to mean unlimited, while this branch does not yet encrypt/migrate the stored API key. Keep deployment paused until PR #22 is fully rebased so its `NodeCapacityPolicy`, zero-as-unlimited rejection, and API-key encryption migration are all retained alongside every PR #23 safety and Wiki change. A partial CPU-only cherry-pick is not deployable.
 
 **Section sources**
 - [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)

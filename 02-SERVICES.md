@@ -101,8 +101,9 @@ class ResourceCalculationService
         // resource shapes before calculating totals. The fetch layer also
         // rejects duplicate node, server, and location identities so repeated
         // upstream records cannot distort capacity. Stock Pterodactyl has no
-        // node CPU-capacity field, so cpu_threads remains a fail-closed gate
-        // until the explicit local NodeCapacityPolicy is rebased from PR #22.
+        // node CPU-capacity field, so cpu_threads remains a fail-closed gate.
+        // Production also requires PR #22's zero-as-unlimited rejection and
+        // API-key encryption migration; the full PR must be safely rebased.
         return $this->buildNodeAvailabilityFromServers($node, $servers, $pendingReservations);
     }
     

@@ -71,8 +71,8 @@ All dp-NN backlog items are implemented. The active reconciliation is staged on 
 **Working on**: Draft PR #23 reconciliation and Wiki verification
 **Status**: Panel changes are preserved on the reconciliation branch; Qoder Wiki pages are migrated to GitHub Wiki and refreshed for the final batched location API flow.
 **Current file**: PROGRESS.md
-**Next action**: Complete exact-SHA review, then rebase PR #22's explicit `NodeCapacityPolicy` onto this reconciliation before any production merge or deployment. Resume Mutagen only as a separately authorized deployment step.
-**Blockers**: Stock Pterodactyl does not expose node CPU capacity, so PR #23 must not deploy alone. PR #22 overlaps this reconciliation and must be rebased while preserving the hardened test guard, sanitized errors, and Wiki changes. No CI checks are configured on PR #23.
+**Next action**: Complete exact-SHA review, then fully rebase PR #22 onto this reconciliation before any production merge or deployment. The rebase must retain its explicit `NodeCapacityPolicy`, rejection of Pterodactyl's zero-as-unlimited resource limits, and API-key encryption migration while preserving every PR #23 safety and Wiki change. Resume Mutagen only as a separately authorized deployment step.
+**Blockers**: PR #23 must not deploy alone. Stock Pterodactyl does not expose node CPU capacity, uses zero resource limits to mean unlimited, and this branch does not yet encrypt/migrate the stored API key. PR #22 supplies all three protections but overlaps this reconciliation, so it must be fully rebased rather than partially cherry-picked or merged unchanged. No CI checks are configured on PR #23.
 
 ### This Session's Changes:
 
