@@ -63,7 +63,7 @@ RCS --> PTERO
 - NodeSelectionService: Implements best-fit selection using weighted headroom scoring and filters out unsuitable nodes.
 - ResourceCalculationService: Provides real-time per-location and per-node availability by querying Pterodactyl and aggregating server allocations and pending reservations.
 - ReservationService: Orchestrates reservation creation and calls NodeSelectionService to pick a node; enforces pessimistic locking and idempotency.
-- AvailabilityController: Exposes safe customer-facing endpoints that return aggregate capacity and node counts without exposing raw node identifiers or FQDNs.
+- AvailabilityController: Exposes aggregate-only customer availability plus a separately authorized admin endpoint for raw node details.
 
 Key responsibilities:
 - NodeSelectionService: Evaluate candidates, compute scores, and return the best node or null if none qualify.
@@ -207,12 +207,12 @@ Flow highlights:
 - [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
 
 ### Integration with AvailabilityController
-AvailabilityController provides safe, customer-facing endpoints:
+AvailabilityController provides separate customer and administrator surfaces:
 - getByLocation(locationId): returns max allocatable resources and whether the location has capacity across memory, CPU, and disk. It does not expose node names or FQDNs.
-- getNodes(locationId): returns availability data for the location; while it includes node arrays internally, the controller’s contract ensures only aggregate metrics are surfaced to clients.
+- getNodes(locationId): is admin-only (web + auth + EnsureUserIsAdmin + throttle) and returns raw per-node availability for internal monitoring.
 
 Usage of NodeSelectionService:
-- getMaxAvailable(locationId) is used to determine per-location maximums for capacity checks.
+- getMaxAvailable(locationId, locationData) reads per-location maximums from the already fetched snapshot, avoiding a second panel request.
 
 **Section sources**
 - [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)

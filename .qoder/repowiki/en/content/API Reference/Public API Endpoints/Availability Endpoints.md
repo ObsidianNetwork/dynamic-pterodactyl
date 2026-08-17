@@ -51,7 +51,7 @@ Security --> Response["Secure JSON Response<br/>No Node Details"]
 **Diagram sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
 - [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
+- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 
 **Section sources**
@@ -74,7 +74,7 @@ Key responsibilities:
 **Section sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
 - [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
+- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 
 ## Architecture Overview
@@ -98,7 +98,7 @@ C->>R : GET /api/dynamic-pterodactyl/availability/{locationId}
 R->>M : Apply web, auth, throttle : 30,1
 M-->>A : Proceed if authenticated and within limit
 A->>S : getLocationAvailability(locationId)
-S->>P : Batched calls to list nodes/servers
+S->>P : GET /locations/{id}?include=nodes,servers
 P-->>S : Node and server data
 S-->>A : Aggregated location data including nodes[]
 A->>N : getMaxAvailable(locationId, locationData)
@@ -110,7 +110,7 @@ A-->>C : {success, data : {location_id, max_memory, max_cpu, max_disk, node_coun
 **Diagram sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
 - [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
+- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 
 ## Detailed Component Analysis
@@ -219,7 +219,7 @@ ForEachNode --> |No| ReturnData["Return {location_id, nodes[], max_available, to
 - [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 **Section sources**
-- [NodeSelectionService.php:78-90](file://Services/NodeSelectionService.php#L78-L90)
+- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 - [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
