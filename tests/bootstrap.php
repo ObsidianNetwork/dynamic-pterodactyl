@@ -26,15 +26,23 @@ $db = getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? '');
 $connection = getenv('DB_CONNECTION') ?: ($_ENV['DB_CONNECTION'] ?? '');
 $appEnvironment = getenv('APP_ENV') ?: ($_ENV['APP_ENV'] ?? '');
 
-if (! \Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestDatabaseGuard::claim(
+$claimedDatabase = \Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestDatabaseGuard::claim(
     $db,
     $connection,
     $appEnvironment,
-)) {
+);
+
+if ($claimedDatabase === null) {
     fwrite(STDERR, "ABORT: phpunit would run against DB_DATABASE='$db'. "
-        . "Expected 'paymenter_test', ':memory:', or a new system-temp dynamic-pterodactyl-test-*/database.sqlite path claimed by this process. "
+        . "Expected 'paymenter_test', ':memory:', or ':temporary:' for an internally generated standalone SQLite database. "
         . "See .sisyphus/notepads/dp-11-authorization-surface-reduction/incidents.md.\n");
     exit(2);
+}
+
+if ($claimedDatabase !== $db) {
+    putenv("DB_DATABASE={$claimedDatabase}");
+    $_ENV['DB_DATABASE'] = $claimedDatabase;
+    $_SERVER['DB_DATABASE'] = $claimedDatabase;
 }
 
 require __DIR__ . '/TestCase.php';

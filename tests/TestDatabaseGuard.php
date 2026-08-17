@@ -7,53 +7,54 @@ final class TestDatabaseGuard
     /** @var array<string, resource> */
     private static array $claimedDatabaseHandles = [];
 
-    public static function claim(string $database, string $connection, string $environment): bool
+    private static bool $cleanupRegistered = false;
+
+    public static function claim(string $database, string $connection, string $environment): ?string
     {
         if ($environment !== 'testing') {
-            return false;
+            return null;
         }
 
         if ($database === 'paymenter_test') {
-            return in_array($connection, ['mysql', 'mariadb'], true);
+            return in_array($connection, ['mysql', 'mariadb'], true) ? $database : null;
         }
 
         if ($connection !== 'sqlite') {
-            return false;
+            return null;
         }
 
         if ($database === ':memory:') {
-            return true;
+            return $database;
         }
 
-        return self::claimDisposableSqliteDatabase($database);
+        if ($database !== ':temporary:') {
+            return null;
+        }
+
+        return self::claimDisposableSqliteDatabase();
     }
 
-    private static function claimDisposableSqliteDatabase(string $database): bool
+    private static function claimDisposableSqliteDatabase(): ?string
     {
-        $databaseDirectory = dirname($database);
-        $directoryParent = realpath(dirname($databaseDirectory));
         $temporaryDirectory = realpath(sys_get_temp_dir());
-
-        if ($directoryParent === false
-            || $temporaryDirectory === false
-            || ! self::pathsEqual($directoryParent, $temporaryDirectory)
-            || preg_match('/^dynamic-pterodactyl-test-[a-z0-9-]+$/i', basename($databaseDirectory)) !== 1
-            || basename($database) !== 'database.sqlite'
-        ) {
-            return false;
+        if ($temporaryDirectory === false) {
+            return null;
         }
 
+        $databaseDirectory = $temporaryDirectory.DIRECTORY_SEPARATOR
+            .'dynamic-pterodactyl-test-'.bin2hex(random_bytes(16));
         if (! @mkdir($databaseDirectory, 0700)) {
-            return false;
+            return null;
         }
 
         $resolvedDirectory = realpath($databaseDirectory);
         if ($resolvedDirectory === false || ! self::pathsEqual(dirname($resolvedDirectory), $temporaryDirectory)) {
             @rmdir($databaseDirectory);
 
-            return false;
+            return null;
         }
 
+        $database = $resolvedDirectory.DIRECTORY_SEPARATOR.'database.sqlite';
         $handle = @fopen($database, 'x+b');
         $fileStatus = $handle === false ? false : fstat($handle);
 
@@ -64,12 +65,29 @@ final class TestDatabaseGuard
             @unlink($database);
             @rmdir($databaseDirectory);
 
-            return false;
+            return null;
         }
 
         self::$claimedDatabaseHandles[$database] = $handle;
+        if (! self::$cleanupRegistered) {
+            register_shutdown_function(static function (): void {
+                self::releaseClaims();
+            });
+            self::$cleanupRegistered = true;
+        }
 
-        return true;
+        return $database;
+    }
+
+    private static function releaseClaims(): void
+    {
+        foreach (self::$claimedDatabaseHandles as $database => $handle) {
+            fclose($handle);
+            @unlink($database);
+            @rmdir(dirname($database));
+        }
+
+        self::$claimedDatabaseHandles = [];
     }
 
     private static function pathsEqual(string $left, string $right): bool
