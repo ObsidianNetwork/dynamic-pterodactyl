@@ -59,6 +59,7 @@ class WebhookEndpointPolicyTest extends TestCase
             'deprecated relay IPv4' => ['https://192.88.99.1/path', ['192.88.99.1']],
             'loopback IPv6' => ['https://[::1]/path', ['::1']],
             'IPv4-compatible IPv6' => ['https://hooks.example.com/path', ['::7f00:1']],
+            'IANA dummy IPv6' => ['https://hooks.example.com/path', ['100:0:0:1::1']],
             'reserved IPv4' => ['https://hooks.example.com/path', ['203.0.113.10']],
             'multicast IPv4' => ['https://hooks.example.com/path', ['224.0.0.1']],
             'documentation IPv6' => ['https://hooks.example.com/path', ['2001:db8::1']],
