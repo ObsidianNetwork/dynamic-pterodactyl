@@ -102,7 +102,7 @@ NSS-->>Caller : best node or null
 **Diagram sources**
 - [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 ## Detailed Component Analysis
 
@@ -185,7 +185,7 @@ Error handling and resilience:
 
 **Section sources**
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
 - [ResourceCalculationServiceTest.php:53-139](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
 

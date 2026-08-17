@@ -56,8 +56,8 @@ class ResourceCalculationService
             'total_allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
         ];
         
-        foreach ($nodes as $node) {
-            $nodeAvailability = $this->calculateNodeAvailability($node);
+        foreach ($nodes as $nodeWithServers) {
+            $nodeAvailability = $this->calculateNodeAvailability($nodeWithServers);
             $locationData['nodes'][] = $nodeAvailability;
             
             // Track maximum available across all nodes
@@ -90,9 +90,10 @@ class ResourceCalculationService
     /**
      * Calculate available resources for a specific node
      */
-    public function calculateNodeAvailability(array $node): array
+    public function calculateNodeAvailability(array $nodeWithServers): array
     {
-        $servers = $this->fetchServersOnNode($node['id']);
+        $node = $nodeWithServers['node'];
+        $servers = $nodeWithServers['servers'];
         
         // Sum allocated resources from all servers
         $allocated = ['memory' => 0, 'cpu' => 0, 'disk' => 0];
@@ -227,36 +228,25 @@ class ResourceCalculationService
             'Authorization' => 'Bearer ' . $this->apiKey,
             'Accept' => 'application/json',
             'Content-Type' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/nodes", [
-            'filter[location_id]' => $locationId,
-            'per_page' => 100,
+        ])->get("{$this->apiUrl}/api/application/locations/{$locationId}", [
+            'include' => 'nodes,servers',
         ]);
         
         if (!$response->successful()) {
-            throw new \RuntimeException('Failed to fetch nodes: ' . $response->body());
+            throw new \RuntimeException('Failed to fetch location: ' . $response->body());
         }
-        
-        return collect($response->json('data', []))
-            ->map(fn($node) => $node['attributes'])
-            ->toArray();
-    }
-    
-    private function fetchServersOnNode(int $nodeId): array
-    {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/nodes/{$nodeId}", [
-            'include' => 'servers',
-        ]);
-        
-        if (!$response->successful()) {
-            throw new \RuntimeException('Failed to fetch node details');
-        }
-        
-        return collect($response->json('attributes.relationships.servers.data', []))
+
+        $attributes = $response->json('attributes', []);
+        $serversByNode = collect(data_get($attributes, 'relationships.servers.data', []))
             ->map(fn($server) => $server['attributes'])
-            ->toArray();
+            ->groupBy('node');
+
+        return collect(data_get($attributes, 'relationships.nodes.data', []))
+            ->map(fn($node) => [
+                'node' => $node['attributes'],
+                'servers' => $serversByNode->get($node['attributes']['id'], collect())->values()->all(),
+            ])
+            ->all();
     }
     
     private function getPendingReservations(int $nodeId): array

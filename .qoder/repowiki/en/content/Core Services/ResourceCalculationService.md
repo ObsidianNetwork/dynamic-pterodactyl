@@ -89,11 +89,9 @@ participant HTTP as "HTTP Client"
 participant Ptero as "Pterodactyl API"
 participant DB as "Local DB"
 Caller->>RCS : getLocationAvailability(locationId[, token])
-RCS->>HTTP : GET /nodes?filter[location_id]
-HTTP-->>RCS : Nodes list
-loop per node
-RCS->>HTTP : GET /nodes/{id}?include=servers
-HTTP-->>RCS : Node + servers
+RCS->>HTTP : GET /locations/{id}?include=nodes,servers
+HTTP-->>RCS : Location with nodes and servers
+loop per included node
 RCS->>DB : SUM(pending reservations for node)
 DB-->>RCS : Reserved totals
 RCS->>RCS : Compute effective totals and available
@@ -150,7 +148,7 @@ Usage pattern example:
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [ResourceCalculationService.php:146-152](file://Services/ResourceCalculationService.php#L146-L152)
 - [ResourceCalculationService.php:226-245](file://Services/ResourceCalculationService.php#L226-L245)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
 
 ### Method: buildClusterSnapshot()
@@ -252,7 +250,6 @@ class ResourceCalculationService {
 -getPendingReservations(nodeId, excludeReservationToken) array
 -getPendingReservationsForNodes(nodeIds) array
 -fetchNodesInLocation(locationId) array
--fetchServersOnNode(nodeId) array
 -buildNodeAvailabilityFromServers(node, servers, pendingReservations) array
 -fetchAllLocations() array
 -fetchClusterNodes() array
@@ -316,7 +313,7 @@ External integrations:
 
 ## Performance Considerations
 - No caching: Real-time queries avoid staleness and overselling risks.
-- Batched API calls: buildClusterSnapshot() uses include=servers and paginated endpoints to minimize round trips while maintaining accuracy.
+- Batched API calls: getLocationAvailability() reads a location with include=nodes,servers in one request; buildClusterSnapshot() uses include=servers and paginated endpoints.
 - Timeouts and retries:
   - Default per-call timeout and connectTimeout protect against slow or hanging connections.
   - Retry only on transient connection errors; 429 and 5xx do not retry to respect upstream signals.

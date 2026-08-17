@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-20 reservation lifecycle close-out (shipped as part of dp-19)
-**Last Updated**: 2026-04-28
-**Last Session**: dp-20 audit pass confirmed all 4 changes (cart-clear race fix, confirm-return logging, cleanup cron, expires_at guard) were already implemented in dp-19 commit `a861479`. All 128 tests green. Plan closed out.
+**Phase**: Panel/GitHub reconciliation and Qoder Wiki refresh
+**Last Updated**: 2026-08-17
+**Last Session**: Preserved the dp-20 close-out, reconciled the location availability batching work, hardened the standalone Windows test database guard, and refreshed the Qoder/GitHub Wiki documentation for the batched `locations/{id}?include=nodes,servers` flow.
 
 ---
 
@@ -16,7 +16,7 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 > **For Claude**: Read this + "Current Session State" to quickly understand where we are.
 
-All documentation and scaffolding complete. 9 spec files + 4 support files (CLAUDE.md, DECISIONS.md, PROGRESS.md, CHANGELOG.md) + skeleton directory. Ready to begin Phase 1: Database migrations and core models. Start with 01-DATABASE.md.
+All dp-NN backlog items are implemented. The active reconciliation is staged on `agent/reconcile-dynamic-and-wiki` and published as draft PR #23. Mutagen deployment remains paused until review and merge.
 
 ---
 
@@ -67,11 +67,11 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-27
-**Working on**: No active task
-**Status**: dp-19 shipped. `dynamicSliderGroup` Alpine wired to reservation API; guest support via `checkout` middleware; `Cart::checkout()` confirms reservations with extension-disabled fallback. CodeRabbit findings fixed (Alpine x-data fallback + obsidian theme sync).
+**Last checkpoint**: 2026-08-17
+**Working on**: Draft PR #23 reconciliation and Wiki verification
+**Status**: Panel changes are preserved on the reconciliation branch; Qoder Wiki pages are migrated to GitHub Wiki and refreshed for the final batched location API flow.
 **Current file**: PROGRESS.md
-**Next action**: All dp-NN backlog items complete. Next work determined by driver.
+**Next action**: Complete exact-SHA review, then merge draft PR #23 when approved. Resume Mutagen only as a separately authorized deployment step.
 **Blockers**: None
 
 ### This Session's Changes:

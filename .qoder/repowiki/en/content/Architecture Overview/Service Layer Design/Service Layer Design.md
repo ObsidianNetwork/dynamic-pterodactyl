@@ -141,7 +141,7 @@ Aggregate --> Return(["Return location data"])
 **Diagram sources**
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [ResourceCalculationService.php:146-152](file://Services/ResourceCalculationService.php#L146-L152)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 **Section sources**
 - [ResourceCalculationService.php:26-222](file://Services/ResourceCalculationService.php#L26-L222)

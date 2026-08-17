@@ -137,7 +137,7 @@ Important notes:
 ### Environment Configuration Requirements
 Configure the following settings in the extension configuration:
 - pterodactyl_url: Full URL to your Pterodactyl panel.
-- pterodactyl_api_key: Application API key from Pterodactyl admin panel.
+- pterodactyl_api_key: Application API key from Pterodactyl admin panel with read access to Locations, Nodes, and Servers.
 - reservation_ttl: Minutes to hold reservations during checkout (default 15).
 
 Operational requirements:

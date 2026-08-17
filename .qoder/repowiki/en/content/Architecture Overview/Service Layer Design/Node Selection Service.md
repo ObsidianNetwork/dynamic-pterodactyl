@@ -90,8 +90,8 @@ C->>R : create(productId, locationId, resources)
 R->>D : BEGIN TRANSACTION + lockForUpdate(pending reservations)
 R->>N : selectBestNode(locationId, resources)
 N->>RC : getLocationAvailability(locationId)
-RC->>P : GET /nodes, /nodes/{id}?include=servers
-P-->>RC : node/server attributes
+RC->>P : GET /locations/{id}?include=nodes,servers
+P-->>RC : location, node, and server attributes
 RC->>D : SUM(pending reservations per node)
 RC-->>N : {nodes[], max_available}
 N-->>R : best node or null
@@ -184,7 +184,6 @@ class ResourceCalculationService {
 +verifyAvailability(nodeId, requirements, excludeToken) bool
 -calculateNodeAvailability(node, excludeToken) array
 -fetchNodesInLocation(locationId) array
--fetchServersOnNode(nodeId) array
 -getPendingReservations(nodeId, excludeToken) array
 }
 ```

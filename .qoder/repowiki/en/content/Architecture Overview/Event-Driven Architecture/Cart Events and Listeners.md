@@ -320,7 +320,7 @@ API integration:
 **Section sources**
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [ResourceCalculationService.php:198-214](file://Services/ResourceCalculationService.php#L198-L214)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
 
 ### Data Model and Schema

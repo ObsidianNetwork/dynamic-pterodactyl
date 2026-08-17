@@ -296,8 +296,7 @@ participant Ctrl as "AvailabilityController"
 participant ResCalc as "ResourceCalculationService"
 participant Ptero as "Pterodactyl API"
 Ctrl->>ResCalc : getLocationAvailability(locationId)
-ResCalc->>Ptero : GET /nodes?filter[location_id]=...
-ResCalc->>Ptero : GET /nodes/{id}?include=servers
+ResCalc->>Ptero : GET /locations/{id}?include=nodes,servers
 ResCalc->>ResCalc : buildNodeAvailabilityFromServers(...)
 ResCalc-->>Ctrl : {max_available, totals, allocated, nodes[]}
 ```

@@ -215,7 +215,7 @@ RSC-->>Controller : aggregated availability
 
 **Diagram sources**
 - [Services/ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [Services/ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [Services/ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [Services/ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
 
 **Section sources**

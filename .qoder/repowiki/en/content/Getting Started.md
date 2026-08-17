@@ -229,7 +229,7 @@ SliderCfg["SliderConfigReaderService"] --> ConfigOpt["ConfigOption (dynamic_slid
 
 ## Troubleshooting Guide
 Common setup issues and resolutions:
-- Missing Pterodactyl credentials: Ensure panel URL and API key are set in extension settings. Without them, availability checks and reservations cannot succeed.
+- Missing Pterodactyl credentials: Ensure the panel URL and an application API key with Locations, Nodes, and Servers read access are set in extension settings. Without all three permissions, availability checks and reservations cannot succeed.
 - No sliders appearing: Use the Setup Wizard to create dynamic_slider options for the product. Verify the product has at least one slider enabled.
 - Availability shows zero capacity: Confirm Pterodactyl nodes have headroom for the requested resources. Check the availability endpoint for the selected location.
 - Reservation not created on cart add: Ensure the product has dynamic_slider options and a location is selected. Errors are logged but do not block cart operations.

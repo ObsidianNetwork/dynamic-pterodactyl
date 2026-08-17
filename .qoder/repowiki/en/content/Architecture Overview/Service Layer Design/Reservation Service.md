@@ -267,11 +267,9 @@ participant ResSvc as "ResourceCalculationService"
 participant Ptero as "Pterodactyl API"
 participant DB as "Database"
 Caller->>ResSvc : getLocationAvailability(location_id)
-ResSvc->>Ptero : fetchNodesInLocation
-Ptero-->>ResSvc : nodes
-loop For each node
-ResSvc->>Ptero : fetchServersOnNode
-Ptero-->>ResSvc : servers
+ResSvc->>Ptero : GET /locations/{id}?include=nodes,servers
+Ptero-->>ResSvc : location with nodes and servers
+loop For each included node
 ResSvc->>DB : getPendingReservations(node_id)
 DB-->>ResSvc : reserved resources
 ResSvc->>ResSvc : buildNodeAvailabilityFromServers
@@ -281,13 +279,13 @@ ResSvc-->>Caller : locationData with nodes, max_available, totals
 
 **Diagram sources**
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
 
 **Section sources**
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [ResourceCalculationService.php:198-214](file://Services/ResourceCalculationService.php#L198-L214)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
 
 ### Data Model and Migration Evolution

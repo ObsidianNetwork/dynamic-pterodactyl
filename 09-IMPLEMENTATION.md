@@ -85,7 +85,7 @@ Improvement items from the 2026-04-26 audit pass:
 - **dp-14**: Rate-limit reservation endpoints to 10 req/min per authenticated user — ✅ Shipped (PR #17)
 - **dp-16**: Documentation sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture — ✅ Shipped (this PR)
 - **dp-17**: Alert delivery log + `AlertDeliveryFailed` escalation event — ✅ Shipped (PR #18)
-- **dp-18**: Capacity-fanout performance: batch Pterodactyl reads in `ResourceCalculationService` to reduce O(locations × nodes) API calls in admin views — Pending
+- **dp-18**: Capacity-fanout performance: batch Pterodactyl reads in `ResourceCalculationService` to reduce O(locations × nodes) API calls in admin views — ✅ Shipped (PR #20)
 
 ---
 

@@ -92,8 +92,7 @@ participant D as "Database"
 C->>R : GET /availability/{locationId}
 R->>A : getByLocation(locationId)
 A->>S : getLocationAvailability(locationId)
-S->>P : GET /nodes (filtered by location)
-S->>P : GET /nodes/{id}?include=servers
+S->>P : GET /locations/{id}?include=nodes,servers
 S->>D : SUM pending reservations per node
 S-->>A : Location availability + max available
 A-->>C : Aggregate capacity response

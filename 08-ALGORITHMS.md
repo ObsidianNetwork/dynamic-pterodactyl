@@ -145,7 +145,7 @@ CPU is NOT overallocated (uses thread count × 100).
 ┌─────────────────────────────────────────────────────────────────┐
 │                     Pterodactyl API                              │
 ├─────────────────────────────────────────────────────────────────┤
-│  GET /api/application/nodes/{id}?include=servers                │
+│  GET /api/application/locations/{id}?include=nodes,servers      │
 │                                                                  │
 │  Returns:                                                        │
 │  - node.memory (base capacity)                                  │

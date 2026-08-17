@@ -120,7 +120,7 @@ Symptoms:
 - Error logs show connection exceptions or HTTP error codes.
 
 Root causes:
-- Invalid or missing Pterodactyl URL or API key in extension settings.
+- Invalid or missing Pterodactyl URL or application API key, or missing read access to Locations, Nodes, or Servers.
 - Network connectivity issues or firewall restrictions.
 - Rate limiting (HTTP 429) from Pterodactyl.
 - Non-JSON or malformed responses.
@@ -131,7 +131,7 @@ Diagnostics:
 - Check throttling middleware on routes to ensure requests are not being rejected due to excessive frequency.
 
 Resolution steps:
-- Verify extension settings contain a valid panel URL and application API key.
+- Verify extension settings contain a valid panel URL and an application API key with Locations, Nodes, and Servers read access.
 - Confirm network access to the Pterodactyl panel host and port.
 - If encountering 429, reduce request frequency or adjust client retry/backoff behavior.
 - Review server logs for detailed error context when non-JSON payloads occur.
@@ -358,7 +358,7 @@ Diagnostics:
 
 ### Authentication Failures
 Steps:
-- Confirm the application API key has sufficient permissions in Pterodactyl.
+- Confirm the application API key has read access to Locations, Nodes, and Servers in Pterodactyl.
 - Verify Authorization header usage in internal calls.
 - Review logs for 4xx errors indicating invalid credentials.
 

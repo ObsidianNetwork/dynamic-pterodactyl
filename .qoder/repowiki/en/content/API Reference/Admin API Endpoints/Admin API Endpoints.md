@@ -175,7 +175,7 @@ Notes:
 - [api.php:32-40](file://routes/api.php#L32-L40)
 - [AdminCapacityController.php:17-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
 - [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
 
 ### Reservation Management: GET /api/dynamic-pterodactyl/admin/reservations

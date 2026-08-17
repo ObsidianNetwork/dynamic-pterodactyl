@@ -218,12 +218,12 @@ ForEachNode --> |No| ReturnData["Return {location_id, nodes[], max_available, to
 
 **Diagram sources**
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 **Section sources**
 - [NodeSelectionService.php:78-86](file://Services/NodeSelectionService.php#L78-L86)
 - [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 ### Middleware and Security
 - Web session and authentication:

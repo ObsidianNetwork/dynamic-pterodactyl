@@ -189,10 +189,8 @@ participant RCS as "ResourceCalculationService"
 participant H as "Http Client"
 participant DB as "Database"
 T->>RCS : getLocationAvailability(locationId, excludeToken?)
-RCS->>H : GET /api/application/nodes?filter[location_id]=...
-H-->>RCS : Nodes payload
-RCS->>H : GET /api/application/nodes/{id}?include=servers
-H-->>RCS : Servers payload
+RCS->>H : GET /api/application/locations/{id}?include=nodes,servers
+H-->>RCS : Location payload with nodes and servers
 RCS->>DB : Sum pending reservations by node
 DB-->>RCS : Reserved totals
 RCS-->>T : Availability with max_available and totals

@@ -280,7 +280,7 @@ API interaction:
 
 **Section sources**
 - [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
 
 ### AlertService: Shortfall Notifications

@@ -162,7 +162,7 @@ Integration points:
 
 **Section sources**
 - [ResourceCalculationService.php:23-222](file://Services/ResourceCalculationService.php#L23-L222)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:302-384](file://Services/ResourceCalculationService.php#L302-L384)
 - [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
 

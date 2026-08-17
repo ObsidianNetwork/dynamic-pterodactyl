@@ -345,12 +345,12 @@ G -- No --> I["Return false"]
 
 **Diagram sources**
 - [ResourceCalculationService.php:198-214](file://Services/ResourceCalculationService.php#L198-L214)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
 
 **Section sources**
 - [ResourceCalculationService.php:198-214](file://Services/ResourceCalculationService.php#L198-L214)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
 
 ### Audit Logging
