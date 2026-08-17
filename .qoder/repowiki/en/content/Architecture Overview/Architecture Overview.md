@@ -2,16 +2,17 @@
 
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/DynamicPterodactyl.php)
-- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/routes/api.php)
-- [Services/PterodactylInventoryService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Services/PterodactylInventoryService.php)
-- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Services/ResourceCalculationService.php)
-- [Services/ResourceQuoteService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Services/ResourceQuoteService.php)
-- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Services/ReservationService.php)
-- [Services/UpgradeReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Services/UpgradeReservationService.php)
-- [Models/NodeCapacityPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Models/NodeCapacityPolicy.php)
-- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Listeners/CartItemCreatedListener.php)
-- [Listeners/CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/Listeners/CartItemDeletedListener.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/DynamicPterodactyl.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/routes/api.php)
+- [Services/PterodactylInventoryService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Services/PterodactylInventoryService.php)
+- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Services/ResourceCalculationService.php)
+- [Services/ResourceQuoteService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Services/ResourceQuoteService.php)
+- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Services/ReservationService.php)
+- [Services/UpgradeReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Services/UpgradeReservationService.php)
+- [Services/WebhookEndpointPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Services/WebhookEndpointPolicy.php)
+- [Models/NodeCapacityPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Models/NodeCapacityPolicy.php)
+- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Listeners/CartItemCreatedListener.php)
+- [Listeners/CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/Listeners/CartItemDeletedListener.php)
 </cite>
 
 ## Reconciled Architecture
@@ -124,6 +125,9 @@ in Paymenter core.
   cleanup and reconciliation failures visible.
 - Customer responses never expose upstream bodies, API keys, node identities,
   or internal exception details.
+- Alert webhooks must use public HTTPS endpoints. Delivery revalidates every
+  resolved address, rejects non-public or mixed DNS answers, disables redirects
+  and proxies, and pins the connection to a validated address.
 - The test harness accepts only an explicitly named test database or the private
   `:temporary:` named-memory SQLite claim; production or shared databases are
   rejected before Paymenter boots.
@@ -132,9 +136,9 @@ in Paymenter core.
 
 For implementation-level detail, use these versioned repository guides:
 
-- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/02-SERVICES.md)
-- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/03-API.md)
-- [04-EVENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/04-EVENTS.md)
-- [09-IMPLEMENTATION.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/09-IMPLEMENTATION.md)
-- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/DECISIONS.md)
-- [PROGRESS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/PROGRESS.md)
+- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/02-SERVICES.md)
+- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/03-API.md)
+- [04-EVENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/04-EVENTS.md)
+- [09-IMPLEMENTATION.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/09-IMPLEMENTATION.md)
+- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/DECISIONS.md)
+- [PROGRESS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/PROGRESS.md)

@@ -16,14 +16,18 @@ by the cross-repository workflow. Before enabling dynamic stock:
    server moves, resizes, creates, or allocation assignments invalidate the
    reservation guarantee.
 5. Run the setup wizard, the cross-repository PHPUnit workflow, scheduler
-   heartbeat checks, and a read-only live inventory smoke test.
-6. Resume deployment synchronization only after the exact commits are reviewed
+   heartbeat checks, a read-only live inventory smoke test, and a real-panel
+   staging lifecycle canary covering checkout, payment, provisioning, upgrade,
+   renewal, cancellation, and recovery.
+6. Configure alert webhooks only to public HTTPS endpoints; delivery rejects
+   non-public or mixed DNS answers and does not follow redirects or proxies.
+7. Resume deployment synchronization only after the exact commits are reviewed
    and approved.
 
 The API key migration encrypts the stored credential. Customer errors remain
 generic; detailed upstream failures belong only in protected logs.
 
-[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/17322c63ab4033b10879cc6804a7827c22f92537/09-IMPLEMENTATION.md)
+[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/5ff9fd9328ed4fa6c167c2b2f2dc5296c0d87fb2/09-IMPLEMENTATION.md)
 
 
 <cite>
