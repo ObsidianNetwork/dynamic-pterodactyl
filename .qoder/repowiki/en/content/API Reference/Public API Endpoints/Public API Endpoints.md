@@ -80,7 +80,7 @@ ResSvc --> DB["Database (ptero_resource_reservations)"]
 - [Http/Controllers/Api/ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
 - [Http/Requests/StoreReservationRequest.php:38-113](file://Http/Requests/StoreReservationRequest.php#L38-L113)
 - [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Models/ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
+- [Models/ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
 - [Policies/ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Architecture Overview

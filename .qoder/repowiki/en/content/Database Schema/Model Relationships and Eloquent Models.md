@@ -73,24 +73,24 @@ M4 -.enum change.-> RR
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
-- [AlertConfig.php:8-57](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-34](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AuditLog.php:7-38](file://Models/AuditLog.php#L7-L37)
-- [AlertConfigObserver.php:8-70](file://Models/Observers/AlertConfigObserver.php#L8-L69)
-- [AuditLogService.php:10-83](file://Services/AuditLogService.php#L10-L82)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
+- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
+- [AuditLogService.php:10-82](file://Services/AuditLogService.php#L10-L82)
 - [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
 - [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
 - [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 - [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
 
 **Section sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
-- [AlertConfig.php:8-57](file://Models/AlertConfig.php#L8-L56)
-- [AuditLog.php:7-38](file://Models/AuditLog.php#L7-L37)
-- [AlertDeliveryLog.php:8-34](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AlertConfigObserver.php:8-70](file://Models/Observers/AlertConfigObserver.php#L8-L69)
-- [AuditLogService.php:10-83](file://Services/AuditLogService.php#L10-L82)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
+- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
+- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
+- [AuditLogService.php:10-82](file://Services/AuditLogService.php#L10-L82)
 - [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
 - [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
 - [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
@@ -109,11 +109,11 @@ Key behaviors:
 - AlertConfigObserver writes audit entries on create/update/delete, redacting sensitive webhook URLs before logging.
 
 **Section sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
-- [AlertConfig.php:8-57](file://Models/AlertConfig.php#L8-L56)
-- [AuditLog.php:7-38](file://Models/AuditLog.php#L7-L37)
-- [AlertDeliveryLog.php:8-34](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AlertConfigObserver.php:8-70](file://Models/Observers/AlertConfigObserver.php#L8-L69)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
+- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
+- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
 
 ## Architecture Overview
 The models interact through relationships and observers to enforce business rules and maintain auditability.
@@ -190,12 +190,12 @@ AuditLogService --> "AuditLog" : writes
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
-- [AlertConfig.php:8-57](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-34](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AuditLog.php:7-38](file://Models/AuditLog.php#L7-L37)
-- [AlertConfigObserver.php:8-70](file://Models/Observers/AlertConfigObserver.php#L8-L69)
-- [AuditLogService.php:10-83](file://Services/AuditLogService.php#L10-L82)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
+- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
+- [AuditLogService.php:10-82](file://Services/AuditLogService.php#L10-L82)
 
 ## Detailed Component Analysis
 
@@ -228,7 +228,7 @@ Best practices:
 - When updating status, ensure idempotency and avoid race conditions using pessimistic locking where appropriate.
 
 **Section sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
 - [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
 - [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
 - [ReservationService.php:296-330](file://Services/ReservationService.php#L296-L330)
@@ -272,9 +272,9 @@ Best practices:
 - Ensure webhook_url is never exposed in logs or responses; rely on observer redaction.
 
 **Section sources**
-- [AlertConfig.php:8-57](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-34](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AlertConfigObserver.php:8-70](file://Models/Observers/AlertConfigObserver.php#L8-L69)
+- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
 - [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
 
 #### AlertConfig Observer Sequence
@@ -324,8 +324,8 @@ Best practices:
 - Use getEntityHistory for UIs showing change timelines.
 
 **Section sources**
-- [AuditLog.php:7-38](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:10-83](file://Services/AuditLogService.php#L10-L82)
+- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [AuditLogService.php:10-82](file://Services/AuditLogService.php#L10-L82)
 - [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 ### Common Model Interactions and Best Practices

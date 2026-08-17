@@ -76,7 +76,7 @@ Responsibilities summary:
 - [ResourceCalculationService.php:26-222](file://Services/ResourceCalculationService.php#L26-L222)
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 - [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
 
 ## Architecture Overview
 The service uses a thin HTTP client wrapper around Pterodactyl’s Application API with retries on transient connection errors, strict timeouts, and sanitized error propagation. For cluster-wide snapshots, it batches node and server data retrieval to reduce API calls while preserving accuracy.
@@ -286,9 +286,9 @@ ResourceCalculationService --> ResourceReservation : "reads pending"
 
 **Diagram sources**
 - [ResourceCalculationService.php:10-545](file://Services/ResourceCalculationService.php#L10-L545)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [ReservationService.php:16-453](file://Services/ReservationService.php#L16-L453)
 - [NodeSelectionService.php:5-88](file://Services/NodeSelectionService.php#L5-L88)
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
+- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
 
 ## Dependency Analysis
 - External dependency: Pterodactyl Application API via HTTP client

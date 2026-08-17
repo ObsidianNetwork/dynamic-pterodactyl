@@ -239,7 +239,7 @@ ConfigOptionSetupService --> ConfigOption : "creates/updates"
 **Section sources**
 - [ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
 - [07-PRICING-MODELS.md:31-53](file://07-PRICING-MODELS.md#L31-L53)
-- [07-PRICING-MODELS.md:290-330](file://07-PRICING-MODELS.md#L290-L329)
+- [07-PRICING-MODELS.md:290-329](file://07-PRICING-MODELS.md#L290-L329)
 
 ### Example Slider Configuration Structures
 Typical structures produced by the service for frontend consumption:
@@ -377,4 +377,4 @@ SliderConfigReaderService provides a clean, read-only interface to dynamic slide
 
 **Section sources**
 - [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [07-PRICING-MODELS.md:290-330](file://07-PRICING-MODELS.md#L290-L329)
+- [07-PRICING-MODELS.md:290-329](file://07-PRICING-MODELS.md#L290-L329)

@@ -48,8 +48,8 @@ Controller --> Policy["ResourceReservationPolicy"]
 
 **Diagram sources**
 - [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
-- [ReservationService.php:43-454](file://Services/ReservationService.php#L43-L453)
+- [ReservationController.php:13-137](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [ReservationService.php:43-453](file://Services/ReservationService.php#L43-L453)
 - [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
 
 **Section sources**
@@ -73,7 +73,7 @@ Key responsibilities:
 - [routes/api.php:24-30](file://routes/api.php#L24-L30)
 - [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
 - [StoreReservationRequest.php:31-113](file://Http/Requests/StoreReservationRequest.php#L31-L113)
-- [ReservationService.php:43-454](file://Services/ReservationService.php#L43-L453)
+- [ReservationService.php:43-453](file://Services/ReservationService.php#L43-L453)
 - [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
 - [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
 
@@ -380,15 +380,15 @@ Service --> DB["Database"]
 
 **Diagram sources**
 - [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ReservationController.php:13-137](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [StoreReservationRequest.php:10-162](file://Http/Requests/StoreReservationRequest.php#L10-L162)
 - [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [ReservationService.php:16-453](file://Services/ReservationService.php#L16-L453)
 
 **Section sources**
 - [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-137](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [ReservationService.php:16-453](file://Services/ReservationService.php#L16-L453)
 
 ## Performance Considerations
 - Pessimistic locking: Uses lockForUpdate to prevent concurrent modifications during node selection and reservation creation.

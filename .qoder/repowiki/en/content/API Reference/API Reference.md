@@ -59,7 +59,7 @@ F --> I["AvailabilityController<br/>GET /availability/{locationId}/nodes"]
 - [routes/api.php:17-40](file://routes/api.php#L17-L40)
 
 **Section sources**
-- [routes/api.php:1-41](file://routes/api.php#L1-L40)
+- [routes/api.php:1-40](file://routes/api.php#L1-L40)
 
 ## Core Components
 - AvailabilityController: Returns per-location availability aggregates and, when authenticated as admin, detailed node information.
@@ -70,10 +70,10 @@ F --> I["AvailabilityController<br/>GET /availability/{locationId}/nodes"]
 
 **Section sources**
 - [AvailabilityController.php:9-70](file://Http/Controllers/Api/AvailabilityController.php#L9-L70)
-- [PricingController.php:12-158](file://Http/Controllers/Api/PricingController.php#L12-L157)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
-- [AdminCapacityController.php:8-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L62)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [PricingController.php:12-157](file://Http/Controllers/Api/PricingController.php#L12-L157)
+- [ReservationController.php:13-137](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminCapacityController.php:8-62](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L62)
+- [AdminReservationController.php:9-75](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
 
 ## Architecture Overview
 The API integrates with Paymenter core models and services and with the Pterodactyl panel via HTTP. Services encapsulate business logic and data aggregation.
@@ -204,7 +204,7 @@ Important:
 
 **Section sources**
 - [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [PricingController.php:24-158](file://Http/Controllers/Api/PricingController.php#L24-L157)
+- [PricingController.php:24-157](file://Http/Controllers/Api/PricingController.php#L24-L157)
 - [StoreReservationRequest.php:38-112](file://Http/Requests/StoreReservationRequest.php#L38-L112)
 
 #### Reservations
@@ -288,8 +288,8 @@ Notes:
 
 **Section sources**
 - [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:24-138](file://Http/Controllers/Api/ReservationController.php#L24-L137)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ReservationController.php:24-137](file://Http/Controllers/Api/ReservationController.php#L24-L137)
+- [StoreReservationRequest.php:10-162](file://Http/Requests/StoreReservationRequest.php#L10-L162)
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 - [ResourceReservationPolicy.php:25-58](file://Policies/ResourceReservationPolicy.php#L25-L58)
 
@@ -318,7 +318,7 @@ Notes:
 
 **Section sources**
 - [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminCapacityController.php:17-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L62)
+- [AdminCapacityController.php:17-62](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L62)
 - [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
 
 #### Admin Reservations
@@ -353,7 +353,7 @@ Notes:
 
 **Section sources**
 - [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L75)
+- [AdminReservationController.php:18-75](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L75)
 - [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
 
 ## Dependency Analysis
