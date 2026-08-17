@@ -72,7 +72,7 @@ All dp-NN backlog items are implemented. The completed successor is staged on `a
 **Status**: The full PR #22 rebase is complete with every PR #23 safety fix preserved. `NodeCapacityPolicy`, zero-as-unlimited rejection, API-key encryption/migration, strict inventory validation, sanitized errors, and the private SQLite test database guard are present. The cross-repository PHP 8.3/8.4 SQLite and MariaDB 11/12 matrix is configured and green at the last reviewed commit.
 **Current file**: PROGRESS.md
 **Next action**: Finish the fresh exact-SHA review, open the successor draft PR targeting `dynamic-slider`, and retain PR #22/#23 as superseded history until the replacement path is approved. Resume Mutagen only as a separately authorized deployment step after both repositories are merged and the migration checklist is complete.
-**Blockers**: Production deployment remains intentionally paused. The extension successor must ship with Paymenter companion PR #24, database backups and both migration sets, configured per-node capacity policies, confirmed exclusive provisioning control, and an approved deployment window.
+**Blockers**: Production deployment remains intentionally paused. The extension successor must ship with Paymenter companion PR #24, database backups and both migration sets, configured per-node capacity policies, confirmed exclusive provisioning control, a successful real-panel staging lifecycle canary, and an approved deployment window.
 
 ### This Session's Changes:
 
@@ -202,7 +202,8 @@ See 09-IMPLEMENTATION.md for full phase breakdown.
 Production deployment is intentionally paused pending approval and merge of the
 extension successor and Paymenter companion PR #24, database backups and both
 migration sets, configured per-node capacity policies, confirmed exclusive
-provisioning control, and an approved deployment window.
+provisioning control, a successful real-panel staging lifecycle canary, and an
+approved deployment window.
 
 <!-- 
 Format for blockers:
