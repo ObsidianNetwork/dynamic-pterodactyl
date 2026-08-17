@@ -27,7 +27,7 @@ by the cross-repository workflow. Before enabling dynamic stock:
 The API key and alert webhook migrations encrypt stored credentials. Customer
 errors remain generic; detailed upstream failures belong only in protected logs.
 
-[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/09-IMPLEMENTATION.md)
+[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/09-IMPLEMENTATION.md)
 
 
 <cite>

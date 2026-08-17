@@ -15,7 +15,7 @@ companion lifecycle. The reconciled extension does not register
 cleanup, reconciliation, capacity alerts, and scheduler-lag checks are
 registered from `DynamicPterodactyl::boot()`.
 
-[Current event guide](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/04-EVENTS.md)
+[Current event guide](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/04-EVENTS.md)
 
 
 <cite>

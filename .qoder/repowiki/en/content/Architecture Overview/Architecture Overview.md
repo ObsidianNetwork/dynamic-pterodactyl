@@ -2,17 +2,17 @@
 
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/DynamicPterodactyl.php)
-- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/routes/api.php)
-- [Services/PterodactylInventoryService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Services/PterodactylInventoryService.php)
-- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Services/ResourceCalculationService.php)
-- [Services/ResourceQuoteService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Services/ResourceQuoteService.php)
-- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Services/ReservationService.php)
-- [Services/UpgradeReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Services/UpgradeReservationService.php)
-- [Services/WebhookEndpointPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Services/WebhookEndpointPolicy.php)
-- [Models/NodeCapacityPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Models/NodeCapacityPolicy.php)
-- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Listeners/CartItemCreatedListener.php)
-- [Listeners/CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/Listeners/CartItemDeletedListener.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/DynamicPterodactyl.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/routes/api.php)
+- [Services/PterodactylInventoryService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Services/PterodactylInventoryService.php)
+- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Services/ResourceCalculationService.php)
+- [Services/ResourceQuoteService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Services/ResourceQuoteService.php)
+- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Services/ReservationService.php)
+- [Services/UpgradeReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Services/UpgradeReservationService.php)
+- [Services/WebhookEndpointPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Services/WebhookEndpointPolicy.php)
+- [Models/NodeCapacityPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Models/NodeCapacityPolicy.php)
+- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Listeners/CartItemCreatedListener.php)
+- [Listeners/CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/Listeners/CartItemDeletedListener.php)
 </cite>
 
 ## Reconciled Architecture
@@ -23,6 +23,11 @@ upgrade, and lifecycle remediation. The remaining Qoder pages are preserved so
 their useful operational and historical detail is not lost. When an older page
 mentions a retired controller, listener, or API shape, this page and the current
 source take precedence.
+
+The source links on this canonical page pin the latest code-bearing predecessor.
+The metadata-only Qoder/Wiki publication commit is intentionally not
+self-pinned because its Git object ID does not exist until after its content
+has been committed.
 
 DynamicPterodactyl remains a companion to Paymenter's built-in Pterodactyl
 extension. Paymenter owns products, invoices, services, and provisioning. This
@@ -136,9 +141,9 @@ in Paymenter core.
 
 For implementation-level detail, use these versioned repository guides:
 
-- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/02-SERVICES.md)
-- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/03-API.md)
-- [04-EVENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/04-EVENTS.md)
-- [09-IMPLEMENTATION.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/09-IMPLEMENTATION.md)
-- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/DECISIONS.md)
-- [PROGRESS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/a9153bb6ebb0cea3f0fe936730b9406dbef8a2b8/PROGRESS.md)
+- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/02-SERVICES.md)
+- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/03-API.md)
+- [04-EVENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/04-EVENTS.md)
+- [09-IMPLEMENTATION.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/09-IMPLEMENTATION.md)
+- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/DECISIONS.md)
+- [PROGRESS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/39a161a75a73663b9358fe8a381b5144d7ae316e/PROGRESS.md)

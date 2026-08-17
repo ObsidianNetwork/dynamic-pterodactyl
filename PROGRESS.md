@@ -18,6 +18,11 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 All dp-NN backlog items are implemented. The completed successor is staged on `agent/rebase-pr22-on-pr23`; original draft PR #22 and prerequisite draft PR #23 remain unchanged for history. The exact Paymenter companion is published as draft PR #24. Mutagen deployment remains paused until the successor and companion are reviewed, merged, and separately authorized for deployment.
 
+The Qoder metadata and canonical Wiki source links pin the latest code-bearing
+predecessor. The later publication commit is intentionally not self-pinned:
+its Git object ID cannot be known until the content containing that ID has
+already been committed.
+
 ---
 
 ## Completed
@@ -82,6 +87,7 @@ All dp-NN backlog items are implemented. The completed successor is staged on `a
 4. Replaced caller-selected SQLite test paths with the process-private `:temporary:` named-memory database workflow, including separate-process coverage.
 5. Pinned the audited Paymenter companion, added the cross-repository PHP/SQLite/MariaDB matrix, pinned third-party workflow actions to immutable commits, and completed a read-only live Pterodactyl inventory smoke test.
 6. Preserved all 42 migrated Qoder pages, marked superseded deep dives as historical, published the reconciled canonical architecture, and verified the standalone Wiki hierarchy, source links, and anchors.
+7. Redacted credential-bearing webhook transport failures from application logs and alert delivery history, with persisted failure-path coverage.
 
 ---
 
