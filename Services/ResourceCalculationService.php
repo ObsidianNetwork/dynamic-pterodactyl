@@ -336,7 +336,7 @@ class ResourceCalculationService
                 throw $exception;
             }
 
-            if ($exception->getMessage() !== 'Pterodactyl API returned an invalid servers relationship payload.') {
+            if ($exception->getMessage() !== 'Pterodactyl API returned a missing servers relationship payload.') {
                 throw $exception;
             }
 
@@ -408,13 +408,15 @@ class ResourceCalculationService
         $page = 1;
         $data = [];
         $expectedTotalPages = null;
+        $expectedPerPage = null;
+        $expectedTotal = null;
 
         while (true) {
             $payload = $this->pterodactylGet($path, array_merge($query, ['page' => $page]));
             if (! is_array($payload['data'] ?? null)) {
                 throw new \RuntimeException('Pterodactyl API returned an invalid paginated data payload.');
             }
-            $data = array_merge($data, $payload['data']);
+            $pageData = $payload['data'];
 
             $pagination = $payload['meta']['pagination'] ?? null;
             if (! is_array($pagination)) {
@@ -431,21 +433,52 @@ class ResourceCalculationService
                 FILTER_VALIDATE_INT,
                 ['options' => ['min_range' => 1]],
             );
-            if ($currentPage === false || $totalPages === false
+            $count = filter_var(
+                $pagination['count'] ?? null,
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 0]],
+            );
+            $perPage = filter_var(
+                $pagination['per_page'] ?? null,
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 1]],
+            );
+            $total = filter_var(
+                $pagination['total'] ?? null,
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 0]],
+            );
+            if ($currentPage === false || $totalPages === false || $count === false
+                || $perPage === false || $total === false
                 || $currentPage !== $page || $totalPages < $currentPage) {
                 throw new \RuntimeException('Pterodactyl API returned invalid pagination metadata.');
             }
 
             $expectedTotalPages ??= $totalPages;
-            if ($totalPages !== $expectedTotalPages) {
+            $expectedPerPage ??= $perPage;
+            $expectedTotal ??= $total;
+            if ($totalPages !== $expectedTotalPages || $perPage !== $expectedPerPage || $total !== $expectedTotal) {
                 throw new \RuntimeException('Pterodactyl API returned inconsistent pagination metadata.');
             }
 
+            $calculatedTotalPages = max(1, (int) ceil($total / $perPage));
+            $expectedCount = $currentPage < $totalPages
+                ? $perPage
+                : max(0, $total - ($perPage * ($currentPage - 1)));
+            if ($totalPages !== $calculatedTotalPages || $count !== count($pageData) || $count !== $expectedCount) {
+                throw new \RuntimeException('Pterodactyl API returned incomplete pagination data.');
+            }
+
+            $data = array_merge($data, $pageData);
             if ($currentPage === $totalPages) {
                 break;
             }
 
             $page = $currentPage + 1;
+        }
+
+        if (count($data) !== $expectedTotal) {
+            throw new \RuntimeException('Pterodactyl API returned incomplete pagination data.');
         }
 
         return $data;
@@ -478,7 +511,14 @@ class ResourceCalculationService
             ? $relationships[$relationship]
             : null;
 
-        if ($entry === null || ! is_array($entry['data'] ?? null)) {
+        if ($entry === null) {
+            throw new \RuntimeException(sprintf(
+                'Pterodactyl API returned a missing %s relationship payload.',
+                $relationship
+            ));
+        }
+
+        if (! is_array($entry['data'] ?? null)) {
             throw new \RuntimeException(sprintf(
                 'Pterodactyl API returned an invalid %s relationship payload.',
                 $relationship
@@ -500,6 +540,14 @@ class ResourceCalculationService
         $this->validateNodeAttributes($attributes);
         $attributes['id'] = (int) $attributes['id'];
         $attributes['location_id'] = (int) $attributes['location_id'];
+        foreach (['memory', 'disk', 'cpu_threads'] as $field) {
+            $attributes[$field] = (int) $attributes[$field];
+        }
+        foreach (['memory_overallocate', 'disk_overallocate'] as $field) {
+            if (array_key_exists($field, $attributes)) {
+                $attributes[$field] = (int) $attributes[$field];
+            }
+        }
 
         return $attributes;
     }
@@ -516,6 +564,9 @@ class ResourceCalculationService
         $this->validateServerAttributes($attributes);
         $attributes['id'] = (int) $attributes['id'];
         $attributes['node'] = (int) $attributes['node'];
+        foreach (['memory', 'cpu', 'disk'] as $field) {
+            $attributes['limits'][$field] = (int) $attributes['limits'][$field];
+        }
 
         return $attributes;
     }
@@ -529,7 +580,7 @@ class ResourceCalculationService
         }
 
         foreach (['memory', 'disk', 'cpu_threads'] as $field) {
-            if (! is_numeric($attributes[$field] ?? null) || (float) $attributes[$field] <= 0) {
+            if (! is_int($attributes[$field] ?? null) || $attributes[$field] < 1) {
                 throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
             }
         }
@@ -540,7 +591,7 @@ class ResourceCalculationService
         }
 
         foreach (['memory_overallocate', 'disk_overallocate'] as $field) {
-            if (array_key_exists($field, $attributes) && ! is_numeric($attributes[$field])) {
+            if (array_key_exists($field, $attributes) && ! is_int($attributes[$field])) {
                 throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
             }
         }
@@ -555,7 +606,7 @@ class ResourceCalculationService
         }
 
         foreach (['memory', 'cpu', 'disk'] as $field) {
-            if (! is_numeric($attributes['limits'][$field] ?? null) || (float) $attributes['limits'][$field] < 0) {
+            if (! is_int($attributes['limits'][$field] ?? null) || $attributes['limits'][$field] < 0) {
                 throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
             }
         }

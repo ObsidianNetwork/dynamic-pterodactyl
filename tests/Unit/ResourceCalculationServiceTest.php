@@ -39,7 +39,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'data' => [
                     ['attributes' => ['id' => 1, 'short' => 'us', 'long' => 'US East']],
                 ],
-                'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
             ], 200),
         ]);
 
@@ -315,6 +315,23 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->getLocationAvailability(1);
     }
 
+    public function test_location_availability_rejects_fractional_included_server_limits(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            servers: [['node' => 5, 'memory' => 1024, 'cpu' => 50.5, 'disk' => 5120]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid included server payload');
+
+        $this->service->getLocationAvailability(1);
+    }
+
     public function test_location_availability_rejects_server_for_unknown_node(): void
     {
         Http::fake($this->availabilityHttpFake(
@@ -397,6 +414,22 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->getLocationAvailability(1);
     }
 
+    public function test_location_availability_rejects_fractional_node_capacity(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192.5,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid included node payload');
+
+        $this->service->getLocationAvailability(1);
+    }
+
     public function test_snapshot_falls_back_when_included_servers_relationship_is_missing(): void
     {
         $calls = 0;
@@ -410,14 +443,14 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             if (str_contains($url, '/api/application/locations')) {
                 return Http::response([
                     'data' => [['attributes' => ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']]],
-                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                    'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
                 ], 200);
             }
 
             if (str_contains($url, '/api/application/nodes')) {
                 return Http::response([
                     'data' => [$node],
-                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                    'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
                 ], 200);
             }
 
@@ -430,7 +463,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                             'limits' => ['memory' => 1024, 'cpu' => 50, 'disk' => 5120],
                         ],
                     ]],
-                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                    'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
                 ], 200);
             }
 
@@ -441,6 +474,28 @@ class ResourceCalculationServiceTest extends LaravelTestCase
 
         $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $snapshot['nodes'][1]['allocated']);
         $this->assertSame(4, $calls);
+    }
+
+    public function test_snapshot_rejects_malformed_included_servers_relationship_without_fallback(): void
+    {
+        $calls = 0;
+        $node = $this->nodeWithServersPayload(1, 1, 'Node 1', []);
+        $node['attributes']['relationships']['servers']['data'] = 'not-an-array';
+
+        Http::fake($this->clusterSnapshotHttpFake(
+            $calls,
+            locations: [['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
+            nodePages: [[$node]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid servers relationship payload');
+
+        try {
+            $this->service->buildClusterSnapshot();
+        } finally {
+            $this->assertSame(2, $calls);
+        }
     }
 
     public function test_snapshot_with_single_location_single_node(): void
@@ -543,6 +598,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'meta' => [
                     'pagination' => [
                         'current_page' => 0,
+                        'count' => 0,
+                        'per_page' => 100,
+                        'total' => 0,
                         'total_pages' => 1,
                     ],
                 ],
@@ -567,6 +625,21 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->getLocations();
     }
 
+    public function test_get_locations_rejects_truncated_page_content(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'data' => [],
+                'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('incomplete pagination data');
+
+        $this->service->getLocations();
+    }
+
     public function test_get_locations_rejects_inconsistent_total_pages(): void
     {
         Http::fake(function ($request) {
@@ -585,6 +658,9 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'meta' => [
                     'pagination' => [
                         'current_page' => $page,
+                        'count' => 1,
+                        'per_page' => 1,
+                        'total' => 3,
                         'total_pages' => $page === 1 ? 3 : 2,
                     ],
                 ],
@@ -602,12 +678,30 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         Http::fake([
             'panel.example.com/*' => Http::response([
                 'data' => [['attributes' => ['id' => 1, 'short' => 'dc1']]],
-                'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
             ], 200),
         ]);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('invalid location payload');
+
+        $this->service->getLocations();
+    }
+
+    public function test_get_locations_rejects_duplicate_location_records(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'data' => [
+                    ['attributes' => ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
+                    ['attributes' => ['id' => 1, 'short' => 'dc1-copy', 'long' => 'Data Center 1 Copy']],
+                ],
+                'meta' => ['pagination' => $this->paginationMetadata(1, 1, 2, 100, 2)],
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('duplicate location');
 
         $this->service->getLocations();
     }
@@ -679,7 +773,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                     'data' => [
                         ['attributes' => ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
                     ],
-                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                    'meta' => ['pagination' => $this->paginationMetadata(1, 1, 1, 100, 1)],
                 ], 200);
             }
 
@@ -742,7 +836,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     private function availabilityHttpFake(
         int $nodeId,
         int $locationId,
-        int $totalMemory,
+        int|float $totalMemory,
         int $totalDisk,
         int $totalCpuThreads,
         array $servers = [],
@@ -833,12 +927,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
 
                 return Http::response([
                     'data' => array_map(fn (array $location) => ['attributes' => $location], $locationPages[$page - 1] ?? []),
-                    'meta' => [
-                        'pagination' => [
-                            'current_page' => $page,
-                            'total_pages' => count($locationPages),
-                        ],
-                    ],
+                    'meta' => ['pagination' => $this->paginationMetadataForPages($page, $locationPages)],
                 ], 200);
             }
 
@@ -847,12 +936,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
 
                 return Http::response([
                     'data' => $nodePages[$page - 1] ?? [],
-                    'meta' => [
-                        'pagination' => [
-                            'current_page' => $page,
-                            'total_pages' => count($nodePages),
-                        ],
-                    ],
+                    'meta' => ['pagination' => $this->paginationMetadataForPages($page, $nodePages)],
                 ], 200);
             }
 
@@ -863,6 +947,31 @@ class ResourceCalculationServiceTest extends LaravelTestCase
     private function isPaginatedPayload(array $payload): bool
     {
         return isset($payload[0]) && is_array($payload[0]) && array_is_list($payload[0]);
+    }
+
+    private function paginationMetadataForPages(int $page, array $pages): array
+    {
+        $perPage = max(1, count($pages[0] ?? []));
+        $total = array_sum(array_map('count', $pages));
+
+        return $this->paginationMetadata(
+            $page,
+            max(1, count($pages)),
+            count($pages[$page - 1] ?? []),
+            $perPage,
+            $total,
+        );
+    }
+
+    private function paginationMetadata(int $currentPage, int $totalPages, int $count, int $perPage, int $total): array
+    {
+        return [
+            'count' => $count,
+            'current_page' => $currentPage,
+            'per_page' => $perPage,
+            'total' => $total,
+            'total_pages' => $totalPages,
+        ];
     }
 
     private function nodeWithServersPayload(int $nodeId, int $locationId, string $name, array $servers): array
