@@ -89,6 +89,7 @@ already been committed.
 6. Preserved all 42 migrated Qoder pages, marked superseded deep dives as historical, published the reconciled canonical architecture, and verified the standalone Wiki hierarchy, source links, and anchors.
 7. Redacted credential-bearing webhook transport failures from application logs and alert delivery history, with persisted failure-path coverage.
 8. Extended the webhook public-address boundary to reject deprecated IPv6 site-local space (`fec0::/10`) before transport pinning.
+9. Rejected legacy IPv4-compatible IPv6 space (`::/96`), preventing embedded loopback/private IPv4 destinations from reaching transport pinning.
 
 ---
 
