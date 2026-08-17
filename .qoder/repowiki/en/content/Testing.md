@@ -111,7 +111,7 @@ sequenceDiagram
     participant L as "LaravelTestCase"
     participant S as "Service Under Test"
     participant E as "External System"
-    
+
     T->>B: "Load bootstrap"
     B-->>T: "Guard DB name; require base classes"
     T->>L: "createApplication()"
