@@ -504,21 +504,30 @@ class ResourceCalculationService
     private function requireRelationshipData(array $payload, string $relationship): array
     {
         $attributes = is_array($payload['attributes'] ?? null) ? $payload['attributes'] : [];
-        $relationships = is_array($attributes['relationships'] ?? null)
-            ? $attributes['relationships']
-            : [];
-        $entry = is_array($relationships[$relationship] ?? null)
-            ? $relationships[$relationship]
-            : null;
-
-        if ($entry === null) {
+        if (! array_key_exists('relationships', $attributes)) {
             throw new \RuntimeException(sprintf(
                 'Pterodactyl API returned a missing %s relationship payload.',
                 $relationship
             ));
         }
 
-        if (! is_array($entry['data'] ?? null)) {
+        $relationships = $attributes['relationships'];
+        if (! is_array($relationships)) {
+            throw new \RuntimeException(sprintf(
+                'Pterodactyl API returned an invalid %s relationship payload.',
+                $relationship
+            ));
+        }
+
+        if (! array_key_exists($relationship, $relationships)) {
+            throw new \RuntimeException(sprintf(
+                'Pterodactyl API returned a missing %s relationship payload.',
+                $relationship
+            ));
+        }
+
+        $entry = $relationships[$relationship];
+        if (! is_array($entry) || ! is_array($entry['data'] ?? null)) {
             throw new \RuntimeException(sprintf(
                 'Pterodactyl API returned an invalid %s relationship payload.',
                 $relationship

@@ -498,6 +498,28 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         }
     }
 
+    public function test_snapshot_rejects_malformed_included_servers_container_without_fallback(): void
+    {
+        $calls = 0;
+        $node = $this->nodeWithServersPayload(1, 1, 'Node 1', []);
+        $node['attributes']['relationships']['servers'] = 'not-an-array';
+
+        Http::fake($this->clusterSnapshotHttpFake(
+            $calls,
+            locations: [['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
+            nodePages: [[$node]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid servers relationship payload');
+
+        try {
+            $this->service->buildClusterSnapshot();
+        } finally {
+            $this->assertSame(2, $calls);
+        }
+    }
+
     public function test_snapshot_with_single_location_single_node(): void
     {
         $calls = 0;
