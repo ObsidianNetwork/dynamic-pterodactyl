@@ -3,6 +3,7 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Support\PanelEndpointIdentity;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Support\Facades\Http;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\PterodactylInventoryService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
@@ -653,6 +654,31 @@ class PterodactylInventoryServiceTest extends LaravelTestCase
             $paths,
             'The included allocation snapshot must avoid an N+1 node scan.'
         );
+    }
+
+    public function test_failed_inventory_response_is_sanitized_before_reporting(): void
+    {
+        $handler = \Mockery::mock(ExceptionHandler::class);
+        $handler->shouldReceive('report')->once()->with(\Mockery::on(
+            fn (\Throwable $exception): bool => $exception->getMessage()
+                === 'Pterodactyl inventory API error (500).'
+                && ! str_contains($exception->getMessage(), 'upstream-secret')
+        ));
+        $this->app->instance(
+            ExceptionHandler::class,
+            $handler
+        );
+
+        Http::fake([
+            '*' => Http::response('provider error token=upstream-secret', 500),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage(
+            'Pterodactyl inventory API error (500). Verify the application API key permissions.'
+        );
+
+        $this->inventory->locations();
     }
 
     public function test_legacy_allocation_only_acknowledgement_is_not_a_capacity_guarantee(): void

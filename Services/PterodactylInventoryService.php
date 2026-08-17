@@ -904,9 +904,8 @@ class PterodactylInventoryService
 
         if ($response->failed()) {
             \report(new \RuntimeException(sprintf(
-                'Pterodactyl inventory API error (%d) body: %s',
-                $response->status(),
-                $response->body()
+                'Pterodactyl inventory API error (%d).',
+                $response->status()
             )));
 
             throw new \RuntimeException(sprintf(
