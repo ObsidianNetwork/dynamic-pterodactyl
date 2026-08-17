@@ -35,7 +35,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: 8a9e4849f131795f430869128231f7a193bb8dcc
+          ref: 4bab39fa1ee8ae471a104efda15dd1ac037f209e
           path: paymenter
 
       - name: Set up PHP
@@ -80,6 +80,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php:
           - '8.3'
@@ -95,7 +96,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: 8a9e4849f131795f430869128231f7a193bb8dcc
+          ref: 4bab39fa1ee8ae471a104efda15dd1ac037f209e
           path: paymenter
 
       - name: Set up PHP
@@ -164,6 +165,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         php:
           - '8.3'
@@ -196,7 +198,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
-          ref: 8a9e4849f131795f430869128231f7a193bb8dcc
+          ref: 4bab39fa1ee8ae471a104efda15dd1ac037f209e
           path: paymenter
 
       - name: Set up PHP
