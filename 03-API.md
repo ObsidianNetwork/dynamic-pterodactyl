@@ -367,8 +367,8 @@ class AvailabilityController
     public function getByLocation(int $locationId): JsonResponse
     {
         try {
-            $maxAvailable = $this->nodeService->getMaxAvailable($locationId);
             $locationData = $this->resourceService->getLocationAvailability($locationId);
+            $maxAvailable = $this->nodeService->getMaxAvailable($locationId, $locationData);
             $resourceCapacity = [
                 'memory' => $maxAvailable['memory'] > 0,
                 'cpu' => $maxAvailable['cpu'] > 0,
@@ -387,11 +387,12 @@ class AvailabilityController
                     'resource_capacity' => $resourceCapacity,
                 ],
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch availability',
-                'error' => $e->getMessage(),
             ], 500);
         }
     }
@@ -405,7 +406,9 @@ class AvailabilityController
                 'success' => true,
                 'data' => $locationData,
             ]);
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch node details',

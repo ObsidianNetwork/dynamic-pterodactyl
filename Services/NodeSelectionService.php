@@ -78,9 +78,13 @@ class NodeSelectionService
     /**
      * Get maximum allocatable resources across a location
      */
-    public function getMaxAvailable(int $locationId): array
+    public function getMaxAvailable(int $locationId, ?array $locationData = null): array
     {
-        $locationData = $this->resourceService->getLocationAvailability($locationId);
+        $locationData ??= $this->resourceService->getLocationAvailability($locationId);
+        if (($locationData['location_id'] ?? null) !== $locationId
+            || ! is_array($locationData['max_available'] ?? null)) {
+            throw new \RuntimeException('Invalid location availability snapshot.');
+        }
 
         return $locationData['max_available'];
     }

@@ -110,7 +110,9 @@ class ResourceCalculationService
         // Formula: total * (1 + overallocate_percentage / 100)
         $effectiveMemory = $node['memory'] * (1 + ($node['memory_overallocate'] ?? 0) / 100);
         $effectiveDisk = $node['disk'] * (1 + ($node['disk_overallocate'] ?? 0) / 100);
-        $effectiveCpu = ($node['cpu_threads'] ?? 4) * 100; // No overallocation for CPU
+        // cpu_threads must come from an explicit panel customization or a local
+        // capacity policy. Stock Pterodactyl does not expose node CPU capacity.
+        $effectiveCpu = $node['cpu_threads'] * 100;
         
         // Calculate available (total - allocated - pending)
         $available = [
@@ -224,29 +226,43 @@ class ResourceCalculationService
     
     private function fetchNodesInLocation(int $locationId): array
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-            'Content-Type' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/locations/{$locationId}", [
+        $response = $this->pterodactylGet(
+            "/api/application/locations/{$locationId}",
+            [
             'include' => 'nodes,servers',
-        ]);
-        
-        if (!$response->successful()) {
-            throw new \RuntimeException('Failed to fetch location: ' . $response->body());
+            ]
+        );
+
+        $nodesData = $this->requireRelationshipData($response, 'nodes');
+        $serversData = $this->requireRelationshipData($response, 'servers');
+
+        $nodesById = [];
+        foreach ($nodesData as $node) {
+            $attributes = $this->requireNodeAttributes($node);
+            if ($attributes['location_id'] !== $locationId) {
+                throw new \RuntimeException('Pterodactyl API returned a node for an unexpected location.');
+            }
+            $nodesById[$attributes['id']] = $attributes;
         }
 
-        $attributes = $response->json('attributes', []);
-        $serversByNode = collect(data_get($attributes, 'relationships.servers.data', []))
-            ->map(fn($server) => $server['attributes'])
-            ->groupBy('node');
+        $serversByNode = [];
+        foreach ($serversData as $server) {
+            $attributes = $this->requireServerAttributes($server);
+            if (! array_key_exists($attributes['node'], $nodesById)) {
+                throw new \RuntimeException('Pterodactyl API returned a server for an unknown included node.');
+            }
+            $serversByNode[$attributes['node']][] = $attributes;
+        }
 
-        return collect(data_get($attributes, 'relationships.nodes.data', []))
-            ->map(fn($node) => [
-                'node' => $node['attributes'],
-                'servers' => $serversByNode->get($node['attributes']['id'], collect())->values()->all(),
-            ])
-            ->all();
+        $nodes = [];
+        foreach ($nodesById as $nodeId => $attributes) {
+            $nodes[] = [
+                'node' => $attributes,
+                'servers' => $serversByNode[$nodeId] ?? [],
+            ];
+        }
+
+        return $nodes;
     }
     
     private function getPendingReservations(int $nodeId): array

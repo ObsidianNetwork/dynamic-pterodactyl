@@ -83,13 +83,16 @@ class AvailabilityApiTest extends LaravelTestCase
         /** @var User $user */
         $user = User::factory()->create();
 
-        $nodeService = Mockery::mock(NodeSelectionService::class);
-        $nodeService->shouldReceive('getMaxAvailable')
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')
             ->once()
             ->with(1)
             ->andThrow(new \RuntimeException('panel-internal-host:8080 failed'));
+        $this->app->instance(ResourceCalculationService::class, $resourceService);
+
+        $nodeService = Mockery::mock(NodeSelectionService::class);
+        $nodeService->shouldNotReceive('getMaxAvailable');
         $this->app->instance(NodeSelectionService::class, $nodeService);
-        $this->app->instance(ResourceCalculationService::class, Mockery::mock(ResourceCalculationService::class));
 
         $response = $this->actingAs($user)->getJson('/api/dynamic-pterodactyl/availability/1');
 
@@ -102,10 +105,16 @@ class AvailabilityApiTest extends LaravelTestCase
 
     private function bindAvailabilityServices(array $maxAvailable): void
     {
+        $locationData = [
+            'location_id' => 1,
+            'nodes' => [['node_id' => 1, 'name' => 'Node 1']],
+            'max_available' => $maxAvailable,
+        ];
+
         $nodeService = Mockery::mock(NodeSelectionService::class);
         $nodeService->shouldReceive('getMaxAvailable')
             ->once()
-            ->with(1)
+            ->with(1, $locationData)
             ->andReturn($maxAvailable);
         $this->app->instance(NodeSelectionService::class, $nodeService);
 
@@ -113,10 +122,7 @@ class AvailabilityApiTest extends LaravelTestCase
         $resourceService->shouldReceive('getLocationAvailability')
             ->once()
             ->with(1)
-            ->andReturn([
-                'location_id' => 1,
-                'nodes' => [['node_id' => 1, 'name' => 'Node 1']],
-            ]);
+            ->andReturn($locationData);
         $this->app->instance(ResourceCalculationService::class, $resourceService);
     }
 }

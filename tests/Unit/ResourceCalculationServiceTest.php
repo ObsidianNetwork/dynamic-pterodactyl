@@ -331,6 +331,23 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->getLocationAvailability(1);
     }
 
+    public function test_location_availability_rejects_node_from_another_location(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            includedNodeLocationId: 2,
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('unexpected location');
+
+        $this->service->getLocationAvailability(1);
+    }
+
     public function test_location_availability_rejects_node_without_cpu_threads(): void
     {
         Http::fake([
@@ -491,6 +508,26 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertLessThanOrEqual(4, $calls);
     }
 
+    public function test_get_locations_rejects_non_advancing_pagination_metadata(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'data' => [],
+                'meta' => [
+                    'pagination' => [
+                        'current_page' => 0,
+                        'total_pages' => 1,
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid pagination metadata');
+
+        $this->service->getLocations();
+    }
+
     public function test_snapshot_handles_pterodactyl_5xx_gracefully(): void
     {
         $calls = 0;
@@ -570,9 +607,10 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         int $totalCpuThreads,
         array $servers = [],
         array $additionalNodeIds = [],
+        ?int $includedNodeLocationId = null,
     ): callable
     {
-        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads, $servers, $additionalNodeIds) {
+        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads, $servers, $additionalNodeIds, $includedNodeLocationId) {
             $url = $request->url();
             $query = [];
             parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
@@ -591,7 +629,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                                     'object' => 'node',
                                     'attributes' => [
                                         'id' => $includedNodeId,
-                                        'location_id' => $locationId,
+                                        'location_id' => $includedNodeLocationId ?? $locationId,
                                         'name' => 'Node '.$includedNodeId,
                                         'fqdn' => 'node-'.$includedNodeId.'.example.com',
                                         'memory' => $totalMemory,

@@ -22,8 +22,8 @@ class AvailabilityController
     public function getByLocation(int $locationId): JsonResponse
     {
         try {
-            $maxAvailable = $this->nodeService->getMaxAvailable($locationId);
             $locationData = $this->resourceService->getLocationAvailability($locationId);
+            $maxAvailable = $this->nodeService->getMaxAvailable($locationId, $locationData);
             $resourceCapacity = [
                 'memory' => $maxAvailable['memory'] > 0,
                 'cpu' => $maxAvailable['cpu'] > 0,

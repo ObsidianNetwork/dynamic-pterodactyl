@@ -237,6 +237,9 @@ class ResourceCalculationService
         $nodesById = [];
         foreach ($nodesData as $node) {
             $attributes = $this->requireNodeAttributes($node);
+            if ($attributes['location_id'] !== $locationId) {
+                throw new \RuntimeException('Pterodactyl API returned a node for an unexpected location.');
+            }
             $nodesById[$attributes['id']] = $attributes;
         }
 
@@ -404,8 +407,11 @@ class ResourceCalculationService
 
             $currentPage = (int) ($pagination['current_page'] ?? $page);
             $totalPages = (int) ($pagination['total_pages'] ?? $currentPage);
+            if ($currentPage !== $page || $totalPages < 1 || $totalPages < $currentPage) {
+                throw new \RuntimeException('Pterodactyl API returned invalid pagination metadata.');
+            }
 
-            if ($currentPage >= $totalPages || $totalPages === 0) {
+            if ($currentPage === $totalPages) {
                 break;
             }
 

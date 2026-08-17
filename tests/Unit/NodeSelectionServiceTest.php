@@ -324,6 +324,7 @@ class NodeSelectionServiceTest extends LaravelTestCase
         $this->mockResourceService->shouldReceive('getLocationAvailability')
             ->with(1)
             ->andReturn([
+                'location_id' => 1,
                 'nodes' => [],
                 'max_available' => $expected,
             ]);
@@ -331,6 +332,24 @@ class NodeSelectionServiceTest extends LaravelTestCase
         $result = $this->service->getMaxAvailable(1);
 
         $this->assertEquals($expected, $result);
+    }
+
+    public function test_get_max_available_reuses_preloaded_location_snapshot(): void
+    {
+        $expected = [
+            'memory' => 16384,
+            'cpu' => 800,
+            'disk' => 102400,
+        ];
+        $this->mockResourceService->shouldNotReceive('getLocationAvailability');
+
+        $result = $this->service->getMaxAvailable(1, [
+            'location_id' => 1,
+            'nodes' => [],
+            'max_available' => $expected,
+        ]);
+
+        $this->assertSame($expected, $result);
     }
 
     /**
