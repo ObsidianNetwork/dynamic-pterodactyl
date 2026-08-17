@@ -60,10 +60,8 @@ class AlertService
                         function (int $alertConfigId) use (
                             $schedulerHealth
                         ): bool {
-                            $config = DB::table(
-                                'ptero_alert_configs'
-                            )
-                                ->where('id', $alertConfigId)
+                            $config = AlertConfig::query()
+                                ->whereKey($alertConfigId)
                                 ->where('is_active', true)
                                 ->first();
                             if ($config === null) {

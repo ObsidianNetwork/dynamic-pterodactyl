@@ -3,7 +3,14 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Feature;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Http;
+use Mockery;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Events\AlertDeliveryFailed;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\WebhookEndpointPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 
 class AlertWebhookEncryptionTest extends LaravelTestCase
@@ -45,5 +52,48 @@ class AlertWebhookEncryptionTest extends LaravelTestCase
             DB::table('ptero_alert_configs')->where('id', $configId)->value('webhook_url')
         );
         $this->assertSame($webhookUrl, AlertConfig::findOrFail($configId)->webhook_url);
+    }
+
+    public function test_scheduler_decrypts_persisted_webhook_url_before_delivery(): void
+    {
+        Event::fake();
+        Http::fake(['*' => Http::response([], 204)]);
+
+        $webhookUrl = 'https://hooks.example.com/capacity?token=stored-secret';
+        $alertConfig = AlertConfig::create([
+            'location_id' => 13,
+            'location_name' => 'SYD-1',
+            'memory_warning_threshold' => 80,
+            'memory_critical_threshold' => 90,
+            'disk_warning_threshold' => 80,
+            'disk_critical_threshold' => 90,
+            'email_notifications' => false,
+            'notification_emails' => [],
+            'webhook_notifications' => true,
+            'webhook_url' => $webhookUrl,
+            'cooldown_minutes' => 60,
+            'is_active' => true,
+        ]);
+
+        $resourceService = Mockery::mock(ResourceCalculationService::class);
+        $resourceService->shouldReceive('getLocationAvailability')->once()->with(13)->andReturn([
+            'location_id' => 13,
+            'location_name' => 'SYD-1',
+            'total_capacity' => ['memory' => 100, 'disk' => 100],
+            'total_allocated' => ['memory' => 95, 'disk' => 50],
+        ]);
+        $service = new AlertService(
+            $resourceService,
+            new WebhookEndpointPolicy(
+                static fn (string $host): array => ['93.184.216.34']
+            )
+        );
+
+        $this->assertSame(1, $service->checkCapacityAlerts());
+        Http::assertSent(
+            fn ($request): bool => $request->url() === $webhookUrl
+        );
+        $this->assertNotNull($alertConfig->fresh()->last_notification_at);
+        Event::assertNotDispatched(AlertDeliveryFailed::class);
     }
 }
