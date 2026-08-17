@@ -2,17 +2,17 @@
 
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/DynamicPterodactyl.php)
-- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/routes/api.php)
-- [Services/PterodactylInventoryService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Services/PterodactylInventoryService.php)
-- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Services/ResourceCalculationService.php)
-- [Services/ResourceQuoteService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Services/ResourceQuoteService.php)
-- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Services/ReservationService.php)
-- [Services/UpgradeReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Services/UpgradeReservationService.php)
-- [Services/WebhookEndpointPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Services/WebhookEndpointPolicy.php)
-- [Models/NodeCapacityPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Models/NodeCapacityPolicy.php)
-- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Listeners/CartItemCreatedListener.php)
-- [Listeners/CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/Listeners/CartItemDeletedListener.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/DynamicPterodactyl.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php)
+- [Services/PterodactylInventoryService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Services/PterodactylInventoryService.php)
+- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Services/ResourceCalculationService.php)
+- [Services/ResourceQuoteService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Services/ResourceQuoteService.php)
+- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Services/ReservationService.php)
+- [Services/UpgradeReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Services/UpgradeReservationService.php)
+- [Services/WebhookEndpointPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Services/WebhookEndpointPolicy.php)
+- [Models/NodeCapacityPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Models/NodeCapacityPolicy.php)
+- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Listeners/CartItemCreatedListener.php)
+- [Listeners/CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/Listeners/CartItemDeletedListener.php)
 </cite>
 
 ## Reconciled Architecture
@@ -141,9 +141,9 @@ in Paymenter core.
 
 For implementation-level detail, use these versioned repository guides:
 
-- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/02-SERVICES.md)
-- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/03-API.md)
-- [04-EVENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/04-EVENTS.md)
-- [09-IMPLEMENTATION.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/09-IMPLEMENTATION.md)
-- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/DECISIONS.md)
-- [PROGRESS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/PROGRESS.md)
+- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/02-SERVICES.md)
+- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/03-API.md)
+- [04-EVENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/04-EVENTS.md)
+- [09-IMPLEMENTATION.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/09-IMPLEMENTATION.md)
+- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/DECISIONS.md)
+- [PROGRESS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/PROGRESS.md)
