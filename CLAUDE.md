@@ -6,7 +6,7 @@ Filament 4, static-slider, and non-authoritative CPU designs.
 
 ## Current contract
 
-- Paymenter 1.5.6, Filament 5, Livewire 4, PHP 8.3/8.4.
+- Paymenter 1.5.7, Filament 5, Livewire 4, PHP 8.3/8.4.
 - Pterodactyl Panel and Wings 1.12.3 or newer.
 - Paymenter core owns slider rendering and pricing.
 - This extension owns live complete-vector stock, reservations, CPU policy,
