@@ -28,6 +28,7 @@ final class WebhookEndpointPolicy
         '240.0.0.0/4',
         '::/128',
         '::1/128',
+        '::/96',
         '::ffff:0:0/96',
         '64:ff9b::/96',
         '64:ff9b:1::/48',
