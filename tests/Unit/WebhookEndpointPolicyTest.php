@@ -62,6 +62,7 @@ class WebhookEndpointPolicyTest extends TestCase
             'multicast IPv4' => ['https://hooks.example.com/path', ['224.0.0.1']],
             'documentation IPv6' => ['https://hooks.example.com/path', ['2001:db8::1']],
             'AS112 IPv6' => ['https://hooks.example.com/path', ['2620:4f:8000::1']],
+            'deprecated site-local IPv6' => ['https://hooks.example.com/path', ['fec0::1']],
             'multicast IPv6' => ['https://hooks.example.com/path', ['ff00::1']],
             'mixed DNS response' => ['https://hooks.example.com/path', ['93.184.216.34', '10.0.0.1']],
             'missing DNS response' => ['https://hooks.example.com/path', []],

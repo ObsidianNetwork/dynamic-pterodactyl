@@ -39,6 +39,7 @@ final class WebhookEndpointPolicy
         '3fff::/20',
         '5f00::/16',
         'fc00::/7',
+        'fec0::/10',
         'fe80::/10',
         'ff00::/8',
     ];
