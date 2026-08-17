@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: Panel/GitHub reconciliation and Qoder Wiki refresh
-**Last Updated**: 2026-08-17
-**Last Session**: Preserved the dp-20 close-out, reconciled the location availability batching work, hardened the standalone Windows test database guard, and refreshed the Qoder/GitHub Wiki documentation for the batched `locations/{id}?include=nodes,servers` flow.
+**Phase**: PR #22 + PR #23 successor review and handoff
+**Last Updated**: 2026-08-18
+**Last Session**: Fully rebased PR #22 onto the reviewed PR #23 work, restored every deployment protection, validated the exact extension/Paymenter pair across the full CI matrix and live read-only API path, and reconciled the preserved Qoder/GitHub Wiki.
 
 ---
 
@@ -16,7 +16,7 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 > **For Claude**: Read this + "Current Session State" to quickly understand where we are.
 
-All dp-NN backlog items are implemented. The active reconciliation is staged on `agent/reconcile-dynamic-and-wiki` and published as draft PR #23. Mutagen deployment remains paused until review and merge.
+All dp-NN backlog items are implemented. The completed successor is staged on `agent/rebase-pr22-on-pr23`; original draft PR #22 and prerequisite draft PR #23 remain unchanged for history. The exact Paymenter companion is published as draft PR #24. Mutagen deployment remains paused until the successor and companion are reviewed, merged, and separately authorized for deployment.
 
 ---
 
@@ -67,20 +67,21 @@ All dp-NN backlog items are implemented. The active reconciliation is staged on 
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-08-17
-**Working on**: Draft PR #23 reconciliation and Wiki verification
-**Status**: Panel changes are preserved on the reconciliation branch; Qoder Wiki pages are migrated to GitHub Wiki and refreshed for the final batched location API flow.
+**Last checkpoint**: 2026-08-18
+**Working on**: Exact-SHA review and successor draft PR handoff
+**Status**: The full PR #22 rebase is complete with every PR #23 safety fix preserved. `NodeCapacityPolicy`, zero-as-unlimited rejection, API-key encryption/migration, strict inventory validation, sanitized errors, and the private SQLite test database guard are present. The cross-repository PHP 8.3/8.4 SQLite and MariaDB 11/12 matrix is configured and green at the last reviewed commit.
 **Current file**: PROGRESS.md
-**Next action**: Complete exact-SHA review, then fully rebase PR #22 onto this reconciliation before any production merge or deployment. The rebase must retain its explicit `NodeCapacityPolicy`, rejection of Pterodactyl's zero-as-unlimited resource limits, and API-key encryption migration while preserving every PR #23 safety and Wiki change. Resume Mutagen only as a separately authorized deployment step.
-**Blockers**: PR #23 must not deploy alone. Stock Pterodactyl does not expose node CPU capacity, uses zero resource limits to mean unlimited, and this branch does not yet encrypt/migrate the stored API key. PR #22 supplies all three protections but overlaps this reconciliation, so it must be fully rebased rather than partially cherry-picked or merged unchanged. No CI checks are configured on PR #23.
+**Next action**: Finish the fresh exact-SHA review, publish the successor as a draft PR targeting `dynamic-slider`, and retain PR #22/#23 as superseded history until the replacement path is approved. Resume Mutagen only as a separately authorized deployment step after both repositories are merged and the migration checklist is complete.
+**Blockers**: Production deployment remains intentionally paused. The extension successor must ship with Paymenter companion PR #24, database backups and both migration sets, configured per-node capacity policies, confirmed exclusive provisioning control, and an approved deployment window.
 
 ### This Session's Changes:
 
-1. Preserved the dp-20 panel close-out without restoring obsolete deployment guidance.
-2. Reconciled the location availability path to one `locations/{id}?include=nodes,servers` request and fail-closed capacity parsing, including complete pagination accounting, integral resource values, and duplicate node, server, and location identity rejection.
-3. Replaced caller-selected SQLite test paths with the internally generated `:temporary:` database workflow.
-4. Migrated the retained Qoder page set to GitHub Wiki and synchronized API, deployment, and testing contracts.
-5. Published draft PR #23 for exact-SHA review; Mutagen deployment remains paused.
+1. Preserved the useful panel close-out and PR #23 changes, then rebased the complete PR #22 history onto them without rewriting either published draft branch.
+2. Consolidated live panel access behind `PterodactylInventoryService`, with complete pagination accounting, integral resource validation, duplicate/orphan rejection, local `NodeCapacityPolicy`, and zero-as-unlimited fail-closed behavior.
+3. Restored the Paymenter-owned service and upgrade lifecycle seams, API-key encryption migration, durable commitments, scheduler health checks, and cancellation/provisioning safeguards.
+4. Replaced caller-selected SQLite test paths with the process-private `:temporary:` named-memory database workflow, including separate-process coverage.
+5. Pinned the audited Paymenter companion, added the cross-repository PHP/SQLite/MariaDB matrix, pinned third-party workflow actions to immutable commits, and completed a read-only live Pterodactyl inventory smoke test.
+6. Preserved all 42 migrated Qoder pages, marked superseded deep dives as historical, published the reconciled canonical architecture, and verified the standalone Wiki hierarchy, source links, and anchors.
 
 ---
 
