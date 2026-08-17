@@ -302,13 +302,15 @@ class AlertService
 
                 $channelsOk[] = 'webhook';
             } catch (\Throwable $e) {
+                $error = 'Webhook delivery failed.';
                 Log::error('Webhook notification failed', [
                     'alert_config_id' => $config->id,
                     'webhook_host' => parse_url($config->webhook_url, PHP_URL_HOST),
-                    'error' => $e->getMessage(),
+                    'error' => $error,
+                    'exception_class' => $e::class,
                 ]);
                 $channelsFailed[] = 'webhook';
-                $lastError = $e->getMessage();
+                $lastError = $error;
             }
         }
 
