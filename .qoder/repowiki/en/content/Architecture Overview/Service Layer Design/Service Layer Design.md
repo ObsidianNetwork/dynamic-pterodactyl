@@ -95,7 +95,7 @@ participant P as "Pterodactyl API"
 C->>A : GET /availability/{locationId}
 A->>N : getMaxAvailable(locationId)
 N->>R : getLocationAvailability(locationId)
-R->>P : GET nodes + servers (paginated)
+R->>P : GET /locations/{id}?include=nodes,servers
 P-->>R : JSON payload
 R-->>N : location availability
 N-->>A : max_available

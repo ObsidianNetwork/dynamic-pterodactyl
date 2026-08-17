@@ -105,7 +105,7 @@ Client->>RSvc : create(productId, locationId, resources, ...)
 RSvc->>DB : lockForUpdate(pending reservations)
 RSvc->>NSvc : selectBestNode(locationId, resources)
 NSvc->>RCSvc : getLocationAvailability(locationId)
-RCSvc->>PT : GET nodes/servers (real-time)
+RCSvc->>PT : GET /locations/{id}?include=nodes,servers
 PT-->>RCSvc : node/server data
 RCSvc-->>NSvc : availability + totals
 NSvc-->>RSvc : selected node or null

@@ -88,7 +88,6 @@ C->>A : GET /availability/{locationId}
 A->>N : getMaxAvailable(locationId)
 N->>S : getLocationAvailability(locationId)
 S->>P : GET /locations/{id}?include=nodes,servers
-S->>P : GET node + servers (include=servers)
 S->>D : SUM pending reservations (node_id, pending, not expired)
 S-->>N : Node availability arrays
 N-->>A : Max available per resource

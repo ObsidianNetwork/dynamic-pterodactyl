@@ -202,10 +202,8 @@ participant Ptero as "Pterodactyl API"
 participant DB as "Reservations DB"
 Controller->>RSC : getLocationAvailability(locationId)
 RSC->>Ptero : GET /locations/{id}?include=nodes,servers
-Ptero-->>RSC : nodes
-loop For each node
-RSC->>Ptero : GET node with servers
-Ptero-->>RSC : servers
+Ptero-->>RSC : location with nodes and servers
+loop For each included node
 RSC->>DB : SUM pending reservations for node
 DB-->>RSC : reserved amounts
 RSC->>RSC : compute available = effective - allocated - reserved
