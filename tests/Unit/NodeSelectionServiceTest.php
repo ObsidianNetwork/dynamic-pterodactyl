@@ -352,6 +352,19 @@ class NodeSelectionServiceTest extends LaravelTestCase
         $this->assertSame($expected, $result);
     }
 
+    public function test_get_max_available_rejects_incomplete_preloaded_snapshot(): void
+    {
+        $this->mockResourceService->shouldNotReceive('getLocationAvailability');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid location availability snapshot');
+
+        $this->service->getMaxAvailable(1, [
+            'location_id' => 1,
+            'max_available' => ['memory' => 1024, 'cpu' => -1],
+        ]);
+    }
+
     /**
      * Test empty nodes array returns null.
      */

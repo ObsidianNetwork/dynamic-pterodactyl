@@ -39,6 +39,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 'data' => [
                     ['attributes' => ['id' => 1, 'short' => 'us', 'long' => 'US East']],
                 ],
+                'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
             ], 200),
         ]);
 
@@ -389,11 +390,15 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             if (str_contains($url, '/api/application/locations')) {
                 return Http::response([
                     'data' => [['attributes' => ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']]],
+                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
                 ], 200);
             }
 
             if (str_contains($url, '/api/application/nodes')) {
-                return Http::response(['data' => [$node]], 200);
+                return Http::response([
+                    'data' => [$node],
+                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+                ], 200);
             }
 
             if (str_contains($url, '/api/application/servers')) {
@@ -404,6 +409,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                             'limits' => ['memory' => 1024, 'cpu' => 50, 'disk' => 5120],
                         ],
                     ]],
+                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
                 ], 200);
             }
 
@@ -528,6 +534,80 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->getLocations();
     }
 
+    public function test_get_locations_rejects_missing_pagination_metadata(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response(['data' => []], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid pagination metadata');
+
+        $this->service->getLocations();
+    }
+
+    public function test_get_locations_rejects_inconsistent_total_pages(): void
+    {
+        Http::fake(function ($request) {
+            $query = [];
+            parse_str(parse_url($request->url(), PHP_URL_QUERY) ?? '', $query);
+            $page = (int) ($query['page'] ?? 1);
+
+            return Http::response([
+                'data' => [[
+                    'attributes' => [
+                        'id' => $page,
+                        'short' => 'dc'.$page,
+                        'long' => 'Data Center '.$page,
+                    ],
+                ]],
+                'meta' => [
+                    'pagination' => [
+                        'current_page' => $page,
+                        'total_pages' => $page === 1 ? 3 : 2,
+                    ],
+                ],
+            ], 200);
+        });
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('inconsistent pagination metadata');
+
+        $this->service->getLocations();
+    }
+
+    public function test_get_locations_rejects_malformed_location_payload(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'data' => [['attributes' => ['id' => 1, 'short' => 'dc1']]],
+                'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid location payload');
+
+        $this->service->getLocations();
+    }
+
+    public function test_snapshot_rejects_node_for_unknown_location(): void
+    {
+        $calls = 0;
+        Http::fake($this->clusterSnapshotHttpFake(
+            $calls,
+            locations: [['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
+            nodePages: [[
+                $this->nodeWithServersPayload(1, 2, 'Orphan Node', []),
+            ]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('unknown location');
+
+        $this->service->buildClusterSnapshot();
+    }
+
     public function test_snapshot_handles_pterodactyl_5xx_gracefully(): void
     {
         $calls = 0;
@@ -540,6 +620,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                     'data' => [
                         ['attributes' => ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
                     ],
+                    'meta' => ['pagination' => ['current_page' => 1, 'total_pages' => 1]],
                 ], 200);
             }
 

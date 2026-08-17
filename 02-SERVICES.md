@@ -44,7 +44,7 @@ class ResourceCalculationService
     /**
      * Get available resources for a location (real-time from Pterodactyl API)
      */
-    public function getLocationAvailability(int $locationId): array
+    public function getLocationAvailability(int $locationId, ?string $excludeReservationToken = null): array
     {
         $nodes = $this->fetchNodesInLocation($locationId);
         
@@ -57,7 +57,7 @@ class ResourceCalculationService
         ];
         
         foreach ($nodes as $nodeWithServers) {
-            $nodeAvailability = $this->calculateNodeAvailability($nodeWithServers);
+            $nodeAvailability = $this->calculateNodeAvailability($nodeWithServers, $excludeReservationToken);
             $locationData['nodes'][] = $nodeAvailability;
             
             // Track maximum available across all nodes
@@ -90,60 +90,17 @@ class ResourceCalculationService
     /**
      * Calculate available resources for a specific node
      */
-    public function calculateNodeAvailability(array $nodeWithServers): array
+    private function calculateNodeAvailability(array $nodeWithServers, ?string $excludeReservationToken = null): array
     {
         $node = $nodeWithServers['node'];
         $servers = $nodeWithServers['servers'];
-        
-        // Sum allocated resources from all servers
-        $allocated = ['memory' => 0, 'cpu' => 0, 'disk' => 0];
-        foreach ($servers as $server) {
-            $allocated['memory'] += $server['limits']['memory'] ?? 0;
-            $allocated['cpu'] += $server['limits']['cpu'] ?? 0;
-            $allocated['disk'] += $server['limits']['disk'] ?? 0;
-        }
-        
-        // Get pending reservations for this node
-        $pendingReservations = $this->getPendingReservations($node['id']);
-        
-        // Calculate effective totals with overallocation
-        // Formula: total * (1 + overallocate_percentage / 100)
-        $effectiveMemory = $node['memory'] * (1 + ($node['memory_overallocate'] ?? 0) / 100);
-        $effectiveDisk = $node['disk'] * (1 + ($node['disk_overallocate'] ?? 0) / 100);
-        // cpu_threads must come from an explicit panel customization or a local
-        // capacity policy. Stock Pterodactyl does not expose node CPU capacity.
-        $effectiveCpu = $node['cpu_threads'] * 100;
-        
-        // Calculate available (total - allocated - pending)
-        $available = [
-            'memory' => max(0, (int)$effectiveMemory - $allocated['memory'] - $pendingReservations['memory']),
-            'cpu' => max(0, (int)$effectiveCpu - $allocated['cpu'] - $pendingReservations['cpu']),
-            'disk' => max(0, (int)$effectiveDisk - $allocated['disk'] - $pendingReservations['disk']),
-        ];
-        
-        return [
-            'node_id' => $node['id'],
-            'name' => $node['name'],
-            'fqdn' => $node['fqdn'],
-            'maintenance_mode' => $node['maintenance_mode'] ?? false,
-            'total' => [
-                'memory' => (int)$effectiveMemory,
-                'cpu' => (int)$effectiveCpu,
-                'disk' => (int)$effectiveDisk,
-            ],
-            'allocated' => $allocated,
-            'reserved' => $pendingReservations,
-            'available' => $available,
-            'server_count' => count($servers),
-            'utilization' => [
-                'memory' => $effectiveMemory > 0 
-                    ? round(($allocated['memory'] + $pendingReservations['memory']) / $effectiveMemory * 100, 1) 
-                    : 100,
-                'disk' => $effectiveDisk > 0 
-                    ? round(($allocated['disk'] + $pendingReservations['disk']) / $effectiveDisk * 100, 1) 
-                    : 100,
-            ],
-        ];
+        $pendingReservations = $this->getPendingReservations($node['id'], $excludeReservationToken);
+
+        // buildNodeAvailabilityFromServers validates complete node/server
+        // resource shapes before calculating totals. Stock Pterodactyl has no
+        // node CPU-capacity field, so cpu_threads remains a fail-closed gate
+        // until the explicit local NodeCapacityPolicy is rebased from PR #22.
+        return $this->buildNodeAvailabilityFromServers($node, $servers, $pendingReservations);
     }
     
     /**
@@ -183,14 +140,14 @@ class ResourceCalculationService
     /**
      * Verify resources are still available (called at payment time)
      */
-    public function verifyAvailability(int $nodeId, array $requirements): bool
+    public function verifyAvailability(int $nodeId, array $requirements, ?string $excludeReservationToken = null): bool
     {
         $nodes = $this->fetchNodesInLocation($this->getNodeLocation($nodeId));
-        $node = collect($nodes)->firstWhere('id', $nodeId);
+        $nodeWithServers = collect($nodes)->first(fn ($node) => ($node['node']['id'] ?? null) === $nodeId);
         
-        if (!$node) return false;
+        if (!$nodeWithServers) return false;
         
-        $availability = $this->calculateNodeAvailability($node);
+        $availability = $this->calculateNodeAvailability($nodeWithServers, $excludeReservationToken);
         
         return $availability['available']['memory'] >= $requirements['memory']
             && $availability['available']['cpu'] >= $requirements['cpu']
@@ -202,24 +159,7 @@ class ResourceCalculationService
      */
     public function getLocations(): array
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/locations", [
-            'per_page' => 100,
-        ]);
-        
-        if (!$response->successful()) {
-            throw new \RuntimeException('Failed to fetch locations from Pterodactyl');
-        }
-        
-        return collect($response->json('data', []))
-            ->map(fn($loc) => [
-                'id' => $loc['attributes']['id'],
-                'short' => $loc['attributes']['short'],
-                'long' => $loc['attributes']['long'],
-            ])
-            ->toArray();
+        return $this->fetchAllLocations();
     }
     
     // --- Private Methods ---
@@ -379,9 +319,21 @@ class NodeSelectionService
     /**
      * Get maximum allocatable resources across a location
      */
-    public function getMaxAvailable(int $locationId): array
+    public function getMaxAvailable(int $locationId, ?array $locationData = null): array
     {
-        $locationData = $this->resourceService->getLocationAvailability($locationId);
+        $locationData ??= $this->resourceService->getLocationAvailability($locationId);
+        if (($locationData['location_id'] ?? null) !== $locationId
+            || !is_array($locationData['max_available'] ?? null)) {
+            throw new \RuntimeException('Invalid location availability snapshot.');
+        }
+
+        foreach (['memory', 'cpu', 'disk'] as $resource) {
+            if (!is_int($locationData['max_available'][$resource] ?? null)
+                || $locationData['max_available'][$resource] < 0) {
+                throw new \RuntimeException('Invalid location availability snapshot.');
+            }
+        }
+
         return $locationData['max_available'];
     }
 }

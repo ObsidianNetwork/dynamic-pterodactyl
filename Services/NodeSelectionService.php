@@ -86,6 +86,13 @@ class NodeSelectionService
             throw new \RuntimeException('Invalid location availability snapshot.');
         }
 
+        foreach (['memory', 'cpu', 'disk'] as $resource) {
+            if (! is_int($locationData['max_available'][$resource] ?? null)
+                || $locationData['max_available'][$resource] < 0) {
+                throw new \RuntimeException('Invalid location availability snapshot.');
+            }
+        }
+
         return $locationData['max_available'];
     }
 }

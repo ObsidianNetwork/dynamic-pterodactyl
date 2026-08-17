@@ -82,8 +82,10 @@ class ResourceCalculationService
         }
 
         $snapshot['locations'] = $locations;
+        $knownLocationIds = [];
 
         foreach ($locations as $location) {
+            $knownLocationIds[$location['id']] = true;
             $snapshot['by_location'][$location['id']] = [
                 'nodes' => [],
                 'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
@@ -97,6 +99,9 @@ class ResourceCalculationService
         foreach ($nodes as $nodeId => $nodeData) {
             $node = $nodeData['node'];
             $locationId = $nodeData['location_id'];
+            if (! array_key_exists($locationId, $knownLocationIds)) {
+                throw new \RuntimeException('Pterodactyl API returned a node for an unknown location.');
+            }
             $availability = $this->buildNodeAvailabilityFromServers(
                 $node,
                 $nodeData['servers'],
@@ -115,15 +120,6 @@ class ResourceCalculationService
                 'utilization' => $availability['utilization'],
                 'node_availability' => $availability,
             ];
-
-            if (! array_key_exists($locationId, $snapshot['by_location'])) {
-                $snapshot['by_location'][$locationId] = [
-                    'nodes' => [],
-                    'totals' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-                    'allocated' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-                    'available' => ['memory' => 0, 'cpu' => 0, 'disk' => 0],
-                ];
-            }
 
             $snapshot['by_location'][$locationId]['nodes'][] = $nodeId;
             $snapshot['by_location'][$locationId]['totals']['memory'] += $availability['total']['memory'];
@@ -313,13 +309,17 @@ class ResourceCalculationService
 
     private function fetchAllLocations(): array
     {
-        return \collect($this->pterodactylGetPaginatedData('/api/application/locations', ['per_page' => 100]))
-            ->map(fn ($location) => [
-                'id' => $location['attributes']['id'],
-                'short' => $location['attributes']['short'],
-                'long' => $location['attributes']['long'],
-            ])
-            ->toArray();
+        $locations = [];
+        foreach ($this->pterodactylGetPaginatedData('/api/application/locations', ['per_page' => 100]) as $location) {
+            $attributes = $this->requireLocationAttributes($location);
+            $locations[] = [
+                'id' => $attributes['id'],
+                'short' => $attributes['short'],
+                'long' => $attributes['long'],
+            ];
+        }
+
+        return $locations;
     }
 
     private function fetchClusterNodes(): array
@@ -392,6 +392,7 @@ class ResourceCalculationService
     {
         $page = 1;
         $data = [];
+        $expectedTotalPages = null;
 
         while (true) {
             $payload = $this->pterodactylGet($path, array_merge($query, ['page' => $page]));
@@ -402,13 +403,27 @@ class ResourceCalculationService
 
             $pagination = $payload['meta']['pagination'] ?? null;
             if (! is_array($pagination)) {
-                break;
+                throw new \RuntimeException('Pterodactyl API returned invalid pagination metadata.');
             }
 
-            $currentPage = (int) ($pagination['current_page'] ?? $page);
-            $totalPages = (int) ($pagination['total_pages'] ?? $currentPage);
-            if ($currentPage !== $page || $totalPages < 1 || $totalPages < $currentPage) {
+            $currentPage = filter_var(
+                $pagination['current_page'] ?? null,
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 1]],
+            );
+            $totalPages = filter_var(
+                $pagination['total_pages'] ?? null,
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 1]],
+            );
+            if ($currentPage === false || $totalPages === false
+                || $currentPage !== $page || $totalPages < $currentPage) {
                 throw new \RuntimeException('Pterodactyl API returned invalid pagination metadata.');
+            }
+
+            $expectedTotalPages ??= $totalPages;
+            if ($totalPages !== $expectedTotalPages) {
+                throw new \RuntimeException('Pterodactyl API returned inconsistent pagination metadata.');
             }
 
             if ($currentPage === $totalPages) {
@@ -419,6 +434,23 @@ class ResourceCalculationService
         }
 
         return $data;
+    }
+
+    private function requireLocationAttributes(mixed $payload): array
+    {
+        $attributes = is_array($payload) && is_array($payload['attributes'] ?? null)
+            ? $payload['attributes']
+            : null;
+        if ($attributes === null
+            || filter_var($attributes['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
+            || ! is_string($attributes['short'] ?? null) || $attributes['short'] === ''
+            || ! is_string($attributes['long'] ?? null) || $attributes['long'] === '') {
+            throw new \RuntimeException('Pterodactyl API returned an invalid location payload.');
+        }
+
+        $attributes['id'] = (int) $attributes['id'];
+
+        return $attributes;
     }
 
     private function requireRelationshipData(array $payload, string $relationship): array

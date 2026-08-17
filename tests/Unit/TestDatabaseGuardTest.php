@@ -25,12 +25,13 @@ class TestDatabaseGuardTest extends TestCase
     public function test_creates_isolated_named_memory_sqlite_database(): void
     {
         $database = TestDatabaseGuard::claim(':temporary:', 'sqlite', 'testing');
+        $secondDatabase = TestDatabaseGuard::claim(':temporary:', 'sqlite', 'testing');
 
         $this->assertIsString($database);
-        $this->assertMatchesRegularExpression(
-            '/^file:dynamic-pterodactyl-test-[a-f0-9]{32}\?mode=memory&cache=shared$/',
-            $database,
-        );
+        $this->assertIsString($secondDatabase);
+        $this->assertNotSame($database, $secondDatabase);
+        $this->assertStringStartsWith('file:dynamic-pterodactyl-test-', $database);
+        $this->assertStringEndsWith('?mode=memory&cache=shared', $database);
 
         $writer = new \PDO('sqlite:'.$database);
         $writer->exec('CREATE TABLE claim_probe (value TEXT NOT NULL)');
