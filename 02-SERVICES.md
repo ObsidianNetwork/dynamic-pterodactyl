@@ -26,6 +26,7 @@ Implements **real-time API approach** (no caching) proven by PteroSync.
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Services;
 
+use App\Models\Extension;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\DB;
 
@@ -37,8 +38,8 @@ class ResourceCalculationService
     public function __construct()
     {
         $config = $this->getExtensionConfig();
-        $this->apiUrl = rtrim($config['pterodactyl_url'], '/');
-        $this->apiKey = $config['pterodactyl_api_key'];
+        $this->apiUrl = rtrim($config['pterodactyl_url'] ?? '', '/');
+        $this->apiKey = $config['pterodactyl_api_key'] ?? '';
     }
     
     /**
@@ -170,9 +171,7 @@ class ResourceCalculationService
     {
         $response = $this->pterodactylGet(
             "/api/application/locations/{$locationId}",
-            [
-            'include' => 'nodes,servers',
-            ]
+            ['include' => 'nodes,servers']
         );
 
         $nodesData = $this->requireRelationshipData($response, 'nodes');
@@ -184,16 +183,20 @@ class ResourceCalculationService
             if ($attributes['location_id'] !== $locationId) {
                 throw new \RuntimeException('Pterodactyl API returned a node for an unexpected location.');
             }
+            $this->rememberUniqueId($nodesById, $attributes['id'], 'included node');
             $nodesById[$attributes['id']] = $attributes;
         }
 
         $serversByNode = [];
+        $serverIds = [];
         foreach ($serversData as $server) {
             $attributes = $this->requireServerAttributes($server);
-            if (! array_key_exists($attributes['node'], $nodesById)) {
+            $nodeId = $attributes['node'];
+            if (! array_key_exists($nodeId, $nodesById)) {
                 throw new \RuntimeException('Pterodactyl API returned a server for an unknown included node.');
             }
-            $serversByNode[$attributes['node']][] = $attributes;
+            $this->rememberUniqueId($serverIds, $attributes['id'], 'included server');
+            $serversByNode[$nodeId][] = $attributes;
         }
 
         $nodes = [];
@@ -206,13 +209,28 @@ class ResourceCalculationService
 
         return $nodes;
     }
-    
-    private function getPendingReservations(int $nodeId): array
+
+    private function rememberUniqueId(array &$seen, int $id, string $resource): void
     {
-        $result = DB::table('ptero_resource_reservations')
+        if (array_key_exists($id, $seen)) {
+            throw new \RuntimeException("Pterodactyl API returned a duplicate {$resource}.");
+        }
+
+        $seen[$id] = true;
+    }
+    
+    private function getPendingReservations(int $nodeId, ?string $excludeReservationToken = null): array
+    {
+        $query = DB::table('ptero_resource_reservations')
             ->where('node_id', $nodeId)
             ->where('status', 'pending')
-            ->where('expires_at', '>', now())
+            ->where('expires_at', '>', now());
+
+        if ($excludeReservationToken !== null) {
+            $query->where('token', '!=', $excludeReservationToken);
+        }
+
+        $result = $query
             ->selectRaw('COALESCE(SUM(memory), 0) as memory')
             ->selectRaw('COALESCE(SUM(cpu), 0) as cpu')
             ->selectRaw('COALESCE(SUM(disk), 0) as disk')
@@ -227,17 +245,22 @@ class ResourceCalculationService
     
     private function getNodeLocation(int $nodeId): int
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer ' . $this->apiKey,
-            'Accept' => 'application/json',
-        ])->get("{$this->apiUrl}/api/application/nodes/{$nodeId}");
-        
-        return $response->json('attributes.location_id');
+        $data = $this->pterodactylGet("/api/application/nodes/{$nodeId}");
+        $locationId = $data['attributes']['location_id'] ?? null;
+        if (! is_int($locationId)) {
+            throw new \RuntimeException("Pterodactyl node {$nodeId} response is missing location_id.");
+        }
+
+        return $locationId;
     }
     
     private function getExtensionConfig(): array
     {
-        return \App\Helpers\ExtensionHelper::getConfig('Others', 'DynamicPterodactyl');
+        return Extension::where('extension', 'DynamicPterodactyl')
+            ->first()
+            ?->settings
+            ->pluck('value', 'key')
+            ->toArray() ?? [];
     }
 }
 ```

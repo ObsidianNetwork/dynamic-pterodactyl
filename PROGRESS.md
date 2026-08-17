@@ -77,7 +77,7 @@ All dp-NN backlog items are implemented. The active reconciliation is staged on 
 ### This Session's Changes:
 
 1. Preserved the dp-20 panel close-out without restoring obsolete deployment guidance.
-2. Reconciled the location availability path to one `locations/{id}?include=nodes,servers` request and fail-closed capacity parsing, including duplicate node, server, and location identity rejection.
+2. Reconciled the location availability path to one `locations/{id}?include=nodes,servers` request and fail-closed capacity parsing, including complete pagination accounting, integral resource values, and duplicate node, server, and location identity rejection.
 3. Replaced caller-selected SQLite test paths with the internally generated `:temporary:` database workflow.
 4. Migrated the retained Qoder page set to GitHub Wiki and synchronized API, deployment, and testing contracts.
 5. Published draft PR #23 for exact-SHA review; Mutagen deployment remains paused.

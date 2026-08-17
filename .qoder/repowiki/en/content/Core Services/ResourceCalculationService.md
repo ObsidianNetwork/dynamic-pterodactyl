@@ -109,9 +109,9 @@ RCS-->>Caller : Cluster snapshot or degraded snapshot
 
 **Diagram sources**
 - [ResourceCalculationService.php:26-141](file://Services/ResourceCalculationService.php#L26-L141)
-- [ResourceCalculationService.php:313-404](file://Services/ResourceCalculationService.php#L313-L404)
-- [ResourceCalculationService.php:405-453](file://Services/ResourceCalculationService.php#L405-L453)
-- [ResourceCalculationService.php:454-571](file://Services/ResourceCalculationService.php#L454-L571)
+- [ResourceCalculationService.php:313-406](file://Services/ResourceCalculationService.php#L313-L406)
+- [ResourceCalculationService.php:407-486](file://Services/ResourceCalculationService.php#L407-L486)
+- [ResourceCalculationService.php:487-622](file://Services/ResourceCalculationService.php#L487-L622)
 
 ## Detailed Component Analysis
 
@@ -135,6 +135,7 @@ Processing logic:
 - Fetches the location with included nodes and servers in one Pterodactyl request
 - Groups included servers by node and fetches pending reservations for each node
 - Rejects duplicate node, server, or location identities instead of overwriting or double-counting upstream records
+- Requires integer resource capacities and complete pagination totals/counts; truncated pages and fractional values fail closed
 - Computes effective totals using overallocation settings
 - Subtracts allocated and reserved resources to derive available
 - Aggregates max and totals across nodes
@@ -234,7 +235,7 @@ Integration with reservation system:
 **Section sources**
 - [ResourceCalculationService.php:359-391](file://Services/ResourceCalculationService.php#L359-L391)
 - [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
-- [ResourceCalculationService.php:454-571](file://Services/ResourceCalculationService.php#L454-L571)
+- [ResourceCalculationService.php:487-622](file://Services/ResourceCalculationService.php#L487-L622)
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 
 ### Class diagram
@@ -337,6 +338,10 @@ Common issues and how they surface:
   - Throws a RuntimeException indicating invalid JSON; indicates upstream misconfiguration or proxy issue.
 - Duplicate or inconsistent identities:
   - Throws a RuntimeException before availability is calculated so repeated upstream records cannot distort totals.
+- Incomplete pagination or non-integral capacity:
+  - Rejects page counts/totals that do not match returned records and resource values that are not non-negative integers.
+- Missing included-server relationship:
+  - Uses the separately paginated server index only when the relationship is absent; a present but malformed relationship remains a hard failure.
 - Missing location_id:
   - getNodeLocation() throws when the node response lacks location_id; indicates malformed upstream data.
 

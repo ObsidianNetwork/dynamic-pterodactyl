@@ -117,6 +117,7 @@ Data flow highlights:
 Error handling and resilience:
 - pterodactylGet() sets per-attempt timeout and connect timeout, retries only on connection errors, sanitizes exceptions, and throws meaningful runtime exceptions for rate limits and non-JSON responses.
 - Node, server, and location identities must be unique within a snapshot; duplicates and inconsistent relationships fail closed before resource totals are calculated.
+- Pagination metadata must reconcile page count, page size, total records, and accumulated records; integer capacity fields are required.
 - buildClusterSnapshot() catches failures and returns a degraded snapshot with an error flag when Pterodactyl is down or returns 5xx errors.
 
 Examples of usage patterns:
@@ -234,6 +235,8 @@ Common issues and strategies:
 - Server errors: 5xx responses are treated as Pterodactyl being unavailable; buildClusterSnapshot() returns a degraded snapshot so consumers can degrade gracefully.
 - Invalid payloads: Non-JSON responses raise a runtime exception indicating invalid payload; tests validate this behavior.
 - Duplicate identities: Repeated node, server, or location records are rejected rather than overwritten or double-counted.
+- Truncated pages and fractional capacity: Pagination counts must reconcile with all returned records, and resource capacities/limits must be integers.
+- Server-index fallback: Used only when the included-server relationship is absent, never when a present relationship is malformed.
 - Missing node location: getNodeLocation() validates presence of location_id and throws if absent; tests assert the expected exception pattern.
 
 Operational tips:
@@ -242,8 +245,8 @@ Operational tips:
 
 **Section sources**
 - [ResourceCalculationService.php:157-195](file://Services/ResourceCalculationService.php#L157-L195)
-- [ResourceCalculationService.php:454-571](file://Services/ResourceCalculationService.php#L454-L571)
-- [ResourceCalculationService.php:421-438](file://Services/ResourceCalculationService.php#L421-L438)
+- [ResourceCalculationService.php:487-622](file://Services/ResourceCalculationService.php#L487-L622)
+- [ResourceCalculationService.php:426-470](file://Services/ResourceCalculationService.php#L426-L470)
 - [ResourceCalculationServiceTest.php:53-139](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
 
 ## Conclusion

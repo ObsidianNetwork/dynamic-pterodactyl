@@ -181,6 +181,7 @@ Focus areas:
 - Error handling for rate limits (429), server errors (5xx), malformed JSON, and connection exceptions with retries.
 - Cluster snapshot aggregation across locations and nodes, including utilization metrics.
 - Fail-closed rejection of duplicate node/server identities and inconsistent upstream relationships.
+- Page-count/total reconciliation, malformed fallback boundaries, and rejection of fractional capacity values.
 - Self-exclusion of current reservation token when verifying availability.
 
 ```mermaid
