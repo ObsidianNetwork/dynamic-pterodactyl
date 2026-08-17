@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+env:
+  COMPOSER_MAX_PARALLEL_HTTP: 1
+  COMPOSER_PROCESS_TIMEOUT: 900
+
 concurrency:
   group: dynamic-pterodactyl-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -44,7 +48,12 @@ jobs:
 
       - name: Install Paymenter dependencies
         working-directory: paymenter
-        run: composer install --no-interaction --no-ansi --prefer-dist --no-progress
+        run: |
+          for attempt in 1 2 3 4; do
+            composer install --no-interaction --no-ansi --prefer-dist --no-progress && exit 0
+            test "$attempt" -eq 4 && exit 1
+            sleep $((attempt * 20))
+          done
 
       - name: Audit Composer dependencies
         working-directory: paymenter
@@ -99,7 +108,12 @@ jobs:
 
       - name: Install Paymenter dependencies
         working-directory: paymenter
-        run: composer install --prefer-dist --no-progress --no-suggest
+        run: |
+          for attempt in 1 2 3 4; do
+            composer install --no-interaction --prefer-dist --no-progress && exit 0
+            test "$attempt" -eq 4 && exit 1
+            sleep $((attempt * 20))
+          done
 
       - name: Assemble extension checkout
         run: |
@@ -134,7 +148,7 @@ jobs:
         env:
           APP_ENV: testing
           DB_CONNECTION: sqlite
-          DB_DATABASE: database/paymenter_test.sqlite
+          DB_DATABASE: ':temporary:'
         run: vendor/bin/phpunit -c extensions/Others/DynamicPterodactyl/phpunit.xml
 
       - name: Run Paymenter provisioning seam tests on SQLite
@@ -195,7 +209,12 @@ jobs:
 
       - name: Install Paymenter dependencies
         working-directory: paymenter
-        run: composer install --prefer-dist --no-progress --no-suggest
+        run: |
+          for attempt in 1 2 3 4; do
+            composer install --no-interaction --prefer-dist --no-progress && exit 0
+            test "$attempt" -eq 4 && exit 1
+            sleep $((attempt * 20))
+          done
 
       - name: Assemble extension checkout
         run: |
