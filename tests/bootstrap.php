@@ -40,7 +40,6 @@ if ($claimedDatabase === null) {
 }
 
 if ($claimedDatabase !== $db) {
-    putenv("DB_DATABASE={$claimedDatabase}");
     $_ENV['DB_DATABASE'] = $claimedDatabase;
     $_SERVER['DB_DATABASE'] = $claimedDatabase;
 }

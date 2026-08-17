@@ -4,6 +4,8 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestCase;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestDatabaseGuard;
+use PHPUnit\Framework\Attributes\PreserveGlobalState;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 
 class TestDatabaseGuardTest extends TestCase
 {
@@ -85,5 +87,23 @@ class TestDatabaseGuardTest extends TestCase
             unlink($database);
             rmdir($databaseDirectory);
         }
+    }
+
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function test_separate_process_reclaims_temporary_database_from_the_sentinel(): void
+    {
+        $connection = $_ENV['DB_CONNECTION'] ?? $_SERVER['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: '';
+        if ($connection !== 'sqlite') {
+            $this->markTestSkipped('The separate-process claim is specific to the SQLite harness.');
+        }
+
+        $database = $_ENV['DB_DATABASE'] ?? $_SERVER['DB_DATABASE'] ?? '';
+
+        $this->assertSame(':temporary:', getenv('DB_DATABASE'));
+        $this->assertMatchesRegularExpression(
+            '/^file:dynamic-pterodactyl-test-[a-f0-9]{32}\?mode=memory&cache=shared$/',
+            $database,
+        );
     }
 }

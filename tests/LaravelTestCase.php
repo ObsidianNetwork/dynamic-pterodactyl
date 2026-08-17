@@ -33,9 +33,10 @@ abstract class LaravelTestCase extends BaseTestCase
         $kernel = $app->make(Kernel::class);
         $kernel->bootstrap();
 
-        $database = getenv('DB_DATABASE') ?: ($_ENV['DB_DATABASE'] ?? '');
+        $database = $_ENV['DB_DATABASE'] ?? $_SERVER['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: '';
+        $connection = $_ENV['DB_CONNECTION'] ?? $_SERVER['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: '';
         if (! self::$standaloneSqliteMigrated
-            && (getenv('DB_CONNECTION') ?: ($_ENV['DB_CONNECTION'] ?? '')) === 'sqlite'
+            && $connection === 'sqlite'
             && $database !== ':memory:'
         ) {
             $kernel->call('migrate', [
