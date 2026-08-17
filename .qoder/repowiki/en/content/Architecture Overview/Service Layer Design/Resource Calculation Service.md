@@ -116,6 +116,7 @@ Data flow highlights:
 
 Error handling and resilience:
 - pterodactylGet() sets per-attempt timeout and connect timeout, retries only on connection errors, sanitizes exceptions, and throws meaningful runtime exceptions for rate limits and non-JSON responses.
+- Node, server, and location identities must be unique within a snapshot; duplicates and inconsistent relationships fail closed before resource totals are calculated.
 - buildClusterSnapshot() catches failures and returns a degraded snapshot with an error flag when Pterodactyl is down or returns 5xx errors.
 
 Examples of usage patterns:
@@ -232,6 +233,7 @@ Common issues and strategies:
 - Rate limiting: A 429 response triggers a specific runtime exception instructing callers to retry after a delay. Tests assert that 429 does not trigger retries.
 - Server errors: 5xx responses are treated as Pterodactyl being unavailable; buildClusterSnapshot() returns a degraded snapshot so consumers can degrade gracefully.
 - Invalid payloads: Non-JSON responses raise a runtime exception indicating invalid payload; tests validate this behavior.
+- Duplicate identities: Repeated node, server, or location records are rejected rather than overwritten or double-counted.
 - Missing node location: getNodeLocation() validates presence of location_id and throws if absent; tests assert the expected exception pattern.
 
 Operational tips:
@@ -240,8 +242,8 @@ Operational tips:
 
 **Section sources**
 - [ResourceCalculationService.php:157-195](file://Services/ResourceCalculationService.php#L157-L195)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationService.php:410-424](file://Services/ResourceCalculationService.php#L410-L424)
+- [ResourceCalculationService.php:454-571](file://Services/ResourceCalculationService.php#L454-L571)
+- [ResourceCalculationService.php:421-438](file://Services/ResourceCalculationService.php#L421-L438)
 - [ResourceCalculationServiceTest.php:53-139](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
 
 ## Conclusion

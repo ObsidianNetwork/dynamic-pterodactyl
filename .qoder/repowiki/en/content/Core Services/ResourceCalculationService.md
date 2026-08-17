@@ -109,9 +109,9 @@ RCS-->>Caller : Cluster snapshot or degraded snapshot
 
 **Diagram sources**
 - [ResourceCalculationService.php:26-141](file://Services/ResourceCalculationService.php#L26-L141)
-- [ResourceCalculationService.php:291-384](file://Services/ResourceCalculationService.php#L291-L384)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:313-404](file://Services/ResourceCalculationService.php#L313-L404)
+- [ResourceCalculationService.php:405-453](file://Services/ResourceCalculationService.php#L405-L453)
+- [ResourceCalculationService.php:454-571](file://Services/ResourceCalculationService.php#L454-L571)
 
 ## Detailed Component Analysis
 
@@ -134,6 +134,7 @@ Return value:
 Processing logic:
 - Fetches the location with included nodes and servers in one Pterodactyl request
 - Groups included servers by node and fetches pending reservations for each node
+- Rejects duplicate node, server, or location identities instead of overwriting or double-counting upstream records
 - Computes effective totals using overallocation settings
 - Subtracts allocated and reserved resources to derive available
 - Aggregates max and totals across nodes
@@ -147,7 +148,7 @@ Usage pattern example:
 **Section sources**
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [ResourceCalculationService.php:146-152](file://Services/ResourceCalculationService.php#L146-L152)
-- [ResourceCalculationService.php:226-245](file://Services/ResourceCalculationService.php#L226-L245)
+- [ResourceCalculationService.php:223-264](file://Services/ResourceCalculationService.php#L223-L264)
 - [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 - [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
 
@@ -233,7 +234,7 @@ Integration with reservation system:
 **Section sources**
 - [ResourceCalculationService.php:359-391](file://Services/ResourceCalculationService.php#L359-L391)
 - [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:454-571](file://Services/ResourceCalculationService.php#L454-L571)
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 
 ### Class diagram
@@ -334,6 +335,8 @@ Common issues and how they surface:
   - Throws a RuntimeException with a rate limit message; callers should back off and retry later.
 - Invalid JSON payload:
   - Throws a RuntimeException indicating invalid JSON; indicates upstream misconfiguration or proxy issue.
+- Duplicate or inconsistent identities:
+  - Throws a RuntimeException before availability is calculated so repeated upstream records cannot distort totals.
 - Missing location_id:
   - getNodeLocation() throws when the node response lacks location_id; indicates malformed upstream data.
 

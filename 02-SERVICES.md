@@ -97,7 +97,9 @@ class ResourceCalculationService
         $pendingReservations = $this->getPendingReservations($node['id'], $excludeReservationToken);
 
         // buildNodeAvailabilityFromServers validates complete node/server
-        // resource shapes before calculating totals. Stock Pterodactyl has no
+        // resource shapes before calculating totals. The fetch layer also
+        // rejects duplicate node, server, and location identities so repeated
+        // upstream records cannot distort capacity. Stock Pterodactyl has no
         // node CPU-capacity field, so cpu_threads remains a fail-closed gate
         // until the explicit local NodeCapacityPolicy is rebased from PR #22.
         return $this->buildNodeAvailabilityFromServers($node, $servers, $pendingReservations);

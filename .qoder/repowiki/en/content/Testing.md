@@ -180,6 +180,7 @@ Focus areas:
 - Real-time availability fetching from Pterodactyl with pagination and relationship extraction.
 - Error handling for rate limits (429), server errors (5xx), malformed JSON, and connection exceptions with retries.
 - Cluster snapshot aggregation across locations and nodes, including utilization metrics.
+- Fail-closed rejection of duplicate node/server identities and inconsistent upstream relationships.
 - Self-exclusion of current reservation token when verifying availability.
 
 ```mermaid
