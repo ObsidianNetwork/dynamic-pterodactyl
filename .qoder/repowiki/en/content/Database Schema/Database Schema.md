@@ -278,7 +278,7 @@ Insert --> End([Done])
 **Section sources**
 - [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
 - [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:15-83](file://Services/AuditLogService.php#L15-L83)
+- [AuditLogService.php:15-83](file://Services/AuditLogService.php#L15-L82)
 
 ### Alert Configurations
 - Purpose: Define capacity monitoring thresholds and notification preferences per location or globally
@@ -493,5 +493,5 @@ USERS ||--o{ PTERO_AUDIT_LOGS : "user_id FK"
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 - [ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
 - [ReservationService.php:335-405](file://Services/ReservationService.php#L335-L405)
-- [AuditLogService.php:15-83](file://Services/AuditLogService.php#L15-L83)
+- [AuditLogService.php:15-83](file://Services/AuditLogService.php#L15-L82)
 - [AlertService.php:77-101](file://Services/AlertService.php#L77-L101)

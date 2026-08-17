@@ -349,10 +349,10 @@ RESOURCE_RESERVATION ||--o| SERVICE : "service_id"
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
 
 **Section sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
 
 ## Dependency Analysis
 - Admin controllers depend on services:

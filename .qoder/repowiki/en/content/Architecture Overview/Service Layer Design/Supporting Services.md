@@ -72,12 +72,12 @@ A --> I
 - [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 **Section sources**
-- [AuditLogService.php:1-83](file://Services/AuditLogService.php#L1-L83)
-- [ConfigOptionSetupService.php:1-260](file://Services/ConfigOptionSetupService.php#L1-L260)
-- [SliderConfigReaderService.php:1-69](file://Services/SliderConfigReaderService.php#L1-L69)
-- [PricingController.php:1-158](file://Http/Controllers/Api/PricingController.php#L1-L158)
-- [AuditLogPage.php:1-105](file://Admin/Pages/AuditLogPage.php#L1-L105)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:1-55](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L1-L55)
+- [AuditLogService.php:1-83](file://Services/AuditLogService.php#L1-L82)
+- [ConfigOptionSetupService.php:1-260](file://Services/ConfigOptionSetupService.php#L1-L259)
+- [SliderConfigReaderService.php:1-69](file://Services/SliderConfigReaderService.php#L1-L68)
+- [PricingController.php:1-158](file://Http/Controllers/Api/PricingController.php#L1-L157)
+- [AuditLogPage.php:1-105](file://Admin/Pages/AuditLogPage.php#L1-L104)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:1-55](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L1-L54)
 
 ## Core Components
 - AuditLogService: Provides methods to log actions and retrieve filtered logs. Captures user context, request metadata, and before/after values for changes.

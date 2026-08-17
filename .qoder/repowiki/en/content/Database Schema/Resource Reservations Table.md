@@ -58,22 +58,22 @@ RQ --> C
 
 **Diagram sources**
 - [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
-- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L70)
+- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L173)
+- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L69)
 
 **Section sources**
 - [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
 - [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
-- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L70)
+- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L173)
+- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Core Components
 - Schema and constraints are defined in the initial migration and subsequent migrations that adjust status values and add idempotency support.
@@ -89,12 +89,12 @@ RQ --> C
 - [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
 - [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
 - [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
-- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L70)
+- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L173)
+- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Architecture Overview
 The reservation lifecycle ensures temporary resource holds until payment completes or TTL expires. Creation uses pessimistic locking to avoid overselling, and idempotency prevents duplicate reservations under concurrent requests. Status transitions are enforced at the service layer with authorization checks via policies.
@@ -262,7 +262,7 @@ Authorization:
 - Supports idempotency_key via header or body
 
 **Section sources**
-- [StoreReservationRequest.php:12-163](file://Http/Requests/StoreReservationRequest.php#L12-L163)
+- [StoreReservationRequest.php:12-163](file://Http/Requests/StoreReservationRequest.php#L12-L162)
 
 ### Listener: CartItemCreatedListener
 - Detects products with dynamic_slider config options

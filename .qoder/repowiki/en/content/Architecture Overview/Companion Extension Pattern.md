@@ -84,12 +84,12 @@ G --> M["Admin Recipients"]
 
 **Section sources**
 - [DynamicPterodactyl.php:48-127](file://DynamicPterodactyl.php#L48-L127)
-- [Services/ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
+- [Services/ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
 - [Services/ResourceCalculationService.php:10-545](file://Services/ResourceCalculationService.php#L10-L545)
-- [Services/AlertService.php:19-393](file://Services/AlertService.php#L19-L393)
-- [Services/SliderConfigReaderService.php:7-69](file://Services/SliderConfigReaderService.php#L7-L69)
-- [Listeners/CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [Listeners/InvoicePaidListener.php:12-136](file://Listeners/InvoicePaidListener.php#L12-L136)
+- [Services/AlertService.php:19-393](file://Services/AlertService.php#L19-L392)
+- [Services/SliderConfigReaderService.php:7-69](file://Services/SliderConfigReaderService.php#L7-L68)
+- [Listeners/CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L173)
+- [Listeners/InvoicePaidListener.php:12-136](file://Listeners/InvoicePaidListener.php#L12-L135)
 
 ## Architecture Overview
 The extension follows a companion pattern:
@@ -245,11 +245,11 @@ IPay->>IPay : notifyShortfall on failure
 
 **Diagram sources**
 - [Listeners/CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [Listeners/InvoicePaidListener.php:14-136](file://Listeners/InvoicePaidListener.php#L14-L136)
+- [Listeners/InvoicePaidListener.php:14-136](file://Listeners/InvoicePaidListener.php#L14-L135)
 
 **Section sources**
-- [Listeners/CartItemCreatedListener.php:13-174](file://Listeners/CartItemCreatedListener.php#L13-L174)
-- [Listeners/InvoicePaidListener.php:14-136](file://Listeners/InvoicePaidListener.php#L14-L136)
+- [Listeners/CartItemCreatedListener.php:13-174](file://Listeners/CartItemCreatedListener.php#L13-L173)
+- [Listeners/InvoicePaidListener.php:14-136](file://Listeners/InvoicePaidListener.php#L14-L135)
 
 ### Pricing Coexistence: Native Slider Metadata Only
 - SliderConfigReaderService reads dynamic_slider ConfigOption metadata (min, max, step, default, unit, display_unit, display_divisor, pricing model/rates) for frontend consumption.
@@ -270,7 +270,7 @@ SliderConfigReaderService --> ConfigOption : "reads metadata"
 ```
 
 **Diagram sources**
-- [Services/SliderConfigReaderService.php:7-69](file://Services/SliderConfigReaderService.php#L7-L69)
+- [Services/SliderConfigReaderService.php:7-69](file://Services/SliderConfigReaderService.php#L7-L68)
 
 **Section sources**
 - [Services/SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
@@ -353,7 +353,7 @@ Common issues and diagnostics:
 - Alert delivery failures: check AlertService sendNotifications and delivery logs; ensure email/webhook channels are configured and recipients exist.
 
 **Section sources**
-- [Listeners/InvoicePaidListener.php:58-136](file://Listeners/InvoicePaidListener.php#L58-L136)
+- [Listeners/InvoicePaidListener.php:58-136](file://Listeners/InvoicePaidListener.php#L58-L135)
 - [Services/ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
 - [Services/ReservationService.php:125-141](file://Services/ReservationService.php#L125-L141)
 - [Services/AlertService.php:128-248](file://Services/AlertService.php#L128-L248)

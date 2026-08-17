@@ -215,7 +215,7 @@ ForEachNode --> |No| ReturnData["Return {location_id, nodes[], max_available, to
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-67)
+- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
 - [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
 
 **Section sources**

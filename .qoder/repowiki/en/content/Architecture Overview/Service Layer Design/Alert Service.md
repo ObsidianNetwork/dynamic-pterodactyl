@@ -75,14 +75,14 @@ AlertSvc --> Event["AlertDeliveryFailed event"]
 - Admin AlertConfigResource: Filament resource exposing CRUD and a “Test” action to send a sample alert.
 
 **Section sources**
-- [AlertService.php:19-393](file://Services/AlertService.php#L19-L393)
+- [AlertService.php:19-393](file://Services/AlertService.php#L19-L392)
 - [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
 - [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
 - [CapacityAlertNotification.php:10-47](file://Notifications/CapacityAlertNotification.php#L10-L47)
 - [ReservationShortfallNotification.php:10-40](file://Notifications/ReservationShortfallNotification.php#L10-L40)
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
-- [AlertConfigResource.php:150-197](file://Admin/Resources/AlertConfigResource.php#L150-L197)
+- [AlertConfigResource.php:150-197](file://Admin/Resources/AlertConfigResource.php#L150-L196)
 
 ## Architecture Overview
 The service is invoked by a scheduled task registered during extension boot. For each active alert configuration, it determines the scope (global or specific location), fetches current availability from Pterodactyl via ResourceCalculationService, evaluates memory and disk utilization against configured warning/critical thresholds, and dispatches notifications if any thresholds are breached. Cooldown prevents repeated alerts within a configured window. Delivery attempts are recorded, and failures emit an event for downstream handling.
@@ -216,7 +216,7 @@ Migration highlights:
 
 **Section sources**
 - [DynamicPterodactyl.php:118-126](file://DynamicPterodactyl.php#L118-L126)
-- [AlertConfigResource.php:150-197](file://Admin/Resources/AlertConfigResource.php#L150-L197)
+- [AlertConfigResource.php:150-197](file://Admin/Resources/AlertConfigResource.php#L150-L196)
 - [AlertConfigObserver.php:12-69](file://Models/Observers/AlertConfigObserver.php#L12-L69)
 
 ## Dependency Analysis
@@ -261,7 +261,7 @@ AlertService --> AlertDeliveryFailed : "dispatches on failure"
 ```
 
 **Diagram sources**
-- [AlertService.php:19-393](file://Services/AlertService.php#L19-L393)
+- [AlertService.php:19-393](file://Services/AlertService.php#L19-L392)
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 - [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
 - [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
@@ -270,7 +270,7 @@ AlertService --> AlertDeliveryFailed : "dispatches on failure"
 - [AlertDeliveryFailed.php:9-16](file://Events/AlertDeliveryFailed.php#L9-L16)
 
 **Section sources**
-- [AlertService.php:19-393](file://Services/AlertService.php#L19-L393)
+- [AlertService.php:19-393](file://Services/AlertService.php#L19-L392)
 - [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
 
 ## Performance Considerations

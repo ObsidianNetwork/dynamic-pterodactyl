@@ -50,8 +50,8 @@ RCSvc --> DB
 **Section sources**
 - [NodeSelectionService.php:1-88](file://Services/NodeSelectionService.php#L1-L88)
 - [ResourceCalculationService.php:1-545](file://Services/ResourceCalculationService.php#L1-L545)
-- [ReservationService.php:1-454](file://Services/ReservationService.php#L1-L454)
-- [ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L66)
+- [ReservationService.php:1-454](file://Services/ReservationService.php#L1-L453)
+- [ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L65)
 
 ## Core Components
 - NodeSelectionService: Selects the best node using weighted headroom scoring and filters out unsuitable nodes (maintenance mode or insufficient resources).
@@ -257,11 +257,11 @@ Pending --> Cancelled : "cancel(token)"
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
 - [2026_04_22_000001_drop_released_from_reservation_status.php:8-19](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L19)
 
 **Section sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
 - [2026_04_22_000001_drop_released_from_reservation_status.php:8-19](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L19)
 
 ## Dependency Analysis

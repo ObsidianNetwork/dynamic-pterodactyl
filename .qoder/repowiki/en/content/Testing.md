@@ -69,18 +69,18 @@ U --> AC
 **Diagram sources**
 - [phpunit.xml:1-43](file://phpunit.xml#L1-L43)
 - [tests/bootstrap.php:1-21](file://tests/bootstrap.php#L1-L21)
-- [tests/TestCase.php:1-64](file://tests/TestCase.php#L1-L64)
+- [tests/TestCase.php:1-64](file://tests/TestCase.php#L1-L63)
 - [tests/LaravelTestCase.php:1-183](file://tests/LaravelTestCase.php#L1-L183)
-- [Services/ReservationService.php:1-454](file://Services/ReservationService.php#L1-L454)
+- [Services/ReservationService.php:1-454](file://Services/ReservationService.php#L1-L453)
 - [Services/ResourceCalculationService.php:1-545](file://Services/ResourceCalculationService.php#L1-L545)
-- [Services/AlertService.php:1-393](file://Services/AlertService.php#L1-L393)
-- [Models/ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L66)
-- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L57)
+- [Services/AlertService.php:1-393](file://Services/AlertService.php#L1-L392)
+- [Models/ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L65)
+- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L56)
 
 **Section sources**
 - [phpunit.xml:1-43](file://phpunit.xml#L1-L43)
 - [tests/bootstrap.php:1-21](file://tests/bootstrap.php#L1-L21)
-- [tests/TestCase.php:1-64](file://tests/TestCase.php#L1-L64)
+- [tests/TestCase.php:1-64](file://tests/TestCase.php#L1-L63)
 - [tests/LaravelTestCase.php:1-183](file://tests/LaravelTestCase.php#L1-L183)
 
 ## Core Components
@@ -91,11 +91,11 @@ Key components under test:
 - Models: ResourceReservation and AlertConfig define data contracts and scopes used by services.
 
 **Section sources**
-- [Services/ReservationService.php:1-454](file://Services/ReservationService.php#L1-L454)
+- [Services/ReservationService.php:1-454](file://Services/ReservationService.php#L1-L453)
 - [Services/ResourceCalculationService.php:1-545](file://Services/ResourceCalculationService.php#L1-L545)
-- [Services/AlertService.php:1-393](file://Services/AlertService.php#L1-L393)
-- [Models/ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L66)
-- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L57)
+- [Services/AlertService.php:1-393](file://Services/AlertService.php#L1-L392)
+- [Models/ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L65)
+- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L56)
 
 ## Architecture Overview
 The testing architecture isolates external dependencies and enforces deterministic environments:
@@ -251,9 +251,9 @@ Key test patterns:
 - Assert AlertDeliveryFailed event dispatch when all channels fail.
 
 **Section sources**
-- [tests/Unit/AlertServiceTest.php:1-771](file://tests/Unit/AlertServiceTest.php#L1-L771)
+- [tests/Unit/AlertServiceTest.php:1-771](file://tests/Unit/AlertServiceTest.php#L1-L770)
 - [Services/AlertService.php:33-248](file://Services/AlertService.php#L33-L248)
-- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L57)
+- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L56)
 
 ### Feature Tests for API Endpoints
 Focus areas:
@@ -291,7 +291,7 @@ Key test patterns:
 - Assert throttling behavior at both guest IP and user levels.
 
 **Section sources**
-- [tests/Feature/ReservationApiTest.php:1-491](file://tests/Feature/ReservationApiTest.php#L1-L491)
+- [tests/Feature/ReservationApiTest.php:1-491](file://tests/Feature/ReservationApiTest.php#L1-L490)
 - [tests/Feature/AvailabilityApiTest.php:1-95](file://tests/Feature/AvailabilityApiTest.php#L1-L95)
 
 ## Dependency Analysis

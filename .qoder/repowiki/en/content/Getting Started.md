@@ -181,7 +181,7 @@ Expire --> EndExpired["Released back to pool"]
 **Section sources**
 - [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 - [Services/ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
-- [Models/ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [Models/ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L65)
 
 ### Relationship to Paymenter’s Built-in Pterodactyl Server Extension
 - This extension is a companion enhancement. It handles dynamic sliders, availability, and reservations.

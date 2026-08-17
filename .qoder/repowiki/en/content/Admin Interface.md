@@ -89,10 +89,10 @@ AL --> ALS
 - [AuditLogPage.php:15-29](file://Admin/Pages/AuditLogPage.php#L15-L29)
 - [ReservationResource.php:15-27](file://Admin/Resources/ReservationResource.php#L15-L27)
 - [AlertConfigResource.php:27-39](file://Admin/Resources/AlertConfigResource.php#L27-L39)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
+- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L103)
+- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L109)
+- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L5)
+- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L47)
 - [ResourceCalculationService.php:10-22](file://Services/ResourceCalculationService.php#L10-L22)
 - [ReservationService.php:16-35](file://Services/ReservationService.php#L16-L35)
 - [AuditLogService.php:10-41](file://Services/AuditLogService.php#L10-L41)
@@ -115,13 +115,13 @@ AL --> ALS
 
 **Section sources**
 - [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
+- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L103)
 - [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
+- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L109)
 - [SetupWizard.php:50-427](file://Admin/Pages/SetupWizard.php#L50-L427)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
+- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L5)
 - [AuditLogPage.php:31-103](file://Admin/Pages/AuditLogPage.php#L31-L103)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
+- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L47)
 - [ReservationResource.php:34-127](file://Admin/Resources/ReservationResource.php#L34-L127)
 - [AlertConfigResource.php:41-176](file://Admin/Resources/AlertConfigResource.php#L41-L176)
 
@@ -176,12 +176,12 @@ ShowErr --> Render
 
 **Diagram sources**
 - [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
+- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L103)
 - [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
 
 **Section sources**
 - [Dashboard.php:27-115](file://Admin/Pages/Dashboard.php#L27-L115)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
+- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L103)
 
 ### Node Monitoring
 - Purpose: Real-time view of node utilization and availability per location.
@@ -208,11 +208,11 @@ NM-->>Admin : Render table with utilization
 **Diagram sources**
 - [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
 - [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
+- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L109)
 
 **Section sources**
 - [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
+- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L109)
 
 ### Setup Wizard
 - Purpose: Configure dynamic slider options for a selected product, including pricing models and allowed locations.
@@ -239,11 +239,11 @@ G --> |Yes| I["Success Notification & Reset Form"]
 
 **Diagram sources**
 - [SetupWizard.php:50-427](file://Admin/Pages/SetupWizard.php#L50-L427)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
+- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L5)
 
 **Section sources**
 - [SetupWizard.php:50-509](file://Admin/Pages/SetupWizard.php#L50-L509)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
+- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L5)
 
 ### Audit Log Viewer
 - Purpose: Track administrative actions and display recent alert delivery failures.
@@ -274,7 +274,7 @@ AuditLogPage --> AuditLog : "queries"
 
 **Section sources**
 - [AuditLogPage.php:31-103](file://Admin/Pages/AuditLogPage.php#L31-L103)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
+- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L47)
 
 ### Reservation Management Resource
 - Purpose: Manual intervention for pending reservations (extend TTL, cancel) and bulk cleanup of expired ones.
@@ -433,10 +433,10 @@ The Filament 4 admin interface provides a comprehensive operational view of syst
 - Extensibility: Add custom columns, filters, or actions in resources; customize views with standard Blade patterns.
 
 **Section sources**
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
+- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L103)
+- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L109)
+- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L5)
+- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L47)
 
 ### Integration Points
 - Pterodactyl API:

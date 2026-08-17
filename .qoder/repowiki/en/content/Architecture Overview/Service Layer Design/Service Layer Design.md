@@ -72,11 +72,11 @@ ResCalcSvc --> DB
 **Section sources**
 - [ResourceCalculationService.php:10-222](file://Services/ResourceCalculationService.php#L10-L222)
 - [NodeSelectionService.php:5-86](file://Services/NodeSelectionService.php#L5-L86)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [AlertService.php:19-393](file://Services/AlertService.php#L19-L393)
+- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [AlertService.php:19-393](file://Services/AlertService.php#L19-L392)
 - [AvailabilityController.php:9-71](file://Http/Controllers/Api/AvailabilityController.php#L9-L71)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminCapacityController.php:8-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L63)
+- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminCapacityController.php:8-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L62)
 
 ## Architecture Overview
 The service layer enforces strict boundaries:
@@ -226,7 +226,7 @@ end
 **Section sources**
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 - [ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
-- [ReservationService.php:387-454](file://Services/ReservationService.php#L387-L454)
+- [ReservationService.php:387-454](file://Services/ReservationService.php#L387-L453)
 
 ### AlertService
 Responsibilities:
@@ -300,11 +300,11 @@ AdminCapacityController --> ResourceCalculationService : "uses"
 
 **Diagram sources**
 - [NodeSelectionService.php:5-86](file://Services/NodeSelectionService.php#L5-L86)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [AlertService.php:19-393](file://Services/AlertService.php#L19-L393)
+- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L453)
+- [AlertService.php:19-393](file://Services/AlertService.php#L19-L392)
 - [AvailabilityController.php:9-71](file://Http/Controllers/Api/AvailabilityController.php#L9-L71)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminCapacityController.php:8-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L63)
+- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminCapacityController.php:8-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L62)
 
 **Section sources**
 - [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)

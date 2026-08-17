@@ -50,8 +50,8 @@ H["StoreReservationRequest"] --> C
 - [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
 
 **Section sources**
-- [ConfigOptionSetupService.php:1-260](file://Services/ConfigOptionSetupService.php#L1-L260)
-- [SliderConfigReaderService.php:1-69](file://Services/SliderConfigReaderService.php#L1-L69)
+- [ConfigOptionSetupService.php:1-260](file://Services/ConfigOptionSetupService.php#L1-L259)
+- [SliderConfigReaderService.php:1-69](file://Services/SliderConfigReaderService.php#L1-L68)
 
 ## Core Components
 - ConfigOptionSetupService: Creates/updates dynamic_slider ConfigOptions for memory, CPU, disk, and optionally Location; validates pricing metadata; audits setup runs.
