@@ -226,7 +226,7 @@ Behavior:
 - pterodactylGet(): Centralized HTTP call with retry on connection errors, rate limit detection, and sanitized error messages.
 - pterodactylGetPaginatedData(): Paginates through Pterodactyl lists.
 - getPendingReservations()/getPendingReservationsForNodes(): Sums pending reservations by node to subtract from available resources.
-- extractRelationshipData(): Normalizes relationship payloads from Pterodactyl.
+- requireRelationshipData(): Requires an array relationship payload and distinguishes a genuinely absent relationship from a present but malformed container or data value.
 
 Integration with reservation system:
 - Pending reservations are read from the local DB and subtracted from available resources to prevent overselling.
