@@ -245,7 +245,7 @@ Operational tips:
 
 **Section sources**
 - [ResourceCalculationService.php:157-195](file://Services/ResourceCalculationService.php#L157-L195)
-- [ResourceCalculationService.php:487-622](file://Services/ResourceCalculationService.php#L487-L622)
+- [ResourceCalculationService.php:487-631](file://Services/ResourceCalculationService.php#L487-L631)
 - [ResourceCalculationService.php:426-470](file://Services/ResourceCalculationService.php#L426-L470)
 - [ResourceCalculationServiceTest.php:53-139](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
 

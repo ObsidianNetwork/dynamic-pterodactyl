@@ -111,7 +111,7 @@ RCS-->>Caller : Cluster snapshot or degraded snapshot
 - [ResourceCalculationService.php:26-141](file://Services/ResourceCalculationService.php#L26-L141)
 - [ResourceCalculationService.php:313-406](file://Services/ResourceCalculationService.php#L313-L406)
 - [ResourceCalculationService.php:407-486](file://Services/ResourceCalculationService.php#L407-L486)
-- [ResourceCalculationService.php:487-622](file://Services/ResourceCalculationService.php#L487-L622)
+- [ResourceCalculationService.php:487-631](file://Services/ResourceCalculationService.php#L487-L631)
 
 ## Detailed Component Analysis
 
@@ -235,7 +235,7 @@ Integration with reservation system:
 **Section sources**
 - [ResourceCalculationService.php:359-391](file://Services/ResourceCalculationService.php#L359-L391)
 - [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
-- [ResourceCalculationService.php:487-622](file://Services/ResourceCalculationService.php#L487-L622)
+- [ResourceCalculationService.php:487-631](file://Services/ResourceCalculationService.php#L487-L631)
 - [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
 
 ### Class diagram
