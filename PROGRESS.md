@@ -71,7 +71,7 @@ All dp-NN backlog items are implemented. The completed successor is staged on `a
 **Working on**: Exact-SHA review and successor draft PR handoff
 **Status**: The full PR #22 rebase is complete with every PR #23 safety fix preserved. `NodeCapacityPolicy`, zero-as-unlimited rejection, API-key encryption/migration, strict inventory validation, sanitized errors, and the private SQLite test database guard are present. The cross-repository PHP 8.3/8.4 SQLite and MariaDB 11/12 matrix is configured and green at the last reviewed commit.
 **Current file**: PROGRESS.md
-**Next action**: Finish the fresh exact-SHA review, publish the successor as a draft PR targeting `dynamic-slider`, and retain PR #22/#23 as superseded history until the replacement path is approved. Resume Mutagen only as a separately authorized deployment step after both repositories are merged and the migration checklist is complete.
+**Next action**: Finish the fresh exact-SHA review, open the successor draft PR targeting `dynamic-slider`, and retain PR #22/#23 as superseded history until the replacement path is approved. Resume Mutagen only as a separately authorized deployment step after both repositories are merged and the migration checklist is complete.
 **Blockers**: Production deployment remains intentionally paused. The extension successor must ship with Paymenter companion PR #24, database backups and both migration sets, configured per-node capacity policies, confirmed exclusive provisioning control, and an approved deployment window.
 
 ### This Session's Changes:
@@ -86,6 +86,10 @@ All dp-NN backlog items are implemented. The completed successor is staged on `a
 ---
 
 ## dp-19 — Wire customer-facing slider to reservation API
+
+> **Historical milestone.** This records the April 2026 implementation. The
+> reconciled successor uses customer quote endpoints and Paymenter cart/service
+> lifecycle seams instead of the retired public reservation endpoint.
 
 **Status**: Shipped  
 **PR**: committed directly on `dynamic-slider` (default branch; no PR base)  
@@ -104,6 +108,10 @@ Closed the architectural gap where `dynamicSliderGroup` Alpine component never c
 
 
 ## dp-18 — Capacity-fanout Performance: batch admin-view Pterodactyl reads
+
+> **Historical milestone.** This records the original batching work. The
+> successor centralizes strict paginated location, node, server, and allocation
+> reads in `PterodactylInventoryService`.
 
 **Status**: Shipped  
 **PR**: #20  
@@ -124,7 +132,12 @@ Update this section:
 
 ---
 
-## Up Next
+## Historical Implementation Checklist
+
+> **Archived reference.** The checklist below records the original phased
+> implementation and intentionally retains names that were later retired. It is
+> not a current source inventory or deployment plan. Use **Current Status** and
+> **Current Session State** above for the active contract.
 
 ### Phase 1: Foundation (COMPLETE)
 - [x] Create extension directory structure
@@ -184,9 +197,12 @@ See 09-IMPLEMENTATION.md for full phase breakdown.
 
 ---
 
-## Blockers / Questions
+## Current Deployment Blockers
 
-*None currently*
+Production deployment is intentionally paused pending approval and merge of the
+extension successor and Paymenter companion PR #24, database backups and both
+migration sets, configured per-node capacity policies, confirmed exclusive
+provisioning control, and an approved deployment window.
 
 <!-- 
 Format for blockers:
@@ -349,5 +365,5 @@ When debugging, record:
 - Clear "Current Session State" or set to next task
 
 **When blocked**:
-- Add to "Blockers / Questions" section
+- Add to "Current Deployment Blockers" section
 - Be specific about what's needed
