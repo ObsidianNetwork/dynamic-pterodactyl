@@ -31,6 +31,7 @@ class AlertConfig extends Model
         'notification_emails' => 'array',
         'email_notifications' => 'boolean',
         'webhook_notifications' => 'boolean',
+        'webhook_url' => 'encrypted',
         'is_active' => 'boolean',
         'last_notification_at' => 'datetime',
     ];

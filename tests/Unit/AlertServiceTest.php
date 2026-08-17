@@ -4,6 +4,7 @@ namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\User;
 use Illuminate\Container\Container;
+use Illuminate\Encryption\Encrypter;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Factory;
@@ -44,6 +45,7 @@ class AlertServiceTest extends TestCase
     {
         $app = new Container;
         $app->instance('events', $dispatcher ?? new Dispatcher($app));
+        $app->instance('encrypter', new Encrypter(str_repeat('a', 32), 'AES-256-CBC'));
         $app->instance('log', new class
         {
             public function emergency(...$arguments): void {}
@@ -507,6 +509,41 @@ class AlertServiceTest extends TestCase
 
         $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
         Log::shouldHaveReceived('error')->with('Webhook notification failed', Mockery::any());
+    }
+
+    public function test_public_webhook_passes_pinned_transport_options_to_laravel(): void
+    {
+        $capturedOptions = null;
+        Http::fake(function ($request, array $options) use (&$capturedOptions) {
+            $capturedOptions = $options;
+
+            return Http::response([], 204);
+        });
+
+        $result = $this->invokeSendNotifications(
+            $this->makeService(),
+            (object) [
+                'id' => 44,
+                'location_id' => 1,
+                'location_name' => 'Test',
+                'email_notifications' => false,
+                'notification_emails' => json_encode([]),
+                'webhook_notifications' => true,
+                'webhook_url' => 'https://hooks.example.com/test',
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'memory', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $this->assertTrue($result);
+        $this->assertIsArray($capturedOptions);
+        $this->assertFalse($capturedOptions['allow_redirects']);
+        $this->assertSame(CURLPROTO_HTTPS, $capturedOptions['curl'][CURLOPT_PROTOCOLS]);
+        $this->assertSame('', $capturedOptions['curl'][CURLOPT_PROXY]);
+        $this->assertSame(
+            ['hooks.example.com:443:93.184.216.34'],
+            $capturedOptions['curl'][CURLOPT_RESOLVE]
+        );
     }
 
     public function test_non_public_webhook_is_rejected_before_an_http_request(): void
