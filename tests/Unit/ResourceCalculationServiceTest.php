@@ -220,6 +220,28 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
     }
 
+    public function test_location_availability_ignores_malformed_included_relationships(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'object' => 'location',
+                'attributes' => [
+                    'id' => 1,
+                    'relationships' => [
+                        'nodes' => ['data' => 'not-an-array'],
+                        'servers' => ['data' => [['attributes' => 'not-an-array']]],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $result = $this->service->getLocationAvailability(1);
+
+        Http::assertSentCount(1);
+        $this->assertSame([], $result['nodes']);
+        $this->assertSame(['memory' => 0, 'cpu' => 0, 'disk' => 0], $result['max_available']);
+    }
+
     public function test_snapshot_with_single_location_single_node(): void
     {
         $calls = 0;

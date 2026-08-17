@@ -60,7 +60,7 @@ class DynamicPterodactyl extends Extension
                 'name' => 'pterodactyl_api_key',
                 'label' => 'Pterodactyl API Key',
                 'type' => 'password',
-                'description' => 'Application API key from Pterodactyl admin panel',
+                'description' => 'Application API key with read access to Locations, Nodes, and Servers',
                 'required' => true,
             ],
             [

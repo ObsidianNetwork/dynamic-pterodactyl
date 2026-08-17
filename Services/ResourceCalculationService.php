@@ -231,22 +231,30 @@ class ResourceCalculationService
             ['include' => 'nodes,servers']
         );
 
-        $nodesData = $response['attributes']['relationships']['nodes']['data'] ?? [];
-        $serversData = $response['attributes']['relationships']['servers']['data'] ?? [];
+        $nodesData = $this->extractRelationshipData($response, 'nodes');
+        $serversData = $this->extractRelationshipData($response, 'servers');
 
         // Group servers by node_id for per-node allocation accounting
         $serversByNode = [];
         foreach ($serversData as $server) {
-            $nodeId = $server['attributes']['node'] ?? null;
+            $attributes = is_array($server) && is_array($server['attributes'] ?? null)
+                ? $server['attributes']
+                : null;
+            $nodeId = $attributes['node'] ?? null;
             if ($nodeId === null) {
                 continue;
             }
-            $serversByNode[$nodeId][] = $server['attributes'];
+            $serversByNode[$nodeId][] = $attributes;
         }
 
         $nodes = [];
         foreach ($nodesData as $node) {
-            $attrs = $node['attributes'];
+            $attrs = is_array($node) && is_array($node['attributes'] ?? null)
+                ? $node['attributes']
+                : null;
+            if ($attrs === null || ! isset($attrs['id'], $attrs['name'], $attrs['fqdn'], $attrs['memory'], $attrs['disk'])) {
+                continue;
+            }
             $nodeId = $attrs['id'];
             $nodes[] = [
                 'node' => $attrs,
@@ -261,9 +269,10 @@ class ResourceCalculationService
     {
         $allocated = ['memory' => 0, 'cpu' => 0, 'disk' => 0];
         foreach ($servers as $server) {
-            $allocated['memory'] += $server['limits']['memory'] ?? 0;
-            $allocated['cpu'] += $server['limits']['cpu'] ?? 0;
-            $allocated['disk'] += $server['limits']['disk'] ?? 0;
+            $limits = is_array($server['limits'] ?? null) ? $server['limits'] : [];
+            $allocated['memory'] += $limits['memory'] ?? 0;
+            $allocated['cpu'] += $limits['cpu'] ?? 0;
+            $allocated['disk'] += $limits['disk'] ?? 0;
         }
 
         $effectiveMemory = $node['memory'] * (1 + ($node['memory_overallocate'] ?? 0) / 100);
@@ -398,9 +407,22 @@ class ResourceCalculationService
 
     private function extractRelationshipData(array $payload, string $relationship): array
     {
-        return $payload['attributes']['relationships'][$relationship]['data']
-            ?? $payload['relationships'][$relationship]['data']
-            ?? [];
+        $attributes = is_array($payload['attributes'] ?? null) ? $payload['attributes'] : [];
+        $relationshipSets = [
+            is_array($attributes['relationships'] ?? null) ? $attributes['relationships'] : [],
+            is_array($payload['relationships'] ?? null) ? $payload['relationships'] : [],
+        ];
+
+        foreach ($relationshipSets as $relationships) {
+            $entry = is_array($relationships[$relationship] ?? null)
+                ? $relationships[$relationship]
+                : [];
+            if (is_array($entry['data'] ?? null)) {
+                return $entry['data'];
+            }
+        }
+
+        return [];
     }
 
     private function emptyClusterSnapshot(): array

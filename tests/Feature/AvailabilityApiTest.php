@@ -78,6 +78,28 @@ class AvailabilityApiTest extends LaravelTestCase
             'Customer availability response must not expose node-level data');
     }
 
+    public function test_customer_failure_response_does_not_expose_internal_exception(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create();
+
+        $nodeService = Mockery::mock(NodeSelectionService::class);
+        $nodeService->shouldReceive('getMaxAvailable')
+            ->once()
+            ->with(1)
+            ->andThrow(new \RuntimeException('panel-internal-host:8080 failed'));
+        $this->app->instance(NodeSelectionService::class, $nodeService);
+        $this->app->instance(ResourceCalculationService::class, Mockery::mock(ResourceCalculationService::class));
+
+        $response = $this->actingAs($user)->getJson('/api/dynamic-pterodactyl/availability/1');
+
+        $response->assertStatus(500)->assertExactJson([
+            'success' => false,
+            'message' => 'Failed to fetch availability',
+        ]);
+        $this->assertStringNotContainsString('panel-internal-host', $response->getContent());
+    }
+
     private function bindAvailabilityServices(array $maxAvailable): void
     {
         $nodeService = Mockery::mock(NodeSelectionService::class);

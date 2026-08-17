@@ -40,4 +40,30 @@ class TestDatabaseGuardTest extends TestCase
     {
         $this->assertFalse(TestDatabaseGuard::allows('', 'sqlite', 'testing'));
     }
+
+    public function test_rejects_paymenter_test_database_outside_testing_environment(): void
+    {
+        $this->assertFalse(TestDatabaseGuard::allows('paymenter_test', 'mysql', 'production'));
+        $this->assertTrue(TestDatabaseGuard::allows('paymenter_test', 'mariadb', 'testing'));
+    }
+
+    public function test_rejects_hard_linked_sqlite_alias(): void
+    {
+        $suffix = bin2hex(random_bytes(6));
+        $sourceDirectory = sys_get_temp_dir().DIRECTORY_SEPARATOR.'database-guard-source-'.$suffix;
+        $source = $sourceDirectory.DIRECTORY_SEPARATOR.'valuable.sqlite';
+        $alias = sys_get_temp_dir().DIRECTORY_SEPARATOR.'dynamic-pterodactyl-test-hardlink-'.$suffix.'.sqlite';
+
+        mkdir($sourceDirectory);
+        file_put_contents($source, 'must not be treated as a disposable test database');
+        $this->assertTrue(link($source, $alias));
+
+        try {
+            $this->assertFalse(TestDatabaseGuard::allows($alias, 'sqlite', 'testing'));
+        } finally {
+            unlink($alias);
+            unlink($source);
+            rmdir($sourceDirectory);
+        }
+    }
 }
