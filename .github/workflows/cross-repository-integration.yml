@@ -25,21 +25,21 @@ jobs:
 
     steps:
       - name: Check out Dynamic Pterodactyl
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: dynamic-pterodactyl
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Check out companion Paymenter
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
           ref: 4bab39fa1ee8ae471a104efda15dd1ac037f209e
           path: paymenter
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: '8.3'
           extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, tokenizer, xml, zip
@@ -88,19 +88,19 @@ jobs:
 
     steps:
       - name: Check out Dynamic Pterodactyl
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: dynamic-pterodactyl
 
       - name: Check out companion Paymenter
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
           ref: 4bab39fa1ee8ae471a104efda15dd1ac037f209e
           path: paymenter
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
           extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, pdo_sqlite, sqlite3, tokenizer, xml, zip
@@ -190,19 +190,19 @@ jobs:
 
     steps:
       - name: Check out Dynamic Pterodactyl
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: dynamic-pterodactyl
 
       - name: Check out companion Paymenter
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: ObsidianNetwork/Paymenter-Obsidian-Network
           ref: 4bab39fa1ee8ae471a104efda15dd1ac037f209e
           path: paymenter
 
       - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
         with:
           php-version: ${{ matrix.php }}
           extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, tokenizer, xml, zip
