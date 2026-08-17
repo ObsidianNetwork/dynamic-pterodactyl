@@ -204,6 +204,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 ['node' => 5, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120],
                 ['node' => 6, 'memory' => 4096, 'cpu' => 200, 'disk' => 20480],
             ],
+            additionalNodeIds: [6],
         ));
 
         $result = $this->service->getLocationAvailability(1);
@@ -218,6 +219,8 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         });
         $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $result['nodes'][0]['allocated']);
         $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
+        $this->assertSame(['memory' => 4096, 'cpu' => 200, 'disk' => 20480], $result['nodes'][1]['allocated']);
+        $this->assertSame(['memory' => 4096, 'cpu' => 200, 'disk' => 30720], $result['nodes'][1]['available']);
     }
 
     public function test_location_availability_rejects_malformed_included_relationships(): void
@@ -252,6 +255,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                         'nodes' => ['data' => [[
                             'attributes' => [
                                 'id' => 5,
+                                'location_id' => 1,
                                 'name' => 'Node 5',
                                 'fqdn' => 'node-5.example.com',
                                 'memory' => 8192,
@@ -274,6 +278,125 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->expectExceptionMessage('invalid included server payload');
 
         $this->service->getLocationAvailability(1);
+    }
+
+    public function test_location_availability_rejects_incomplete_included_server_limits(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            servers: [['node' => 5, 'memory' => 1024, 'cpu' => 50]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid included server payload');
+
+        $this->service->getLocationAvailability(1);
+    }
+
+    public function test_location_availability_rejects_negative_included_server_limits(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            servers: [['node' => 5, 'memory' => 1024, 'cpu' => -1, 'disk' => 5120]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid included server payload');
+
+        $this->service->getLocationAvailability(1);
+    }
+
+    public function test_location_availability_rejects_server_for_unknown_node(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            servers: [['node' => 6, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('unknown included node');
+
+        $this->service->getLocationAvailability(1);
+    }
+
+    public function test_location_availability_rejects_node_without_cpu_threads(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'attributes' => [
+                    'relationships' => [
+                        'nodes' => ['data' => [[
+                            'attributes' => [
+                                'id' => 5,
+                                'location_id' => 1,
+                                'name' => 'Node 5',
+                                'fqdn' => 'node-5.example.com',
+                                'memory' => 8192,
+                                'disk' => 51200,
+                            ],
+                        ]]],
+                        'servers' => ['data' => []],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid included node payload');
+
+        $this->service->getLocationAvailability(1);
+    }
+
+    public function test_snapshot_falls_back_when_included_servers_relationship_is_missing(): void
+    {
+        $calls = 0;
+        $node = $this->nodeWithServersPayload(1, 1, 'Node 1', []);
+        unset($node['attributes']['relationships']);
+
+        Http::fake(function ($request) use (&$calls, $node) {
+            $calls++;
+            $url = $request->url();
+
+            if (str_contains($url, '/api/application/locations')) {
+                return Http::response([
+                    'data' => [['attributes' => ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']]],
+                ], 200);
+            }
+
+            if (str_contains($url, '/api/application/nodes')) {
+                return Http::response(['data' => [$node]], 200);
+            }
+
+            if (str_contains($url, '/api/application/servers')) {
+                return Http::response([
+                    'data' => [[
+                        'attributes' => [
+                            'node' => 1,
+                            'limits' => ['memory' => 1024, 'cpu' => 50, 'disk' => 5120],
+                        ],
+                    ]],
+                ], 200);
+            }
+
+            return Http::response([], 404);
+        });
+
+        $snapshot = $this->service->buildClusterSnapshot();
+
+        $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $snapshot['nodes'][1]['allocated']);
+        $this->assertSame(4, $calls);
     }
 
     public function test_snapshot_with_single_location_single_node(): void
@@ -446,9 +569,10 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         int $totalDisk,
         int $totalCpuThreads,
         array $servers = [],
+        array $additionalNodeIds = [],
     ): callable
     {
-        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads, $servers) {
+        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads, $servers, $additionalNodeIds) {
             $url = $request->url();
             $query = [];
             parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
@@ -463,13 +587,13 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                         'relationships' => [
                             'nodes' => [
                                 'object' => 'list',
-                                'data' => [[
+                                'data' => array_map(fn (int $includedNodeId) => [
                                     'object' => 'node',
                                     'attributes' => [
-                                        'id' => $nodeId,
+                                        'id' => $includedNodeId,
                                         'location_id' => $locationId,
-                                        'name' => 'Node '.$nodeId,
-                                        'fqdn' => 'node-'.$nodeId.'.example.com',
+                                        'name' => 'Node '.$includedNodeId,
+                                        'fqdn' => 'node-'.$includedNodeId.'.example.com',
                                         'memory' => $totalMemory,
                                         'disk' => $totalDisk,
                                         'cpu_threads' => $totalCpuThreads,
@@ -481,7 +605,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                                             'disk' => 0,
                                         ],
                                     ],
-                                ]],
+                                ], array_merge([$nodeId], $additionalNodeIds)),
                             ],
                             'servers' => [
                                 'object' => 'list',
@@ -490,11 +614,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                                     'attributes' => [
                                         'id' => ($server['node'] * 100) + $index,
                                         'node' => $server['node'],
-                                        'limits' => [
-                                            'memory' => $server['memory'],
-                                            'cpu' => $server['cpu'],
-                                            'disk' => $server['disk'],
-                                        ],
+                                        'limits' => array_intersect_key($server, [
+                                            'memory' => true,
+                                            'cpu' => true,
+                                            'disk' => true,
+                                        ]),
                                     ],
                                 ], $servers, array_keys($servers)),
                             ],
