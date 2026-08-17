@@ -90,6 +90,7 @@ already been committed.
 7. Redacted credential-bearing webhook transport failures from application logs and alert delivery history, with persisted failure-path coverage.
 8. Extended the webhook public-address boundary to reject deprecated IPv6 site-local space (`fec0::/10`) before transport pinning.
 9. Rejected legacy IPv4-compatible IPv6 space (`::/96`), preventing embedded loopback/private IPv4 destinations from reaching transport pinning.
+10. Reconciled the webhook denylist with the current IANA registry by rejecting the non-global dummy IPv6 prefix (`100:0:0:1::/64`).
 
 ---
 

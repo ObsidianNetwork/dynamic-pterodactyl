@@ -14,14 +14,14 @@ process-private named-memory database and rejects inherited generated URIs in
 child processes. MySQL/MariaDB tests may use only the explicitly named
 `paymenter_test` database while `APP_ENV=testing`.
 
-[Test bootstrap](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php) and
-[database guard](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/TestDatabaseGuard.php)
+[Test bootstrap](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php) and
+[database guard](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/TestDatabaseGuard.php)
 
 
 <cite>
 **Referenced Files in This Document**
 - [phpunit.xml](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml)
-- [tests/bootstrap.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php)
+- [tests/bootstrap.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php)
 - [tests/TestCase.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/TestCase.php)
 - [tests/LaravelTestCase.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php)
 - [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
@@ -86,7 +86,7 @@ U --> AC
 
 **Diagram sources**
 - [phpunit.xml:1-43](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L1-L43)
-- [tests/bootstrap.php:1-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php#L1-L21)
+- [tests/bootstrap.php:1-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php#L1-L21)
 - [tests/TestCase.php:1-63](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/TestCase.php#L1-L63)
 - [tests/LaravelTestCase.php:1-183](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L1-L183)
 - [Services/ReservationService.php:1-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L1-L453)
@@ -97,7 +97,7 @@ U --> AC
 
 **Section sources**
 - [phpunit.xml:1-43](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L1-L43)
-- [tests/bootstrap.php:1-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php#L1-L21)
+- [tests/bootstrap.php:1-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php#L1-L21)
 - [tests/TestCase.php:1-63](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/TestCase.php#L1-L63)
 - [tests/LaravelTestCase.php:1-183](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L1-L183)
 
@@ -142,7 +142,7 @@ sequenceDiagram
 
 **Diagram sources**
 - [phpunit.xml:28-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L28-L41)
-- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php#L23-L48)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php#L23-L48)
 - [tests/LaravelTestCase.php:13-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L13-L25)
 
 ## Detailed Component Analysis
@@ -361,7 +361,7 @@ Debugging tips:
 - Use assertDatabaseHas/assertDatabaseMissing to validate exact state changes in reservations and audit logs.
 
 **Section sources**
-- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php#L23-L48)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php#L23-L48)
 - [tests/Unit/ResourceCalculationServiceTest.php:18-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L18-L33)
 - [tests/Unit/AlertServiceTest.php:26-62](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L26-L62)
 - [tests/Unit/ReservationServiceTest.php:29-46](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ReservationServiceTest.php#L29-L46)
@@ -383,7 +383,7 @@ The test suite provides robust coverage across service logic, API endpoints, and
 **Section sources**
 - [phpunit.xml:13-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L13-L20)
 - [phpunit.xml:28-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L28-L41)
-- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php#L23-L48)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php#L23-L48)
 
 ### Writing New Tests
 - Unit tests:
@@ -425,7 +425,7 @@ The test suite provides robust coverage across service logic, API endpoints, and
 
 **Section sources**
 - [phpunit.xml:34-36](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L34-L36)
-- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/872897b3b2d3f8232738fcae9e883bd3e53d5aa1/tests/bootstrap.php#L23-L48)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/8b95295e4911d2be9d865ff000dfd7313278c3ab/tests/bootstrap.php#L23-L48)
 - [tests/Feature/ReservationApiTest.php:402-446](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L402-L446)
 
 ### Assertion Patterns
