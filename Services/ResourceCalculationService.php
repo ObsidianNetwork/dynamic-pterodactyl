@@ -143,9 +143,10 @@ class ResourceCalculationService
     /**
      * Calculate available resources for a specific node
      */
-    private function calculateNodeAvailability(array $node, ?string $excludeReservationToken = null): array
+    private function calculateNodeAvailability(array $nodeWithServers, ?string $excludeReservationToken = null): array
     {
-        $servers = $this->fetchServersOnNode($node['id']);
+        $node = $nodeWithServers['node'];
+        $servers = $nodeWithServers['servers'];
         $pendingReservations = $this->getPendingReservations($node['id'], $excludeReservationToken);
 
         return $this->buildNodeAvailabilityFromServers($node, $servers, $pendingReservations);
@@ -200,13 +201,13 @@ class ResourceCalculationService
     public function verifyAvailability(int $nodeId, array $requirements, ?string $excludeReservationToken = null): bool
     {
         $nodes = $this->fetchNodesInLocation($this->getNodeLocation($nodeId));
-        $node = \collect($nodes)->firstWhere('id', $nodeId);
+        $nodeWithServers = \collect($nodes)->first(fn ($n) => ($n['node']['id'] ?? null) === $nodeId);
 
-        if (! $node) {
+        if (! $nodeWithServers) {
             return false;
         }
 
-        $availability = $this->calculateNodeAvailability($node, $excludeReservationToken);
+        $availability = $this->calculateNodeAvailability($nodeWithServers, $excludeReservationToken);
 
         return $availability['available']['memory'] >= $requirements['memory']
             && $availability['available']['cpu'] >= $requirements['cpu']
@@ -225,23 +226,35 @@ class ResourceCalculationService
 
     private function fetchNodesInLocation(int $locationId): array
     {
-        $data = $this->pterodactylGet('/api/application/nodes', [
-            'filter[location_id]' => $locationId,
-            'per_page' => 100,
-        ]);
+        $response = $this->pterodactylGet(
+            "/api/application/locations/{$locationId}",
+            ['include' => 'nodes,servers']
+        );
 
-        return \collect($data['data'] ?? [])
-            ->map(fn ($node) => $node['attributes'])
-            ->toArray();
-    }
+        $nodesData = $response['attributes']['relationships']['nodes']['data'] ?? [];
+        $serversData = $response['attributes']['relationships']['servers']['data'] ?? [];
 
-    private function fetchServersOnNode(int $nodeId): array
-    {
-        $data = $this->pterodactylGet("/api/application/nodes/{$nodeId}", ['include' => 'servers']);
+        // Group servers by node_id for per-node allocation accounting
+        $serversByNode = [];
+        foreach ($serversData as $server) {
+            $nodeId = $server['attributes']['node'] ?? null;
+            if ($nodeId === null) {
+                continue;
+            }
+            $serversByNode[$nodeId][] = $server['attributes'];
+        }
 
-        return \collect($this->extractRelationshipData($data, 'servers'))
-            ->map(fn ($server) => $server['attributes'])
-            ->toArray();
+        $nodes = [];
+        foreach ($nodesData as $node) {
+            $attrs = $node['attributes'];
+            $nodeId = $attrs['id'];
+            $nodes[] = [
+                'node' => $attrs,
+                'servers' => $serversByNode[$nodeId] ?? [],
+            ];
+        }
+
+        return $nodes;
     }
 
     private function buildNodeAvailabilityFromServers(array $node, array $servers, array $pendingReservations): array

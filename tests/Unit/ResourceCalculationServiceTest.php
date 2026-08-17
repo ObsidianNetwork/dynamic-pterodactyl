@@ -192,6 +192,26 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertFalse($this->service->verifyAvailability(5, $resources));
     }
 
+    public function test_location_availability_groups_included_servers_by_node(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            servers: [
+                ['node' => 5, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120],
+                ['node' => 6, 'memory' => 4096, 'cpu' => 200, 'disk' => 20480],
+            ],
+        ));
+
+        $result = $this->service->getLocationAvailability(1);
+
+        $this->assertSame(['memory' => 1024, 'cpu' => 50, 'disk' => 5120], $result['nodes'][0]['allocated']);
+        $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
+    }
+
     public function test_snapshot_with_single_location_single_node(): void
     {
         $calls = 0;
@@ -251,29 +271,35 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertLessThanOrEqual(4, $calls);
     }
 
-    public function test_snapshot_handles_paginated_node_response(): void
+    public function test_snapshot_handles_paginated_location_response(): void
     {
         $calls = 0;
 
         Http::fake($this->clusterSnapshotHttpFake(
             $calls,
             locations: [
-                ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1'],
+                [
+                    ['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1'],
+                    ['id' => 2, 'short' => 'dc2', 'long' => 'Data Center 2'],
+                ],
+                [
+                    ['id' => 3, 'short' => 'dc3', 'long' => 'Data Center 3'],
+                ],
             ],
             nodePages: [
                 [
                     $this->nodeWithServersPayload(1, 1, 'Node 1', []),
-                    $this->nodeWithServersPayload(2, 1, 'Node 2', []),
-                ],
-                [
-                    $this->nodeWithServersPayload(3, 1, 'Node 3', []),
+                    $this->nodeWithServersPayload(2, 2, 'Node 2', []),
+                    $this->nodeWithServersPayload(3, 3, 'Node 3', []),
                 ],
             ],
         ));
 
         $snapshot = $this->service->buildClusterSnapshot();
 
-        $this->assertSame([1, 2, 3], $snapshot['by_location'][1]['nodes']);
+        $this->assertSame([1], $snapshot['by_location'][1]['nodes']);
+        $this->assertSame([2], $snapshot['by_location'][2]['nodes']);
+        $this->assertSame([3], $snapshot['by_location'][3]['nodes']);
         $this->assertCount(3, $snapshot['nodes']);
         $this->assertLessThanOrEqual(4, $calls);
     }
@@ -349,36 +375,64 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         ]);
     }
 
-    private function availabilityHttpFake(int $nodeId, int $locationId, int $totalMemory, int $totalDisk, int $totalCpuThreads): callable
+    private function availabilityHttpFake(
+        int $nodeId,
+        int $locationId,
+        int $totalMemory,
+        int $totalDisk,
+        int $totalCpuThreads,
+        array $servers = [],
+    ): callable
     {
-        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads) {
+        return function ($request) use ($nodeId, $locationId, $totalMemory, $totalDisk, $totalCpuThreads, $servers) {
             $url = $request->url();
+            $query = [];
+            parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
 
-            if (str_contains($url, '/api/application/nodes?')) {
+            if (str_contains($url, "/api/application/locations/{$locationId}") && ($query['include'] ?? null) === 'nodes,servers') {
                 return Http::response([
-                    'data' => [[
-                        'attributes' => [
-                            'id' => $nodeId,
-                            'location_id' => $locationId,
-                            'name' => 'Node '.$nodeId,
-                            'fqdn' => 'node-'.$nodeId.'.example.com',
-                            'memory' => $totalMemory,
-                            'disk' => $totalDisk,
-                            'cpu_threads' => $totalCpuThreads,
-                            'memory_overallocate' => 0,
-                            'disk_overallocate' => 0,
-                            'maintenance_mode' => false,
-                        ],
-                    ]],
-                ], 200);
-            }
-
-            if (str_contains($url, "/api/application/nodes/{$nodeId}?include=servers")) {
-                return Http::response([
+                    'object' => 'location',
                     'attributes' => [
+                        'id' => $locationId,
+                        'short' => 'dc'.$locationId,
+                        'long' => 'Data Center '.$locationId,
                         'relationships' => [
+                            'nodes' => [
+                                'object' => 'list',
+                                'data' => [[
+                                    'object' => 'node',
+                                    'attributes' => [
+                                        'id' => $nodeId,
+                                        'location_id' => $locationId,
+                                        'name' => 'Node '.$nodeId,
+                                        'fqdn' => 'node-'.$nodeId.'.example.com',
+                                        'memory' => $totalMemory,
+                                        'disk' => $totalDisk,
+                                        'cpu_threads' => $totalCpuThreads,
+                                        'memory_overallocate' => 0,
+                                        'disk_overallocate' => 0,
+                                        'maintenance_mode' => false,
+                                        'allocated_resources' => [
+                                            'memory' => 0,
+                                            'disk' => 0,
+                                        ],
+                                    ],
+                                ]],
+                            ],
                             'servers' => [
-                                'data' => [],
+                                'object' => 'list',
+                                'data' => array_map(fn (array $server, int $index) => [
+                                    'object' => 'server',
+                                    'attributes' => [
+                                        'id' => ($server['node'] * 100) + $index,
+                                        'node' => $server['node'],
+                                        'limits' => [
+                                            'memory' => $server['memory'],
+                                            'cpu' => $server['cpu'],
+                                            'disk' => $server['disk'],
+                                        ],
+                                    ],
+                                ], $servers, array_keys($servers)),
                             ],
                         ],
                     ],
@@ -407,13 +461,16 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             $query = [];
             parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
 
-            if (str_contains($url, '/api/application/locations')) {
+            if (str_contains($url, '/api/application/locations') && ! preg_match('#/api/application/locations/\d+#', $url)) {
+                $locationPages = $this->isPaginatedPayload($locations) ? $locations : [$locations];
+                $page = (int) ($query['page'] ?? 1);
+
                 return Http::response([
-                    'data' => array_map(fn (array $location) => ['attributes' => $location], $locations),
+                    'data' => array_map(fn (array $location) => ['attributes' => $location], $locationPages[$page - 1] ?? []),
                     'meta' => [
                         'pagination' => [
-                            'current_page' => 1,
-                            'total_pages' => 1,
+                            'current_page' => $page,
+                            'total_pages' => count($locationPages),
                         ],
                     ],
                 ], 200);
@@ -435,6 +492,11 @@ class ResourceCalculationServiceTest extends LaravelTestCase
 
             return Http::response([], 404);
         };
+    }
+
+    private function isPaginatedPayload(array $payload): bool
+    {
+        return isset($payload[0]) && is_array($payload[0]) && array_is_list($payload[0]);
     }
 
     private function nodeWithServersPayload(int $nodeId, int $locationId, string $name, array $servers): array
