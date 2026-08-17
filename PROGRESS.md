@@ -88,6 +88,7 @@ already been committed.
 5. Pinned the audited Paymenter companion, added the cross-repository PHP/SQLite/MariaDB matrix, pinned third-party workflow actions to immutable commits, and completed a read-only live Pterodactyl inventory smoke test.
 6. Preserved all 42 migrated Qoder pages, marked superseded deep dives as historical, published the reconciled canonical architecture, and verified the standalone Wiki hierarchy, source links, and anchors.
 7. Redacted credential-bearing webhook transport failures from application logs and alert delivery history, with persisted failure-path coverage.
+8. Extended the webhook public-address boundary to reject deprecated IPv6 site-local space (`fec0::/10`) before transport pinning.
 
 ---
 
