@@ -1,20 +1,23 @@
 # Alert Service
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, tables, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [AlertService.php](file://Services/AlertService.php)
-- [AlertConfig.php](file://Models/AlertConfig.php)
-- [AlertDeliveryLog.php](file://Models/AlertDeliveryLog.php)
-- [CapacityAlertNotification.php](file://Notifications/CapacityAlertNotification.php)
-- [ReservationShortfallNotification.php](file://Notifications/ReservationShortfallNotification.php)
-- [AlertDeliveryFailed.php](file://Events/AlertDeliveryFailed.php)
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php)
-- [AlertConfigObserver.php](file://Models/Observers/AlertConfigObserver.php)
-- [AlertConfigResource.php](file://Admin/Resources/AlertConfigResource.php)
-- [AlertScheduleTest.php](file://tests/Feature/AlertScheduleTest.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [AlertConfig.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php)
+- [AlertDeliveryLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php)
+- [CapacityAlertNotification.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/CapacityAlertNotification.php)
+- [ReservationShortfallNotification.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/ReservationShortfallNotification.php)
+- [AlertDeliveryFailed.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php)
+- [AlertConfigObserver.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php)
+- [AlertConfigResource.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php)
+- [AlertScheduleTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AlertScheduleTest.php)
 </cite>
 
 ## Table of Contents
@@ -53,16 +56,16 @@ AlertSvc --> Event["AlertDeliveryFailed event"]
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [CapacityAlertNotification.php:19-47](file://Notifications/CapacityAlertNotification.php#L19-L47)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AlertDeliveryFailed.php:9-16](file://Events/AlertDeliveryFailed.php#L9-L16)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [CapacityAlertNotification.php:19-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/CapacityAlertNotification.php#L19-L47)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [AlertDeliveryFailed.php:9-16](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php#L9-L16)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [AlertScheduleTest.php:23-33](file://tests/Feature/AlertScheduleTest.php#L23-L33)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [AlertScheduleTest.php:23-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AlertScheduleTest.php#L23-L33)
 
 ## Core Components
 - AlertService: Orchestrates threshold checks, cooldown enforcement, notification delivery, logging, auditing, and failure events.
@@ -75,14 +78,14 @@ AlertSvc --> Event["AlertDeliveryFailed event"]
 - Admin AlertConfigResource: Filament resource exposing CRUD and a “Test” action to send a sample alert.
 
 **Section sources**
-- [AlertService.php:19-392](file://Services/AlertService.php#L19-L392)
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [CapacityAlertNotification.php:10-47](file://Notifications/CapacityAlertNotification.php#L10-L47)
-- [ReservationShortfallNotification.php:10-40](file://Notifications/ReservationShortfallNotification.php#L10-L40)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [AlertConfigObserver.php:8-69](file://Models/Observers/AlertConfigObserver.php#L8-L69)
-- [AlertConfigResource.php:150-196](file://Admin/Resources/AlertConfigResource.php#L150-L196)
+- [AlertService.php:19-392](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L19-L392)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [CapacityAlertNotification.php:10-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/CapacityAlertNotification.php#L10-L47)
+- [ReservationShortfallNotification.php:10-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/ReservationShortfallNotification.php#L10-L40)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [AlertConfigObserver.php:8-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php#L8-L69)
+- [AlertConfigResource.php:150-196](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L150-L196)
 
 ## Architecture Overview
 The service is invoked by a scheduled task registered during extension boot. For each active alert configuration, it determines the scope (global or specific location), fetches current availability from Pterodactyl via ResourceCalculationService, evaluates memory and disk utilization against configured warning/critical thresholds, and dispatches notifications if any thresholds are breached. Cooldown prevents repeated alerts within a configured window. Delivery attempts are recorded, and failures emit an event for downstream handling.
@@ -118,14 +121,14 @@ end
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:118-126](file://DynamicPterodactyl.php#L118-L126)
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [CapacityAlertNotification.php:19-47](file://Notifications/CapacityAlertNotification.php#L19-L47)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AlertDeliveryFailed.php:9-16](file://Events/AlertDeliveryFailed.php#L9-L16)
+- [DynamicPterodactyl.php:118-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L118-L126)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [CapacityAlertNotification.php:19-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/CapacityAlertNotification.php#L19-L47)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [AlertDeliveryFailed.php:9-16](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php#L9-L16)
 
 ## Detailed Component Analysis
 
@@ -166,16 +169,16 @@ NextCfg --> End(["Done"])
 ```
 
 **Diagram sources**
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
 
 **Section sources**
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
-- [AlertService.php:304-323](file://Services/AlertService.php#L304-L323)
-- [AlertService.php:328-369](file://Services/AlertService.php#L328-L369)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
+- [AlertService.php:304-323](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L304-L323)
+- [AlertService.php:328-369](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L369)
 
 ### AlertConfig Model and Migration
 - Stores thresholds for memory and disk (warning and critical), notification toggles, recipients, webhook URL, cooldown, activation status, and last notification timestamp.
@@ -186,8 +189,8 @@ Migration highlights:
 - Columns for thresholds, notification settings, cooldown, timestamps, and indexes for efficient querying.
 
 **Section sources**
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:9-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L9-L42)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:9-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L9-L42)
 
 ### AlertDeliveryLog Model and Migration
 - Persists each delivery attempt with trigger type, attempted time, channels tried/succeeded/failed, and last error.
@@ -198,16 +201,16 @@ Migration highlights:
 - JSON columns for channel arrays.
 
 **Section sources**
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:9-24](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L9-L24)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:9-24](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L9-L24)
 
 ### Notifications
 - CapacityAlertNotification: Sends mail to admins with subject, greeting, lines describing each breach, and a link to edit the alert config. Severity derived from breaches.
 - ReservationShortfallNotification: Queued mail notifying admins about post-payment reservation shortfalls, including service/invoice IDs, reason, and snapshot details.
 
 **Section sources**
-- [CapacityAlertNotification.php:10-47](file://Notifications/CapacityAlertNotification.php#L10-L47)
-- [ReservationShortfallNotification.php:10-40](file://Notifications/ReservationShortfallNotification.php#L10-L40)
+- [CapacityAlertNotification.php:10-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/CapacityAlertNotification.php#L10-L47)
+- [ReservationShortfallNotification.php:10-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/ReservationShortfallNotification.php#L10-L40)
 
 ### Integration Points
 - Scheduling: The extension registers a five-minute schedule to run AlertService::checkCapacityAlerts(), without overlapping.
@@ -215,9 +218,9 @@ Migration highlights:
 - Observers: AlertConfigObserver audits creation/update/deletion of alert configs and redacts webhook URLs in audit entries.
 
 **Section sources**
-- [DynamicPterodactyl.php:118-126](file://DynamicPterodactyl.php#L118-L126)
-- [AlertConfigResource.php:150-196](file://Admin/Resources/AlertConfigResource.php#L150-L196)
-- [AlertConfigObserver.php:12-69](file://Models/Observers/AlertConfigObserver.php#L12-L69)
+- [DynamicPterodactyl.php:118-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L118-L126)
+- [AlertConfigResource.php:150-196](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L150-L196)
+- [AlertConfigObserver.php:12-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php#L12-L69)
 
 ## Dependency Analysis
 AlertService depends on:
@@ -261,17 +264,17 @@ AlertService --> AlertDeliveryFailed : "dispatches on failure"
 ```
 
 **Diagram sources**
-- [AlertService.php:19-392](file://Services/AlertService.php#L19-L392)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [CapacityAlertNotification.php:10-47](file://Notifications/CapacityAlertNotification.php#L10-L47)
-- [ReservationShortfallNotification.php:10-40](file://Notifications/ReservationShortfallNotification.php#L10-L40)
-- [AlertDeliveryFailed.php:9-16](file://Events/AlertDeliveryFailed.php#L9-L16)
+- [AlertService.php:19-392](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L19-L392)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [CapacityAlertNotification.php:10-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/CapacityAlertNotification.php#L10-L47)
+- [ReservationShortfallNotification.php:10-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Notifications/ReservationShortfallNotification.php#L10-L40)
+- [AlertDeliveryFailed.php:9-16](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php#L9-L16)
 
 **Section sources**
-- [AlertService.php:19-392](file://Services/AlertService.php#L19-L392)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [AlertService.php:19-392](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L19-L392)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 ## Performance Considerations
 - Real-time availability: Availability is fetched directly from Pterodactyl API per check; avoid adding caching unless explicitly required.
@@ -296,11 +299,11 @@ Operational checks:
 - Review audit logs for capacity_alert_sent actions to confirm successful deliveries.
 
 **Section sources**
-- [AlertService.php:143-179](file://Services/AlertService.php#L143-L179)
-- [AlertService.php:182-216](file://Services/AlertService.php#L182-L216)
-- [AlertService.php:250-276](file://Services/AlertService.php#L250-L276)
-- [AlertConfigResource.php:150-164](file://Admin/Resources/AlertConfigResource.php#L150-L164)
-- [AlertScheduleTest.php:23-33](file://tests/Feature/AlertScheduleTest.php#L23-L33)
+- [AlertService.php:143-179](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L143-L179)
+- [AlertService.php:182-216](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L182-L216)
+- [AlertService.php:250-276](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L250-L276)
+- [AlertConfigResource.php:150-164](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L150-L164)
+- [AlertScheduleTest.php:23-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AlertScheduleTest.php#L23-L33)
 
 ## Conclusion
 The Alert Service provides robust, configurable capacity monitoring with clear separation between evaluation and delivery. It integrates seamlessly with Paymenter’s notification stack, persists delivery history, and supports both proactive scheduling and reactive shortfall notifications. Properly tuned thresholds and cooldowns ensure timely, actionable alerts without overwhelming stakeholders.
@@ -361,5 +364,5 @@ ALERT_CONFIG ||--o{ ALERT_DELIVERY_LOG : "has many"
 ```
 
 **Diagram sources**
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:9-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L9-L42)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:9-24](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L9-L24)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:9-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L9-L42)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:9-24](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L9-L24)

@@ -1,20 +1,23 @@
 # Database Schema
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, tables, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
-- [2026_04_22_000001_drop_released_from_reservation_status.php](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [AuditLog.php](file://Models/AuditLog.php)
-- [AlertConfig.php](file://Models/AlertConfig.php)
-- [AlertDeliveryLog.php](file://Models/AlertDeliveryLog.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [AuditLogService.php](file://Services/AuditLogService.php)
-- [AlertService.php](file://Services/AlertService.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
+- [2026_04_22_000001_drop_released_from_reservation_status.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [AuditLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php)
+- [AlertConfig.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php)
+- [AlertDeliveryLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [AuditLogService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
 </cite>
 
 ## Table of Contents
@@ -73,23 +76,23 @@ MD --> D
 ```
 
 **Diagram sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [AlertService.php:77-101](file://Services/AlertService.php#L77-L101)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [AlertService.php:77-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L101)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
 
 ## Core Components
 - Resource reservations: track temporary holds with token, TTL, and status transitions; include idempotency support and foreign keys to cart, service, and user
@@ -98,10 +101,10 @@ MD --> D
 - Alert delivery log: records of attempted alert deliveries, channels tried/succeeded/failed, and last error
 
 **Section sources**
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
 
 ## Architecture Overview
 The data layer is driven by migrations and enforced by Eloquent models and services. ReservationService orchestrates reservation creation, confirmation, cancellation, extension, cleanup, and statistics using pessimistic locking and idempotency. AlertService evaluates thresholds against availability and writes delivery logs. AuditLogService persists audit entries with request context.
@@ -122,10 +125,10 @@ RS-->>Client : {token, node_id, expires_at, status}
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
 
 ## Detailed Component Analysis
 
@@ -218,19 +221,19 @@ class ResourceReservation {
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:11-19](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L11-L19)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:10-18](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L10-L18)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:11-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L11-L19)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:10-18](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L10-L18)
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:11-19](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L11-L19)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:10-18](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L10-L18)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
-- [ReservationService.php:335-405](file://Services/ReservationService.php#L335-L405)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:11-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L11-L19)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:10-18](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L10-L18)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:166-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L281)
+- [ReservationService.php:335-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L335-L405)
 
 ### Audit Logs
 - Purpose: Capture administrative actions and system events with actor context and change details
@@ -272,13 +275,13 @@ Insert --> End([Done])
 ```
 
 **Diagram sources**
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
 
 **Section sources**
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:15-82](file://Services/AuditLogService.php#L15-L82)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L40)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AuditLogService.php:15-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L82)
 
 ### Alert Configurations
 - Purpose: Define capacity monitoring thresholds and notification preferences per location or globally
@@ -335,13 +338,13 @@ class AlertConfig {
 ```
 
 **Diagram sources**
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
 
 **Section sources**
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
-- [AlertConfig.php:8-56](file://Models/AlertConfig.php#L8-L56)
-- [AlertService.php:77-101](file://Services/AlertService.php#L77-L101)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L41)
+- [AlertConfig.php:8-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L56)
+- [AlertService.php:77-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L101)
 
 ### Alert Delivery Log
 - Purpose: Record each attempt to deliver alerts, including channels tried, success/failure, and errors
@@ -379,13 +382,13 @@ class AlertDeliveryLog {
 ```
 
 **Diagram sources**
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
 
 **Section sources**
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
-- [AlertService.php:191-293](file://Services/AlertService.php#L191-L293)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L23)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
+- [AlertService.php:191-293](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L191-L293)
 
 ## Dependency Analysis
 - ReservationService depends on NodeSelectionService to pick nodes and on AuditLogService to record actions
@@ -405,18 +408,18 @@ ALS --> ACfg["ptero_alert_configs"]
 ```
 
 **Diagram sources**
-- [ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [AlertService.php:77-101](file://Services/AlertService.php#L77-L101)
-- [AlertService.php:191-293](file://Services/AlertService.php#L191-L293)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [AlertService.php:77-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L101)
+- [AlertService.php:191-293](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L191-L293)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 **Section sources**
-- [ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [AlertService.php:77-101](file://Services/AlertService.php#L77-L101)
-- [AlertService.php:191-293](file://Services/AlertService.php#L191-L293)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [AlertService.php:77-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L101)
+- [AlertService.php:191-293](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L191-L293)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 ## Performance Considerations
 - Use existing indexes for efficient filtering:
@@ -450,10 +453,10 @@ ALS --> ACfg["ptero_alert_configs"]
   - Validate user context and request metadata availability
 
 **Section sources**
-- [ReservationService.php:125-141](file://Services/ReservationService.php#L125-L141)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [AlertService.php:191-293](file://Services/AlertService.php#L191-L293)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [ReservationService.php:125-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L125-L141)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [AlertService.php:191-293](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L191-L293)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 ## Conclusion
 The data model provides robust support for temporary resource reservations with strong concurrency controls, comprehensive auditability, and configurable capacity alerting. Proper use of indexes, scopes, and service-layer logic ensures scalability and reliability under load.
@@ -473,9 +476,9 @@ USERS ||--o{ PTERO_AUDIT_LOGS : "user_id FK"
 ```
 
 **Diagram sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:64-77](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L64-L77)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:42-46](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L42-L46)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:13-16](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L13-L16)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:64-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L64-L77)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:42-46](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L42-L46)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:13-16](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L13-L16)
 
 ### Common Queries Reference
 - Create reservation: see ReservationService::create
@@ -490,8 +493,8 @@ USERS ||--o{ PTERO_AUDIT_LOGS : "user_id FK"
 - Evaluate alerts: see AlertService threshold checks
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
-- [ReservationService.php:335-405](file://Services/ReservationService.php#L335-L405)
-- [AuditLogService.php:15-82](file://Services/AuditLogService.php#L15-L82)
-- [AlertService.php:77-101](file://Services/AlertService.php#L77-L101)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:166-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L281)
+- [ReservationService.php:335-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L335-L405)
+- [AuditLogService.php:15-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L82)
+- [AlertService.php:77-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L101)
