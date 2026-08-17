@@ -62,6 +62,7 @@ class WebhookEndpointPolicyTest extends TestCase
             'IANA dummy IPv6' => ['https://hooks.example.com/path', ['100:0:0:1::1']],
             'reserved IPv4' => ['https://hooks.example.com/path', ['203.0.113.10']],
             'multicast IPv4' => ['https://hooks.example.com/path', ['224.0.0.1']],
+            'ORCHID IPv6' => ['https://hooks.example.com/path', ['2001:10::1']],
             'documentation IPv6' => ['https://hooks.example.com/path', ['2001:db8::1']],
             'AS112 IPv6' => ['https://hooks.example.com/path', ['2620:4f:8000::1']],
             'deprecated site-local IPv6' => ['https://hooks.example.com/path', ['fec0::1']],
