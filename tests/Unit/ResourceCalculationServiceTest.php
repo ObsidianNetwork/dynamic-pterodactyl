@@ -332,6 +332,26 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->getLocationAvailability(1);
     }
 
+    public function test_location_availability_rejects_duplicate_server_records(): void
+    {
+        Http::fake($this->availabilityHttpFake(
+            nodeId: 5,
+            locationId: 1,
+            totalMemory: 8192,
+            totalDisk: 51200,
+            totalCpuThreads: 4,
+            servers: [
+                ['id' => 501, 'node' => 5, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120],
+                ['id' => 501, 'node' => 5, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120],
+            ],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('duplicate included server');
+
+        $this->service->getLocationAvailability(1);
+    }
+
     public function test_location_availability_rejects_node_from_another_location(): void
     {
         Http::fake($this->availabilityHttpFake(
@@ -405,6 +425,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                 return Http::response([
                     'data' => [[
                         'attributes' => [
+                            'id' => 101,
                             'node' => 1,
                             'limits' => ['memory' => 1024, 'cpu' => 50, 'disk' => 5120],
                         ],
@@ -608,6 +629,44 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->service->buildClusterSnapshot();
     }
 
+    public function test_snapshot_rejects_duplicate_node_records(): void
+    {
+        $calls = 0;
+        Http::fake($this->clusterSnapshotHttpFake(
+            $calls,
+            locations: [['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
+            nodePages: [[
+                $this->nodeWithServersPayload(1, 1, 'Node 1', []),
+                $this->nodeWithServersPayload(1, 1, 'Node 1 Duplicate', []),
+            ]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('duplicate node');
+
+        $this->service->buildClusterSnapshot();
+    }
+
+    public function test_snapshot_rejects_duplicate_server_records(): void
+    {
+        $calls = 0;
+        Http::fake($this->clusterSnapshotHttpFake(
+            $calls,
+            locations: [['id' => 1, 'short' => 'dc1', 'long' => 'Data Center 1']],
+            nodePages: [[
+                $this->nodeWithServersPayload(1, 1, 'Node 1', [
+                    ['id' => 101, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120],
+                    ['id' => 101, 'memory' => 1024, 'cpu' => 50, 'disk' => 5120],
+                ]),
+            ]],
+        ));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('duplicate server');
+
+        $this->service->buildClusterSnapshot();
+    }
+
     public function test_snapshot_handles_pterodactyl_5xx_gracefully(): void
     {
         $calls = 0;
@@ -731,7 +790,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                                 'data' => array_map(fn (array $server, int $index) => [
                                     'object' => 'server',
                                     'attributes' => [
-                                        'id' => ($server['node'] * 100) + $index,
+                                        'id' => $server['id'] ?? (($server['node'] * 100) + $index),
                                         'node' => $server['node'],
                                         'limits' => array_intersect_key($server, [
                                             'memory' => true,
@@ -824,7 +883,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
                     'servers' => [
                         'data' => array_map(fn (array $server, int $index) => [
                             'attributes' => [
-                                'id' => ($nodeId * 100) + $index,
+                                'id' => $server['id'] ?? (($nodeId * 100) + $index),
                                 'node' => $nodeId,
                                 'limits' => $server,
                             ],

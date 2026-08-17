@@ -236,16 +236,19 @@ class ResourceCalculationService
             if ($attributes['location_id'] !== $locationId) {
                 throw new \RuntimeException('Pterodactyl API returned a node for an unexpected location.');
             }
+            $this->rememberUniqueId($nodesById, $attributes['id'], 'included node');
             $nodesById[$attributes['id']] = $attributes;
         }
 
         $serversByNode = [];
+        $serverIds = [];
         foreach ($serversData as $server) {
             $attributes = $this->requireServerAttributes($server);
             $nodeId = $attributes['node'];
             if (! array_key_exists($nodeId, $nodesById)) {
                 throw new \RuntimeException('Pterodactyl API returned a server for an unknown included node.');
             }
+            $this->rememberUniqueId($serverIds, $attributes['id'], 'included server');
             $serversByNode[$nodeId][] = $attributes;
         }
 
@@ -310,8 +313,10 @@ class ResourceCalculationService
     private function fetchAllLocations(): array
     {
         $locations = [];
+        $locationIds = [];
         foreach ($this->pterodactylGetPaginatedData('/api/application/locations', ['per_page' => 100]) as $location) {
             $attributes = $this->requireLocationAttributes($location);
+            $this->rememberUniqueId($locationIds, $attributes['id'], 'location');
             $locations[] = [
                 'id' => $attributes['id'],
                 'short' => $attributes['short'],
@@ -331,6 +336,10 @@ class ResourceCalculationService
                 throw $exception;
             }
 
+            if ($exception->getMessage() !== 'Pterodactyl API returned an invalid servers relationship payload.') {
+                throw $exception;
+            }
+
             return $this->fetchClusterNodesFromServerIndex();
         }
     }
@@ -338,17 +347,20 @@ class ResourceCalculationService
     private function fetchClusterNodesWithIncludedServers(): array
     {
         $nodes = [];
+        $serverIds = [];
         foreach ($this->pterodactylGetPaginatedData('/api/application/nodes', [
             'include' => 'servers',
             'per_page' => 100,
         ]) as $node) {
             $attributes = $this->requireNodeAttributes($node);
+            $this->rememberUniqueId($nodes, $attributes['id'], 'node');
             $servers = [];
             foreach ($this->requireRelationshipData($node, 'servers') as $server) {
                 $serverAttributes = $this->requireServerAttributes($server);
                 if ($serverAttributes['node'] !== $attributes['id']) {
                     throw new \RuntimeException('Pterodactyl API returned a server for an unexpected node.');
                 }
+                $this->rememberUniqueId($serverIds, $serverAttributes['id'], 'server');
                 $servers[] = $serverAttributes;
             }
 
@@ -367,6 +379,7 @@ class ResourceCalculationService
         $nodes = [];
         foreach ($this->pterodactylGetPaginatedData('/api/application/nodes', ['per_page' => 100]) as $node) {
             $attributes = $this->requireNodeAttributes($node);
+            $this->rememberUniqueId($nodes, $attributes['id'], 'node');
             $nodes[$attributes['id']] = [
                 'node' => $attributes,
                 'location_id' => $attributes['location_id'],
@@ -374,6 +387,7 @@ class ResourceCalculationService
             ];
         }
 
+        $serverIds = [];
         foreach ($this->pterodactylGetPaginatedData('/api/application/servers', ['per_page' => 100]) as $server) {
             $attributes = $this->requireServerAttributes($server);
             $nodeId = $attributes['node'];
@@ -382,6 +396,7 @@ class ResourceCalculationService
                 throw new \RuntimeException('Pterodactyl API returned a server for an unknown node.');
             }
 
+            $this->rememberUniqueId($serverIds, $attributes['id'], 'server');
             $nodes[$nodeId]['servers'][] = $attributes;
         }
 
@@ -499,6 +514,7 @@ class ResourceCalculationService
         }
 
         $this->validateServerAttributes($attributes);
+        $attributes['id'] = (int) $attributes['id'];
         $attributes['node'] = (int) $attributes['node'];
 
         return $attributes;
@@ -532,7 +548,8 @@ class ResourceCalculationService
 
     private function validateServerAttributes(array $attributes): void
     {
-        if (filter_var($attributes['node'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
+        if (filter_var($attributes['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
+            || filter_var($attributes['node'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) === false
             || ! is_array($attributes['limits'] ?? null)) {
             throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
         }
@@ -542,6 +559,15 @@ class ResourceCalculationService
                 throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
             }
         }
+    }
+
+    private function rememberUniqueId(array &$seen, int $id, string $resource): void
+    {
+        if (array_key_exists($id, $seen)) {
+            throw new \RuntimeException("Pterodactyl API returned a duplicate {$resource}.");
+        }
+
+        $seen[$id] = true;
     }
 
     private function emptyClusterSnapshot(): array
