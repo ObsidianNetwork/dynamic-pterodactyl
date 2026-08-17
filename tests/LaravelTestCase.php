@@ -12,10 +12,17 @@ abstract class LaravelTestCase extends BaseTestCase
      */
     public function createApplication()
     {
-        $bootstrap = __DIR__ . '/../../../../bootstrap/app.php';
+        $paymenterBasePath = getenv('PAYMENTER_BASE_PATH');
+        $bootstrap = $paymenterBasePath
+            ? rtrim($paymenterBasePath, '/\\') . '/bootstrap/app.php'
+            : __DIR__ . '/../../../../bootstrap/app.php';
 
         if (!file_exists($bootstrap)) {
             $bootstrap = '/var/www/paymenter/bootstrap/app.php';
+        }
+
+        if (!file_exists($bootstrap)) {
+            throw new \RuntimeException('Unable to locate Paymenter bootstrap/app.php. Set PAYMENTER_BASE_PATH for standalone checkouts.');
         }
 
         $app = require $bootstrap;
