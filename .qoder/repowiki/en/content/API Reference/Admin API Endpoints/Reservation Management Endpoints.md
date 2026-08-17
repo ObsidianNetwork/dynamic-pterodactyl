@@ -1,17 +1,20 @@
 # Reservation Management Endpoints
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [api.php](file://routes/api.php)
-- [AdminReservationController.php](file://Http/Controllers/Api/Admin/AdminReservationController.php)
-- [EnsureUserIsAdmin.php](file://Http/Middleware/EnsureUserIsAdmin.php)
-- [ResourceReservationPolicy.php](file://Policies/ResourceReservationPolicy.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
-- [2026_04_22_000001_drop_released_from_reservation_status.php](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
-- [AdminApiTest.php](file://tests/Feature/AdminApiTest.php)
-- [ReservationApiTest.php](file://tests/Feature/ReservationApiTest.php)
+- [api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [AdminReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php)
+- [EnsureUserIsAdmin.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php)
+- [ResourceReservationPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [2026_04_22_000001_drop_released_from_reservation_status.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
+- [AdminApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php)
+- [ReservationApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php)
 </cite>
 
 ## Table of Contents
@@ -46,14 +49,14 @@ E --> F["Database: ptero_resource_reservations"]
 ```
 
 **Diagram sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
 
 **Section sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
 
 ## Core Components
 - AdminReservationController: Validates requests, applies filters, paginates results, and cancels reservations.
@@ -68,11 +71,11 @@ Key responsibilities:
 - Cancellation: requires reason string; only pending reservations can be cancelled.
 
 **Section sources**
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
-- [ResourceReservationPolicy.php:14-23](file://Policies/ResourceReservationPolicy.php#L14-L23)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [ResourceReservationPolicy.php:14-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L23)
 
 ## Architecture Overview
 Administrative endpoints are protected by session-based authentication and an admin role check. Requests flow through middleware before reaching the controller, which delegates to the service layer for data access and business logic. The service uses Eloquent builders for filtering and pagination.
@@ -98,9 +101,9 @@ Ctrl-->>Client : { success : true, data : {...} }
 ```
 
 **Diagram sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-33](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L33)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L33)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
 
 ## Detailed Component Analysis
 
@@ -158,12 +161,12 @@ Example usage:
   - GET /api/dynamic-pterodactyl/admin/reservations?per_page=50
 
 **Section sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-33](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L33)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
-- [ReservationApiTest.php:290-317](file://tests/Feature/ReservationApiTest.php#L290-L317)
-- [AdminApiTest.php:68-99](file://tests/Feature/AdminApiTest.php#L68-L99)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L33)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [ReservationApiTest.php:290-317](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L290-L317)
+- [AdminApiTest.php:68-99](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L68-L99)
 
 ### Endpoint: POST /api/dynamic-pterodactyl/admin/reservations/{token}/cancel
 Purpose:
@@ -202,10 +205,10 @@ Edge cases:
 - Race conditions where status changes between validation and update result in 409.
 
 **Section sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:36-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
-- [AdminApiTest.php:101-130](file://tests/Feature/AdminApiTest.php#L101-L130)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:36-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
+- [AdminApiTest.php:101-130](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L101-L130)
 
 ### Data Model: ptero_resource_reservations
 Fields relevant to reservations:
@@ -234,9 +237,9 @@ Status transitions:
 - released was removed; any existing released rows migrated to cancelled.
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:8-18](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L18)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L61)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:8-18](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L18)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
 
 ### Authentication and Authorization
 - Session-based authentication is enforced by the web and auth middleware.
@@ -248,9 +251,9 @@ Practical implications:
 - Administrative endpoints require explicit admin role and are intended for operational interventions.
 
 **Section sources**
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
-- [ResourceReservationPolicy.php:14-23](file://Policies/ResourceReservationPolicy.php#L14-L23)
-- [AdminApiTest.php:52-66](file://tests/Feature/AdminApiTest.php#L52-L66)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [ResourceReservationPolicy.php:14-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L23)
+- [AdminApiTest.php:52-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L52-L66)
 
 ### Error Handling Patterns
 Common HTTP status codes:
@@ -266,9 +269,9 @@ Error payloads:
 - Consistent structure with success flag and message for admin endpoints.
 
 **Section sources**
-- [AdminReservationController.php:36-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
-- [api.php:32-40](file://routes/api.php#L32-L40)
+- [AdminReservationController.php:36-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
 
 ## Dependency Analysis
 Administrative endpoints depend on:
@@ -290,17 +293,17 @@ C --> P["ResourceReservationPolicy"]
 ```
 
 **Diagram sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
-- [ResourceReservationPolicy.php:14-23](file://Policies/ResourceReservationPolicy.php#L14-L23)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [ResourceReservationPolicy.php:14-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L23)
 
 **Section sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
 
 ## Performance Considerations
 - Throttling: Admin routes are rate-limited at 30 requests per minute to protect backend resources.
@@ -334,9 +337,9 @@ Operational tips:
 - During maintenance windows, extend TTLs via customer-facing extend endpoint if applicable; administrative cancellation is reserved for problematic cases.
 
 **Section sources**
-- [AdminReservationController.php:36-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
-- [AdminApiTest.php:52-66](file://tests/Feature/AdminApiTest.php#L52-L66)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
+- [AdminReservationController.php:36-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
+- [AdminApiTest.php:52-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L52-L66)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
 
 ## Conclusion
 The administrative reservation management endpoints provide robust tools for monitoring and intervening in the reservation lifecycle. They enforce strict authentication and authorization, support flexible filtering and pagination, and implement clear error handling patterns. Administrators can efficiently investigate issues, clean up problematic reservations, and maintain system stability during edge cases and maintenance.
@@ -373,8 +376,8 @@ POST /api/dynamic-pterodactyl/admin/reservations/{token}/cancel
   - 422: Validation errors
 
 **Section sources**
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ReservationService.php:312-330](file://Services/ReservationService.php#L312-L330)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ReservationService.php:312-330](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L330)
 
 ### Common Administrative Workflows
 
@@ -392,9 +395,9 @@ Handling edge cases during system maintenance:
 - Use administrative cancellation for problematic reservations that cannot proceed due to maintenance constraints.
 
 **Section sources**
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
-- [ReservationApiTest.php:290-317](file://tests/Feature/ReservationApiTest.php#L290-L317)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
+- [ReservationApiTest.php:290-317](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L290-L317)
 
 ### Distinction Between Customer-Facing and Administrative Operations
 
@@ -409,6 +412,6 @@ Administrative operations:
 - Intended for operational interventions and troubleshooting.
 
 **Section sources**
-- [api.php:17-40](file://routes/api.php#L17-L40)
-- [ResourceReservationPolicy.php:14-23](file://Policies/ResourceReservationPolicy.php#L14-L23)
-- [AdminApiTest.php:168-200](file://tests/Feature/AdminApiTest.php#L168-L200)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [ResourceReservationPolicy.php:14-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L23)
+- [AdminApiTest.php:168-200](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L168-L200)

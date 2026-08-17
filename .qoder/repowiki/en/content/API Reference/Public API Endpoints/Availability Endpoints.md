@@ -1,14 +1,17 @@
 # Availability Endpoints
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [routes/api.php](file://routes/api.php)
-- [AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [NodeSelectionService.php](file://Services/NodeSelectionService.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [EnsureUserIsAdmin.php](file://Http/Middleware/EnsureUserIsAdmin.php)
-- [AvailabilityApiTest.php](file://tests/Feature/AvailabilityApiTest.php)
-- [DECISIONS.md](file://DECISIONS.md)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [NodeSelectionService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [EnsureUserIsAdmin.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php)
+- [AvailabilityApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php)
+- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md)
 </cite>
 
 ## Update Summary
@@ -49,13 +52,13 @@ Security --> Response["Secure JSON Response<br/>No Node Details"]
 ```
 
 **Diagram sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [NodeSelectionService.php:78-97](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L78-L97)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ## Core Components
 - Route group: Defines the public availability endpoint and applies session-based authentication and rate limiting.
@@ -72,10 +75,10 @@ Key responsibilities:
 - **Enhanced**: Ensure no node-level data leaks to customer responses through comprehensive testing and validation.
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [NodeSelectionService.php:78-97](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L78-L97)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
 
 ## Architecture Overview
 The GET /api/dynamic-pterodactyl/availability/{locationId} flow:
@@ -108,10 +111,10 @@ A-->>C : {success, data : {location_id, max_memory, max_cpu, max_disk, node_coun
 ```
 
 **Diagram sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [NodeSelectionService.php:78-97](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L78-L97)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
 
 ## Detailed Component Analysis
 
@@ -190,9 +193,9 @@ Why node-level details are not exposed
 - **Enhanced Security**: Comprehensive test coverage ensures that node-level data never leaks to customer responses through automated assertions.
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [DECISIONS.md:237-239](file://DECISIONS.md#L237-L239)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [DECISIONS.md:237-239](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md#L237-L239)
 
 ### Service Layer: Aggregation and Real-Time Data
 - NodeSelectionService::getMaxAvailable
@@ -215,13 +218,13 @@ ForEachNode --> |No| ReturnData["Return {location_id, nodes[], max_available, to
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
 
 **Section sources**
-- [NodeSelectionService.php:78-97](file://Services/NodeSelectionService.php#L78-L97)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
+- [NodeSelectionService.php:78-97](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L78-L97)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
 
 ### Middleware and Security
 - Web session and authentication:
@@ -232,9 +235,9 @@ ForEachNode --> |No| ReturnData["Return {location_id, nodes[], max_available, to
   - Availability endpoints are limited to 30 requests per minute to protect the Pterodactyl API budget.
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [EnsureUserIsAdmin.php:9-21](file://Http/Middleware/EnsureUserIsAdmin.php#L9-L21)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [EnsureUserIsAdmin.php:9-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L9-L21)
 
 ## Security and Data Exposure Prevention
 
@@ -268,13 +271,13 @@ TestCoverage --> SecureResponse["Secure Response<br/>(Aggregate only)"]
 ```
 
 **Diagram sources**
-- [AvailabilityApiTest.php:48-49](file://tests/Feature/AvailabilityApiTest.php#L48-L49)
-- [AvailabilityApiTest.php:77-78](file://tests/Feature/AvailabilityApiTest.php#L77-L78)
+- [AvailabilityApiTest.php:48-49](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L48-L49)
+- [AvailabilityApiTest.php:77-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L77-L78)
 
 **Section sources**
-- [AvailabilityApiTest.php:48-49](file://tests/Feature/AvailabilityApiTest.php#L48-L49)
-- [AvailabilityApiTest.php:77-78](file://tests/Feature/AvailabilityApiTest.php#L77-L78)
-- [DECISIONS.md:237-239](file://DECISIONS.md#L237-L239)
+- [AvailabilityApiTest.php:48-49](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L48-L49)
+- [AvailabilityApiTest.php:77-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L77-L78)
+- [DECISIONS.md:237-239](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md#L237-L239)
 
 ## Dependency Analysis
 ```mermaid
@@ -307,16 +310,16 @@ AvailabilityApiTest --> ResourceCalculationService : "mocks"
 ```
 
 **Diagram sources**
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [NodeSelectionService.php:5-12](file://Services/NodeSelectionService.php#L5-L12)
-- [ResourceCalculationService.php:10-21](file://Services/ResourceCalculationService.php#L10-L21)
-- [AvailabilityApiTest.php:12-100](file://tests/Feature/AvailabilityApiTest.php#L12-L100)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [NodeSelectionService.php:5-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L12)
+- [ResourceCalculationService.php:10-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L21)
+- [AvailabilityApiTest.php:12-100](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L12-L100)
 
 **Section sources**
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [NodeSelectionService.php:5-12](file://Services/NodeSelectionService.php#L5-L12)
-- [ResourceCalculationService.php:10-21](file://Services/ResourceCalculationService.php#L10-L21)
-- [AvailabilityApiTest.php:12-100](file://tests/Feature/AvailabilityApiTest.php#L12-L100)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [NodeSelectionService.php:5-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L12)
+- [ResourceCalculationService.php:10-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L21)
+- [AvailabilityApiTest.php:12-100](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L12-L100)
 
 ## Performance Considerations
 - Real-time data fetching:
@@ -353,10 +356,10 @@ Verification tips
 - **Enhanced**: Run security tests to verify no node-level data exposure in responses.
 
 **Section sources**
-- [AvailabilityController.php:45-51](file://Http/Controllers/Api/AvailabilityController.php#L45-L51)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [AvailabilityApiTest.php:48-49](file://tests/Feature/AvailabilityApiTest.php#L48-L49)
-- [AvailabilityApiTest.php:77-78](file://tests/Feature/AvailabilityApiTest.php#L77-L78)
+- [AvailabilityController.php:45-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L45-L51)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [AvailabilityApiTest.php:48-49](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L48-L49)
+- [AvailabilityApiTest.php:77-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L77-L78)
 
 ## Conclusion
 The GET /api/dynamic-pterodactyl/availability/{locationId} endpoint provides a secure, rate-limited, and real-time view of aggregate capacity for a given location. It exposes only what customers need to make purchasing decisions—maximum allocatable memory, CPU, and disk, along with a simple capacity indicator—while keeping node-level internals private.

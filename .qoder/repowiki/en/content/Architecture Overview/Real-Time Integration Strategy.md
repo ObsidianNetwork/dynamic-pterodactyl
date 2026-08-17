@@ -1,14 +1,17 @@
 # Real-Time Integration Strategy
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [api.php](file://routes/api.php)
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [ResourceCalculationServiceTest.php](file://tests/Unit/ResourceCalculationServiceTest.php)
-- [08-ALGORITHMS.md](file://08-ALGORITHMS.md)
-- [03-API.md](file://03-API.md)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [ResourceCalculationServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php)
+- [08-ALGORITHMS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/08-ALGORITHMS.md)
+- [03-API.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/03-API.md)
 </cite>
 
 ## Table of Contents
@@ -50,13 +53,13 @@ ResourceSvc --> DB
 ```
 
 **Diagram sources**
-- [api.php:17-25](file://routes/api.php#L17-L25)
-- [AvailabilityController.php:22-51](file://Http/Controllers/Api/AvailabilityController.php#L22-L51)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
+- [AvailabilityController.php:22-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L51)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 **Section sources**
-- [api.php:17-25](file://routes/api.php#L17-L25)
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
 
 ## Core Components
 - ResourceCalculationService: Centralizes all Pterodactyl API interactions, builds per-location and per-node availability, and constructs a full cluster snapshot without caching. It also implements robust HTTP retry, timeout, and error handling.
@@ -72,11 +75,11 @@ Key responsibilities:
 - Return degraded snapshots when the panel is down
 
 **Section sources**
-- [ResourceCalculationService.php:10-21](file://Services/ResourceCalculationService.php#L10-L21)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [AvailabilityController.php:22-51](file://Http/Controllers/Api/AvailabilityController.php#L22-L51)
-- [api.php:17-25](file://routes/api.php#L17-L25)
+- [ResourceCalculationService.php:10-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L21)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [AvailabilityController.php:22-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L51)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
 
 ## Architecture Overview
 The system uses a real-time, non-cached approach to ensure accurate availability at every step of the customer journey.
@@ -99,11 +102,11 @@ A-->>C : Aggregate capacity response
 ```
 
 **Diagram sources**
-- [api.php:17-25](file://routes/api.php#L17-L25)
-- [AvailabilityController.php:22-51](file://Http/Controllers/Api/AvailabilityController.php#L22-L51)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:226-245](file://Services/ResourceCalculationService.php#L226-L245)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
+- [AvailabilityController.php:22-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L51)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:226-245](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L226-L245)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 ## Detailed Component Analysis
 
@@ -113,8 +116,8 @@ A-->>C : Aggregate capacity response
 - Customer-facing endpoints return only aggregated per-location maxima; node-level detail is admin-only.
 
 **Section sources**
-- [08-ALGORITHMS.md:357-367](file://08-ALGORITHMS.md#L357-L367)
-- [AvailabilityController.php:22-51](file://Http/Controllers/Api/AvailabilityController.php#L22-L51)
+- [08-ALGORITHMS.md:357-367](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/08-ALGORITHMS.md#L357-L367)
+- [AvailabilityController.php:22-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L51)
 
 ### Batching in buildClusterSnapshot()
 buildClusterSnapshot() minimizes API calls while maintaining accuracy:
@@ -141,14 +144,14 @@ Pending --> ForEachNode --> Aggregate --> Return
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:302-357](file://Services/ResourceCalculationService.php#L302-L357)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ResourceCalculationService.php:302-357](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L302-L357)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 **Section sources**
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:302-357](file://Services/ResourceCalculationService.php#L302-L357)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ResourceCalculationService.php:302-357](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L302-L357)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 ### HTTP Client, Timeouts, Retries, and Error Handling
 All outbound requests go through a centralized helper that:
@@ -185,7 +188,7 @@ Validate --> |No| ThrowErr
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 Error scenarios covered:
 - Authentication failures: handled by Pterodactyl returning client errors; these are reported and thrown as runtime exceptions with sanitized messages
@@ -195,12 +198,12 @@ Error scenarios covered:
 - Degraded snapshot: when the panel returns server errors, buildClusterSnapshot returns an empty snapshot marked as unavailable instead of crashing the caller
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationService.php:410-424](file://Services/ResourceCalculationService.php#L410-L424)
-- [ResourceCalculationService.php:69-82](file://Services/ResourceCalculationService.php#L69-L82)
-- [ResourceCalculationServiceTest.php:53-84](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L84)
-- [ResourceCalculationServiceTest.php:86-123](file://tests/Unit/ResourceCalculationServiceTest.php#L86-L123)
-- [ResourceCalculationServiceTest.php:125-139](file://tests/Unit/ResourceCalculationServiceTest.php#L125-L139)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:410-424](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L410-L424)
+- [ResourceCalculationService.php:69-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L82)
+- [ResourceCalculationServiceTest.php:53-84](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L53-L84)
+- [ResourceCalculationServiceTest.php:86-123](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L86-L123)
+- [ResourceCalculationServiceTest.php:125-139](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L125-L139)
 
 ### Connection Pooling and Request Batching
 - Connection pooling: Uses the framework’s HTTP client, which reuses connections by default. This reduces TCP handshake overhead for repeated calls within a request lifecycle.
@@ -213,10 +216,10 @@ Error scenarios covered:
 These choices keep the number of API calls constant regardless of cluster size, as verified by tests asserting bounded call counts even with many nodes.
 
 **Section sources**
-- [ResourceCalculationService.php:291-384](file://Services/ResourceCalculationService.php#L291-L384)
-- [ResourceCalculationService.php:302-357](file://Services/ResourceCalculationService.php#L302-L357)
-- [ResourceCalculationServiceTest.php:195-221](file://tests/Unit/ResourceCalculationServiceTest.php#L195-L221)
-- [ResourceCalculationServiceTest.php:307-332](file://tests/Unit/ResourceCalculationServiceTest.php#L307-L332)
+- [ResourceCalculationService.php:291-384](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L291-L384)
+- [ResourceCalculationService.php:302-357](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L302-L357)
+- [ResourceCalculationServiceTest.php:195-221](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L195-L221)
+- [ResourceCalculationServiceTest.php:307-332](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L307-L332)
 
 ### Monitoring and Logging
 - Internal diagnostics: Full upstream error bodies are reported for observability without leaking sensitive details to callers
@@ -231,10 +234,10 @@ Operational recommendations:
 - Correlate dashboard health banners with connection test results
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [api.php:17-25](file://routes/api.php#L17-L25)
-- [DynamicPterodactyl.php:116-127](file://DynamicPterodactyl.php#L116-L127)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
+- [DynamicPterodactyl.php:116-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L127)
 
 ## Dependency Analysis
 The real-time integration depends on:
@@ -254,12 +257,12 @@ HC --> PA
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 ## Performance Considerations
 - Timeouts: Per-attempt timeouts and connect timeouts prevent long hangs; retries are limited to transient connection issues
@@ -285,9 +288,9 @@ Verification steps:
 - Confirm throttling settings align with Pterodactyl API limits
 
 **Section sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [03-API.md:677-721](file://03-API.md#L677-L721)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [03-API.md:677-721](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/03-API.md#L677-L721)
 
 ## Conclusion
 This extension integrates with Pterodactyl using a strict real-time strategy: no caching, direct API reads, and careful batching to balance accuracy and performance. Robust error handling ensures graceful degradation when the panel is unavailable, while throttling and timeouts protect both systems under load. Operational monitoring and logging provide visibility into API health and performance, enabling proactive management of capacity and reliability.

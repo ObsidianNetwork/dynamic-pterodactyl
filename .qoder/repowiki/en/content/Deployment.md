@@ -1,19 +1,45 @@
 # Deployment
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+## Current Deployment Gate
+
+Deploy the extension only with the reviewed Paymenter companion commit recorded
+by the cross-repository workflow. Before enabling dynamic stock:
+
+1. Back up Paymenter and run both repositories' migrations.
+2. Configure a canonical HTTPS panel URL and an application API key with read
+   access to locations, nodes, servers, and allocations.
+3. Create a `NodeCapacityPolicy` for every eligible node. CPU is local policy;
+   stock Pterodactyl does not provide a `cpu_threads` node field.
+4. Confirm exclusive provisioning control for every eligible node. Out-of-band
+   server moves, resizes, creates, or allocation assignments invalidate the
+   reservation guarantee.
+5. Run the setup wizard, the cross-repository PHPUnit workflow, scheduler
+   heartbeat checks, and a read-only live inventory smoke test.
+6. Resume deployment synchronization only after the exact commits are reviewed
+   and approved.
+
+The API key migration encrypts the stored credential. Customer errors remain
+generic; detailed upstream failures belong only in protected logs.
+
+[Current implementation checklist](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/0d0b6169aaef5f44f311f82bae05bbf4060e63c3/09-IMPLEMENTATION.md)
+
+
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [api.php](file://routes/api.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php)
-- [phpunit.xml](file://phpunit.xml)
-- [AGENTS.md](file://AGENTS.md)
-- [DECISIONS.md](file://DECISIONS.md)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php)
+- [phpunit.xml](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml)
+- [AGENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/AGENTS.md)
+- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md)
 </cite>
 
 ## Table of Contents
@@ -54,14 +80,14 @@ G --> I["Database (ptero_* tables)"]
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 **Section sources**
-- [DynamicPterodactyl.php:25-32](file://DynamicPterodactyl.php#L25-L32)
-- [DynamicPterodactyl.php:77-91](file://DynamicPterodactyl.php#L77-L91)
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:25-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L25-L32)
+- [DynamicPterodactyl.php:77-91](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L77-L91)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Core Components
 - Extension lifecycle: installs/uninstalls migrations, boots routes, policies, observers, event listeners, and scheduled jobs.
@@ -71,10 +97,10 @@ G --> I["Database (ptero_* tables)"]
 - Audit and alerts: records state transitions and sends capacity alerts based on configured thresholds and cooldowns.
 
 **Section sources**
-- [DynamicPterodactyl.php:77-127](file://DynamicPterodactyl.php#L77-L127)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:77-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L77-L127)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Architecture Overview
 The extension integrates with Paymenter events and the Pterodactyl Panel API to provide real-time availability and short-term reservations. Schedules run cleanup and alert checks. All customer-facing responses expose only aggregate capacity; node-level detail is admin-only.
@@ -108,10 +134,10 @@ Res-->>Client : reservation token + expiry
 ```
 
 **Diagram sources**
-- [api.php:17-30](file://routes/api.php#L17-L30)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [api.php:17-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L30)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 ## Detailed Component Analysis
 
@@ -130,9 +156,9 @@ Important notes:
 - The scheduler must be active; schedules are defined inline in the extension boot method.
 
 **Section sources**
-- [DynamicPterodactyl.php:77-91](file://DynamicPterodactyl.php#L77-L91)
-- [DynamicPterodactyl.php:116-127](file://DynamicPterodactyl.php#L116-L127)
-- [AGENTS.md:90-100](file://AGENTS.md#L90-L100)
+- [DynamicPterodactyl.php:77-91](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L77-L91)
+- [DynamicPterodactyl.php:116-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L127)
+- [AGENTS.md:90-100](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/AGENTS.md#L90-L100)
 
 ### Environment Configuration Requirements
 Configure the following settings in the extension configuration:
@@ -147,9 +173,9 @@ Operational requirements:
 - Node payloads must provide an integer `cpu_threads` capacity value; missing, fractional, or malformed node/server capacity fields and incomplete pagination fail closed instead of advertising unverified capacity. Stock Pterodactyl does not expose this node field and uses zero server limits to mean unlimited, while this branch does not yet encrypt/migrate the stored API key. Keep deployment paused until PR #22 is fully rebased so its `NodeCapacityPolicy`, zero-as-unlimited rejection, and API-key encryption migration are all retained alongside every PR #23 safety and Wiki change. A partial CPU-only cherry-pick is not deployable.
 
 **Section sources**
-- [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)
-- [ResourceCalculationService.php:16-21](file://Services/ResourceCalculationService.php#L16-L21)
-- [ReservationService.php:24-35](file://Services/ReservationService.php#L24-L35)
+- [DynamicPterodactyl.php:48-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L48-L75)
+- [ResourceCalculationService.php:16-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L16-L21)
+- [ReservationService.php:24-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L24-L35)
 
 ### Database Schema and Migrations
 The extension creates and manages the following tables:
@@ -168,10 +194,10 @@ Indexes and constraints:
 - Alert configs include indexes for location_id and is_active.
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
 
 ### API Endpoints and Rate Limits
 Customer-facing endpoints (throttled at 30 requests per minute):
@@ -196,8 +222,8 @@ Security and authorization:
 - Admin endpoints require authentication and admin role.
 
 **Section sources**
-- [api.php:17-40](file://routes/api.php#L17-L40)
-- [AvailabilityController.php:22-71](file://Http/Controllers/Api/AvailabilityController.php#L22-L71)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [AvailabilityController.php:22-71](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L71)
 
 ### Reservation Lifecycle and Concurrency
 Lifecycle states:
@@ -232,13 +258,13 @@ Audit --> Done(["Return reservation token"])
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:384-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L384-L405)
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
-- [DECISIONS.md:233-235](file://DECISIONS.md#L233-L235)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:384-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L384-L405)
+- [DECISIONS.md:233-235](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md#L233-L235)
 
 ### Capacity Calculation and Real-Time API Usage
 - Availability is always read from the Pterodactyl Panel API; results are not cached.
@@ -264,12 +290,12 @@ Cap-->>Caller : cluster snapshot (locations, nodes, by_location)
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 **Section sources**
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### Monitoring Setup for API Rate Limits and Database Performance
 Monitoring priorities:
@@ -284,9 +310,9 @@ Recommended metrics:
 - Alert delivery success rate and last successful delivery timestamp.
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ReservationService.php:384-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L384-L405)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
 
 ### Backup Strategies for Reservation and Audit Data
 Backup targets:
@@ -300,10 +326,10 @@ Recommendations:
 - Retain audit logs according to retention policy; consider archiving older entries to reduce query load.
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
 
 ### Scaling Considerations for High-Volume Deployments
 - Throttle compliance: Respect route-level throttles (30/min for availability/pricing, 10/min for reservations).
@@ -313,9 +339,9 @@ Recommendations:
 - Degraded mode: When Panel is down, availability endpoints may return degraded snapshots; design UI to handle this gracefully.
 
 **Section sources**
-- [api.php:17-40](file://routes/api.php#L17-L40)
-- [DynamicPterodactyl.php:116-127](file://DynamicPterodactyl.php#L116-L127)
-- [ResourceCalculationService.php:403-417](file://Services/ResourceCalculationService.php#L403-L417)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:116-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L127)
+- [ResourceCalculationService.php:403-417](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L403-L417)
 
 ### Maintenance Procedures
 - Run the scheduler continuously to execute cleanup and alert checks.
@@ -324,8 +350,8 @@ Recommendations:
 - Validate Pterodactyl API connectivity using the test connection capability.
 
 **Section sources**
-- [DynamicPterodactyl.php:116-127](file://DynamicPterodactyl.php#L116-L127)
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
+- [DynamicPterodactyl.php:116-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L127)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
 
 ### Upgrade Paths, Version Compatibility, and Rollback Procedures
 - Version: The extension declares version 3.1.0 in its metadata.
@@ -342,9 +368,9 @@ Recommendations:
 Note: Pricing logic is owned by Paymenter core; avoid adding pricing storage or logic to the extension.
 
 **Section sources**
-- [DynamicPterodactyl.php:25-32](file://DynamicPterodactyl.php#L25-L32)
-- [DynamicPterodactyl.php:77-91](file://DynamicPterodactyl.php#L77-L91)
-- [DECISIONS.md:213-228](file://DECISIONS.md#L213-L228)
+- [DynamicPterodactyl.php:25-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L25-L32)
+- [DynamicPterodactyl.php:77-91](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L77-L91)
+- [DECISIONS.md:213-228](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md#L213-L228)
 
 ### Production Readiness Checklist
 Security hardening:
@@ -372,10 +398,10 @@ Testing isolation:
 - Tests enforce isolated cache/session/queue/mail settings; production should use appropriate stores.
 
 **Section sources**
-- [api.php:32-40](file://routes/api.php#L32-L40)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
-- [DynamicPterodactyl.php:116-127](file://DynamicPterodactyl.php#L116-L127)
-- [phpunit.xml:28-41](file://phpunit.xml#L28-L41)
+- [api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
+- [DynamicPterodactyl.php:116-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L127)
+- [phpunit.xml:28-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L28-L41)
 
 ## Dependency Analysis
 Runtime dependencies:
@@ -403,14 +429,14 @@ Models["Models"] --> DB
 ```
 
 **Diagram sources**
-- [api.php:17-40](file://routes/api.php#L17-L40)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 **Section sources**
-- [api.php:17-40](file://routes/api.php#L17-L40)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 ## Performance Considerations
 - Use throttling to protect both Paymenter and Pterodactyl APIs.
@@ -434,9 +460,9 @@ Diagnostic steps:
 - Validate scheduler tasks are running and not overlapping.
 
 **Section sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](file://database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [2026_04_26_000001_create_ptero_alert_delivery_log_table.php:11-24](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_26_000001_create_ptero_alert_delivery_log_table.php#L11-L24)
 
 ## Conclusion
 Deploying the Dynamic Pterodactyl extension requires careful configuration of Pterodactyl API credentials, scheduler operation, and database readiness. Adhering to throttling, real-time availability, and robust reservation handling ensures reliable operations. Monitoring, backups, and maintenance procedures safeguard production stability. Follow the upgrade and rollback guidance to maintain compatibility with Paymenter core and Filament v4.
@@ -450,11 +476,11 @@ Deploying the Dynamic Pterodactyl extension requires careful configuration of Pt
 - Check capacity alerts: Runs every five minutes, enforces cooldown and delivers notifications.
 
 **Section sources**
-- [DynamicPterodactyl.php:116-127](file://DynamicPterodactyl.php#L116-L127)
+- [DynamicPterodactyl.php:116-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L127)
 
 ### Appendix B: Test Harness Isolation
 - phpunit.xml enforces isolated cache/session/queue/mail settings and a test database name guard.
 - Ensure tests are run against a dedicated test database to avoid polluting shared stores.
 
 **Section sources**
-- [phpunit.xml:28-41](file://phpunit.xml#L28-L41)
+- [phpunit.xml:28-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L28-L41)

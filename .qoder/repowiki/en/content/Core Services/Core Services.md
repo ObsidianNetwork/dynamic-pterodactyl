@@ -1,17 +1,37 @@
 # Core Services
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+## Current Service Map
+
+- `PterodactylInventoryService` owns strict, paginated application-API reads.
+- `ResourceCalculationService` combines live inventory, local commitments, and
+  `NodeCapacityPolicy` records into capacity snapshots.
+- `ResourceQuoteService` produces customer-safe, complete-vector quotes.
+- `ProductResourceConfigurationService` resolves native Paymenter config
+  options; it replaces the retired `SliderConfigReaderService` role.
+- `ReservationService` owns cart and paid-service commitments.
+- `UpgradeReservationService` owns quote, payment, provisioning, expiry, and
+  reconciliation state for service upgrades.
+- `AllocationSelectionService`, `NodeSelectionService`, `AlertService`,
+  `SchedulerHealthService`, and the audit/configuration services provide the
+  supporting policies and operator visibility.
+
+[Current service guide](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/0d0b6169aaef5f44f311f82bae05bbf4060e63c3/02-SERVICES.md)
+
+
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [NodeSelectionService.php](file://Services/NodeSelectionService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [AlertService.php](file://Services/AlertService.php)
-- [ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [AlertConfig.php](file://Models/AlertConfig.php)
-- [AuditsExtensionActions.php](file://Services/Concerns/AuditsExtensionActions.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [NodeSelectionService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [AlertConfig.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php)
+- [AuditsExtensionActions.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php)
 </cite>
 
 ## Table of Contents
@@ -64,10 +84,10 @@ J --> G
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
 
 ## Core Components
 - ResourceCalculationService: Real-time availability and cluster snapshot builder using Pterodactyl API calls and pending reservations.
@@ -78,12 +98,12 @@ J --> G
 - SliderConfigReaderService: Reads slider metadata for frontend/API consumption.
 
 **Section sources**
-- [ResourceCalculationService.php:23-222](file://Services/ResourceCalculationService.php#L23-L222)
-- [NodeSelectionService.php:14-86](file://Services/NodeSelectionService.php#L14-L86)
-- [ReservationService.php:37-405](file://Services/ReservationService.php#L37-L405)
-- [AlertService.php:30-248](file://Services/AlertService.php#L30-L248)
-- [ConfigOptionSetupService.php:44-258](file://Services/ConfigOptionSetupService.php#L44-L258)
-- [SliderConfigReaderService.php:9-66](file://Services/SliderConfigReaderService.php#L9-L66)
+- [ResourceCalculationService.php:23-222](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L222)
+- [NodeSelectionService.php:14-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L14-L86)
+- [ReservationService.php:37-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L37-L405)
+- [AlertService.php:30-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L30-L248)
+- [ConfigOptionSetupService.php:44-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L258)
+- [SliderConfigReaderService.php:9-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L9-L66)
 
 ## Architecture Overview
 The services form a layered pipeline:
@@ -118,9 +138,9 @@ end
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 ## Detailed Component Analysis
 
@@ -161,10 +181,10 @@ Integration points:
 - Reads extension config for API URL/key.
 
 **Section sources**
-- [ResourceCalculationService.php:23-222](file://Services/ResourceCalculationService.php#L23-L222)
-- [ResourceCalculationService.php:227-257](file://Services/ResourceCalculationService.php#L227-L257)
-- [ResourceCalculationService.php:302-384](file://Services/ResourceCalculationService.php#L302-L384)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:23-222](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L222)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
+- [ResourceCalculationService.php:302-384](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L302-L384)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### NodeSelectionService
 Responsibilities:
@@ -191,7 +211,7 @@ Integration points:
 - Called by ReservationService during reservation creation.
 
 **Section sources**
-- [NodeSelectionService.php:14-86](file://Services/NodeSelectionService.php#L14-L86)
+- [NodeSelectionService.php:14-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L14-L86)
 
 ### ReservationService
 Responsibilities:
@@ -236,9 +256,9 @@ Integration points:
 - Schedules cleanup via DynamicPterodactyl boot.
 
 **Section sources**
-- [ReservationService.php:37-405](file://Services/ReservationService.php#L37-L405)
-- [AuditsExtensionActions.php:8-33](file://Services/Concerns/AuditsExtensionActions.php#L8-L33)
-- [DynamicPterodactyl.php:116-121](file://DynamicPterodactyl.php#L116-L121)
+- [ReservationService.php:37-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L37-L405)
+- [AuditsExtensionActions.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L8-L33)
+- [DynamicPterodactyl.php:116-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L121)
 
 ### AlertService
 Responsibilities:
@@ -268,8 +288,8 @@ Integration points:
 - Uses Notification classes and AlertDeliveryLog model.
 
 **Section sources**
-- [AlertService.php:30-248](file://Services/AlertService.php#L30-L248)
-- [AlertService.php:301-361](file://Services/AlertService.php#L301-L361)
+- [AlertService.php:30-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L30-L248)
+- [AlertService.php:301-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L301-L361)
 
 ### ConfigOptionSetupService
 Responsibilities:
@@ -294,7 +314,7 @@ Integration points:
 - Audits setup runs.
 
 **Section sources**
-- [ConfigOptionSetupService.php:44-258](file://Services/ConfigOptionSetupService.php#L44-L258)
+- [ConfigOptionSetupService.php:44-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L258)
 
 ### SliderConfigReaderService
 Responsibilities:
@@ -311,7 +331,7 @@ Integration points:
 - Reads ConfigOption entries created by ConfigOptionSetupService.
 
 **Section sources**
-- [SliderConfigReaderService.php:9-66](file://Services/SliderConfigReaderService.php#L9-L66)
+- [SliderConfigReaderService.php:9-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L9-L66)
 
 ## Dependency Analysis
 Service dependencies and relationships:
@@ -337,10 +357,10 @@ SliderConfigReaderService --> ResourceReservation : "not directly"
 ```
 
 **Diagram sources**
-- [NodeSelectionService.php:7-12](file://Services/NodeSelectionService.php#L7-L12)
-- [ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [AlertService.php:23-28](file://Services/AlertService.php#L23-L28)
-- [AuditsExtensionActions.php:8-33](file://Services/Concerns/AuditsExtensionActions.php#L8-L33)
+- [NodeSelectionService.php:7-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L7-L12)
+- [ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [AlertService.php:23-28](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L23-L28)
+- [AuditsExtensionActions.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L8-L33)
 
 Coupling and cohesion:
 - ResourceCalculationService is a foundational dependency with high cohesion around availability computation.
@@ -358,8 +378,8 @@ External integrations:
 - Laravel scheduling and event system.
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
 
 ## Performance Considerations
 - Real-time API usage: ResourceCalculationService avoids caching to ensure accuracy; batch requests and pagination minimize round-trips.
@@ -389,10 +409,10 @@ Common issues and resolutions:
   - Action: Validate admin recipients and webhook URLs; check cooldowns; inspect logs for channel errors.
 
 **Section sources**
-- [ResourceCalculationService.php:157-195](file://Services/ResourceCalculationService.php#L157-L195)
-- [ResourceCalculationService.php:410-424](file://Services/ResourceCalculationService.php#L410-L424)
-- [ReservationService.php:125-141](file://Services/ReservationService.php#L125-L141)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [ResourceCalculationService.php:157-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L157-L195)
+- [ResourceCalculationService.php:410-424](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L410-L424)
+- [ReservationService.php:125-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L125-L141)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
 
 ## Conclusion
 The Dynamic Pterodactyl extension’s core services provide a robust foundation for real-time availability, intelligent node selection, transactional reservations with TTL, and proactive capacity alerts. Their design emphasizes correctness (locking, idempotency), resilience (retries, degraded modes), and clarity (separation of concerns across services). Integration with Paymenter remains focused on configuration and events, while pricing logic stays within core.
@@ -462,7 +482,7 @@ Present --> End(["Done"])
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 #### Capacity Alert Evaluation Flow
 ```mermaid
@@ -483,6 +503,6 @@ NextCfg --> Done(["End"])
 ```
 
 **Diagram sources**
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)

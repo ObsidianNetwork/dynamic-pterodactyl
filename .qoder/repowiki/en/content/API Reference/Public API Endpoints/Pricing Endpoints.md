@@ -1,14 +1,17 @@
 # Pricing Endpoints
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [PricingController.php](file://Http/Controllers/Api/PricingController.php)
-- [api.php](file://routes/api.php)
-- [SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [07-PRICING-MODELS.md](file://07-PRICING-MODELS.md)
-- [02-SERVICES.md](file://02-SERVICES.md)
-- [EnsureUserIsAdmin.php](file://Http/Middleware/EnsureUserIsAdmin.php)
+- [PricingController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php)
+- [api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [07-PRICING-MODELS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md)
+- [02-SERVICES.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/02-SERVICES.md)
+- [EnsureUserIsAdmin.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php)
 </cite>
 
 ## Table of Contents
@@ -42,14 +45,14 @@ C --> F["Paymenter Core:<br/>Plan::dynamicSliderBasePrice()<br/>ConfigOption::ca
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-101](file://DynamicPterodactyl.php#L96-L101)
-- [api.php:17-22](file://routes/api.php#L17-L22)
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
+- [DynamicPterodactyl.php:96-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L101)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-101](file://DynamicPterodactyl.php#L96-L101)
-- [api.php:17-22](file://routes/api.php#L17-L22)
+- [DynamicPterodactyl.php:96-101](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L101)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ## Core Components
 - PricingController: Validates input, resolves plan, computes per-slider deltas via core methods, aggregates totals, and returns breakdowns.
@@ -62,9 +65,9 @@ Key responsibilities:
 - Consistent JSON response envelope with success/data or success/message/error fields.
 
 **Section sources**
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [api.php:17-22](file://routes/api.php#L17-L22)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ## Architecture Overview
 The pricing flow is designed around delegation to Paymenter core. The controller validates and orchestrates, while core models perform the actual calculations.
@@ -91,8 +94,8 @@ Note over FE,API : Throttled at 30 req/min with web+auth middleware
 ```
 
 **Diagram sources**
-- [PricingController.php:24-122](file://Http/Controllers/Api/PricingController.php#L24-L122)
-- [api.php:17-22](file://routes/api.php#L17-L22)
+- [PricingController.php:24-122](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L122)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ## Detailed Component Analysis
 
@@ -175,8 +178,8 @@ Frontend integration during checkout:
 - Step 3: Present total and per-slider breakdown to the user before proceeding to reservation creation.
 
 **Section sources**
-- [PricingController.php:24-122](file://Http/Controllers/Api/PricingController.php#L24-L122)
-- [api.php:17-22](file://routes/api.php#L17-L22)
+- [PricingController.php:24-122](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L122)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ### Endpoint: GET /api/dynamic-pterodactyl/pricing/config/{productId}
 Purpose:
@@ -253,9 +256,9 @@ Concrete example:
     }
 
 **Section sources**
-- [PricingController.php:127-145](file://Http/Controllers/Api/PricingController.php#L127-L145)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [api.php:17-22](file://routes/api.php#L17-L22)
+- [PricingController.php:127-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L127-L145)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ### Pricing Ownership and Delegation
 This extension NEVER calculates prices directly. It:
@@ -266,9 +269,9 @@ This extension NEVER calculates prices directly. It:
 This design ensures parity with checkout and renewal flows and centralizes pricing authority in Paymenter core.
 
 **Section sources**
-- [07-PRICING-MODELS.md:19-27](file://07-PRICING-MODELS.md#L19-L27)
-- [02-SERVICES.md:386-391](file://02-SERVICES.md#L386-L391)
-- [PricingController.php:69-94](file://Http/Controllers/Api/PricingController.php#L69-L94)
+- [07-PRICING-MODELS.md:19-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L19-L27)
+- [02-SERVICES.md:386-391](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/02-SERVICES.md#L386-L391)
+- [PricingController.php:69-94](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L69-L94)
 
 ## Dependency Analysis
 The pricing endpoints depend on:
@@ -315,12 +318,12 @@ PricingController --> ConfigOption : "calls core pricing"
 ```
 
 **Diagram sources**
-- [PricingController.php:12-157](file://Http/Controllers/Api/PricingController.php#L12-L157)
-- [SliderConfigReaderService.php:7-66](file://Services/SliderConfigReaderService.php#L7-L66)
+- [PricingController.php:12-157](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L157)
+- [SliderConfigReaderService.php:7-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L7-L66)
 
 **Section sources**
-- [PricingController.php:12-157](file://Http/Controllers/Api/PricingController.php#L12-L157)
-- [SliderConfigReaderService.php:7-66](file://Services/SliderConfigReaderService.php#L7-L66)
+- [PricingController.php:12-157](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L157)
+- [SliderConfigReaderService.php:7-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L7-L66)
 
 ## Performance Considerations
 - Rate limiting: Both pricing endpoints are throttled to 30 requests per minute per client to protect downstream resources.
@@ -350,9 +353,9 @@ Operational tips:
 - Check throttle limits if you see 429 responses during high-frequency testing.
 
 **Section sources**
-- [PricingController.php:27-63](file://Http/Controllers/Api/PricingController.php#L27-L63)
-- [PricingController.php:104-121](file://Http/Controllers/Api/PricingController.php#L104-L121)
-- [api.php:17-22](file://routes/api.php#L17-L22)
+- [PricingController.php:27-63](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L27-L63)
+- [PricingController.php:104-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L104-L121)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
 
 ## Conclusion
 The Dynamic Pterodactyl extension exposes two focused pricing endpoints that delegate all pricing math to Paymenter core. They provide:

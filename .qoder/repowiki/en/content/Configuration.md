@@ -1,16 +1,31 @@
 # Configuration
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+## Current Configuration Contract
+
+The extension settings contain the canonical Pterodactyl URL, encrypted
+application API key, exclusive-provisioning confirmation, quote rate-limit
+controls, and alert/scheduler settings. Product resource definitions live in
+native Paymenter config options. Physical CPU capacity and overcommit behavior
+live in per-node `NodeCapacityPolicy` records rather than in panel payloads or
+global slider defaults.
+
+Never place the API key in a URL, log message, rate-limit key, or customer
+response.
+
+
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [SetupWizard.php](file://Admin/Pages/SetupWizard.php)
-- [ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [AlertConfig.php](file://Models/AlertConfig.php)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
-- [StoreReservationRequest.php](file://Http/Requests/StoreReservationRequest.php)
-- [CartItemCreatedListener.php](file://Listeners/CartItemCreatedListener.php)
-- [AlertService.php](file://Services/AlertService.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [SetupWizard.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php)
+- [ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [AlertConfig.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php)
+- [StoreReservationRequest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php)
+- [CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
 </cite>
 
 ## Table of Contents
@@ -58,21 +73,21 @@ K["ResourceCalculationService"] --> L["Pterodactyl Panel API"]
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [SetupWizard.php:80-409](file://Admin/Pages/SetupWizard.php#L80-L409)
-- [ConfigOptionSetupService.php:44-206](file://Services/ConfigOptionSetupService.php#L44-L206)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertConfig.php:8-55](file://Models/AlertConfig.php#L8-L55)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [SetupWizard.php:80-409](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L80-L409)
+- [ConfigOptionSetupService.php:44-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L206)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertConfig.php:8-55](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L8-L55)
 
 **Section sources**
-- [DynamicPterodactyl.php:45-75](file://DynamicPterodactyl.php#L45-L75)
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [SetupWizard.php:50-78](file://Admin/Pages/SetupWizard.php#L50-L78)
-- [ConfigOptionSetupService.php:14-42](file://Services/ConfigOptionSetupService.php#L14-L42)
-- [AlertConfig.php:12-34](file://Models/AlertConfig.php#L12-L34)
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
+- [DynamicPterodactyl.php:45-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L45-L75)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [SetupWizard.php:50-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L50-L78)
+- [ConfigOptionSetupService.php:14-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L14-L42)
+- [AlertConfig.php:12-34](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L12-L34)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
 
 ## Core Components
 - Extension configuration fields: Pterodactyl URL, API key, reservation TTL
@@ -87,11 +102,11 @@ Key behaviors:
 - Pricing is defined by Paymenter’s dynamic_slider pricing engine using metadata produced by the setup service
 
 **Section sources**
-- [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)
-- [SetupWizard.php:80-409](file://Admin/Pages/SetupWizard.php#L80-L409)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
-- [AlertConfig.php:12-34](file://Models/AlertConfig.php#L12-L34)
+- [DynamicPterodactyl.php:48-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L48-L75)
+- [SetupWizard.php:80-409](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L80-L409)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
+- [AlertConfig.php:12-34](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L12-L34)
 
 ## Architecture Overview
 The extension wires together configuration creation, request-time validation, and alerting:
@@ -120,12 +135,12 @@ Alert-->>Admin : Send notifications on breach
 ```
 
 **Diagram sources**
-- [SetupWizard.php:429-488](file://Admin/Pages/SetupWizard.php#L429-L488)
-- [ConfigOptionSetupService.php:44-206](file://Services/ConfigOptionSetupService.php#L44-L206)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertConfig.php:12-34](file://Models/AlertConfig.php#L12-L34)
+- [SetupWizard.php:429-488](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L429-L488)
+- [ConfigOptionSetupService.php:44-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L206)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertConfig.php:12-34](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L12-L34)
 
 ## Detailed Component Analysis
 
@@ -137,7 +152,7 @@ Alert-->>Admin : Send notifications on breach
 These are managed via the extension’s configuration method and used by services that interact with Pterodactyl and manage reservations.
 
 **Section sources**
-- [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)
+- [DynamicPterodactyl.php:48-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L48-L75)
 
 ### Dynamic Slider Options: Creation and Metadata
 The setup wizard creates dynamic_slider options per product for memory, CPU, and disk. For each resource:
@@ -152,9 +167,9 @@ Metadata written into ConfigOptions includes:
 Validation of pricing metadata uses Paymenter’s rule before saving.
 
 **Section sources**
-- [SetupWizard.php:80-409](file://Admin/Pages/SetupWizard.php#L80-L409)
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
+- [SetupWizard.php:80-409](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L80-L409)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
 
 ### Slider Configuration Reader
 Reads dynamic_slider options for a product and returns slider definitions suitable for frontend/API consumption:
@@ -162,7 +177,7 @@ Reads dynamic_slider options for a product and returns slider definitions suitab
 - Handles both array and JSON-encoded metadata
 
 **Section sources**
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
 
 ### Request Validation: Slider Ranges and Allowed Locations
 When creating a reservation:
@@ -174,7 +189,7 @@ When creating a reservation:
 Errors are added to the validator when constraints fail.
 
 **Section sources**
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
 
 ### Location-Based Restrictions
 - The setup wizard can create a “Location” select option with child options for each chosen Pterodactyl location
@@ -182,10 +197,10 @@ Errors are added to the validator when constraints fail.
 - During cart processing, the listener resolves the actual Pterodactyl location ID from the selected child option
 
 **Section sources**
-- [SetupWizard.php:391-404](file://Admin/Pages/SetupWizard.php#L391-L404)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
-- [StoreReservationRequest.php:60-64](file://Http/Requests/StoreReservationRequest.php#L60-L64)
-- [CartItemCreatedListener.php:137-159](file://Listeners/CartItemCreatedListener.php#L137-L159)
+- [SetupWizard.php:391-404](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L391-L404)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
+- [StoreReservationRequest.php:60-64](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L60-L64)
+- [CartItemCreatedListener.php:137-159](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L137-L159)
 
 ### Alert Thresholds and Notifications
 Alerts are configured per location or globally:
@@ -197,9 +212,9 @@ Alerts are configured per location or globally:
 The alert service evaluates utilization and sends notifications when thresholds are exceeded.
 
 **Section sources**
-- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](file://database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
-- [AlertConfig.php:12-34](file://Models/AlertConfig.php#L12-L34)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
+- [2025_01_01_000004_create_ptero_alert_configs_table.php:11-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000004_create_ptero_alert_configs_table.php#L11-L42)
+- [AlertConfig.php:12-34](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L12-L34)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
 
 ### Pricing Rules via Paymenter’s Native Engine
 - Pricing models supported: linear, tiered, base_addon
@@ -211,8 +226,8 @@ The alert service evaluates utilization and sends notifications when thresholds 
 The setup service builds pricing metadata and validates it using Paymenter’s rule. Actual price calculation is performed by Paymenter core using Plan and ConfigOption methods.
 
 **Section sources**
-- [ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
-- [SetupWizard.php:113-389](file://Admin/Pages/SetupWizard.php#L113-L389)
+- [ConfigOptionSetupService.php:117-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L171)
+- [SetupWizard.php:113-389](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L113-L389)
 
 ### Environment Variables and File-Based Settings
 - Each dynamic_slider option defines an environment variable name (e.g., MEMORY, CPU, DISK, LOCATION) used by Paymenter to resolve values at runtime
@@ -221,8 +236,8 @@ The setup service builds pricing metadata and validates it using Paymenter’s r
 Note: The extension does not define its own environment variables beyond those tied to slider options.
 
 **Section sources**
-- [ConfigOptionSetupService.php:96-112](file://Services/ConfigOptionSetupService.php#L96-L112)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
+- [ConfigOptionSetupService.php:96-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L96-L112)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
 
 ### Runtime Configuration Changes
 - Slider and pricing metadata are read dynamically from ConfigOptions at request time
@@ -230,8 +245,8 @@ Note: The extension does not define its own environment variables beyond those t
 - No static file-based configuration is used for slider/alert settings
 
 **Section sources**
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
 
 ## Dependency Analysis
 Configuration flows depend on:
@@ -252,18 +267,18 @@ Alerts["AlertService"] --> AConf["AlertConfig"]
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [SetupWizard.php:429-488](file://Admin/Pages/SetupWizard.php#L429-L488)
-- [ConfigOptionSetupService.php:44-206](file://Services/ConfigOptionSetupService.php#L44-L206)
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [AlertConfig.php:12-34](file://Models/AlertConfig.php#L12-L34)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [SetupWizard.php:429-488](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L429-L488)
+- [ConfigOptionSetupService.php:44-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L206)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [AlertConfig.php:12-34](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L12-L34)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [ConfigOptionSetupService.php:44-206](file://Services/ConfigOptionSetupService.php#L44-L206)
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [ConfigOptionSetupService.php:44-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L206)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
 
 ## Performance Considerations
 - Pterodactyl API responses are not cached; real-time availability is intentional
@@ -284,9 +299,9 @@ Common issues and resolutions:
 Use the admin setup wizard to re-run configuration updates; warnings will appear if existing slider options are overwritten.
 
 **Section sources**
-- [StoreReservationRequest.php:51-138](file://Http/Requests/StoreReservationRequest.php#L51-L138)
-- [SetupWizard.php:411-488](file://Admin/Pages/SetupWizard.php#L411-L488)
-- [AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
+- [StoreReservationRequest.php:51-138](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L138)
+- [SetupWizard.php:411-488](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L411-L488)
+- [AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
 
 ## Conclusion
 Configure the Dynamic Pterodactyl extension by:
