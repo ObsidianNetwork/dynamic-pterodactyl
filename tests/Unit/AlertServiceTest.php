@@ -24,6 +24,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShor
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\WebhookEndpointPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestCase;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -75,11 +76,16 @@ class AlertServiceTest extends TestCase
         return $dispatcher;
     }
 
-    private function makeService(): AlertService
+    private function makeService(?WebhookEndpointPolicy $policy = null): AlertService
     {
         $mockResource = Mockery::mock(ResourceCalculationService::class);
 
-        return new AlertService($mockResource);
+        return new AlertService(
+            $mockResource,
+            $policy ?? new WebhookEndpointPolicy(
+                static fn (string $host): array => ['93.184.216.34']
+            )
+        );
     }
 
     private function invokeSendNotifications(AlertService $service, object $config, array $availability, array $alerts): mixed
@@ -503,6 +509,40 @@ class AlertServiceTest extends TestCase
         Log::shouldHaveReceived('error')->with('Webhook notification failed', Mockery::any());
     }
 
+    public function test_non_public_webhook_is_rejected_before_an_http_request(): void
+    {
+        $dispatcher = $this->bindEventDispatcherMock();
+        Http::preventStrayRequests();
+        Log::spy();
+
+        $service = $this->makeService(new WebhookEndpointPolicy(
+            static fn (string $host): array => ['127.0.0.1']
+        ));
+        $result = $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 43,
+                'location_id' => 1,
+                'location_name' => 'Test',
+                'email_notifications' => false,
+                'notification_emails' => json_encode([]),
+                'webhook_notifications' => true,
+                'webhook_url' => 'https://hooks.example.com/test',
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'memory', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $this->assertFalse($result);
+        Http::assertNothingSent();
+        $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
+        Log::shouldHaveReceived('error')->with(
+            'Webhook notification failed',
+            Mockery::on(fn (array $context) => $context['alert_config_id'] === 43
+                && $context['webhook_host'] === 'hooks.example.com')
+        );
+    }
+
     public function test_alert_with_no_recipients_does_not_deliver_email(): void
     {
         $dispatcher = $this->bindEventDispatcherMock();
@@ -541,7 +581,12 @@ class AlertServiceAuditTest extends LaravelTestCase
 
     private function makeService(ResourceCalculationService $resourceService): AlertService
     {
-        return new AlertService($resourceService);
+        return new AlertService(
+            $resourceService,
+            new WebhookEndpointPolicy(
+                static fn (string $host): array => ['93.184.216.34']
+            )
+        );
     }
 
     private function runCheck(AlertService $service, AlertConfig $alertConfig): void

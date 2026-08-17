@@ -21,6 +21,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources\AlertConfigRe
 use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources\AlertConfigResource\Pages\EditAlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources\AlertConfigResource\Pages\ListAlertConfigs;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Rules\PublicWebhookUrl;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 
@@ -118,6 +119,7 @@ class AlertConfigResource extends Resource
                     TextInput::make('webhook_url')
                         ->label('Webhook URL')
                         ->url()
+                        ->rules([new PublicWebhookUrl])
                         ->visible(fn (Get $get) => $get('webhook_notifications'))
                         ->placeholder('https://...'),
 

@@ -25,9 +25,15 @@ class AlertService
 
     private ResourceCalculationService $resourceService;
 
-    public function __construct(ResourceCalculationService $resourceService)
-    {
+    private WebhookEndpointPolicy $webhookEndpointPolicy;
+
+    public function __construct(
+        ResourceCalculationService $resourceService,
+        ?WebhookEndpointPolicy $webhookEndpointPolicy = null,
+    ) {
         $this->resourceService = $resourceService;
+        $this->webhookEndpointPolicy = $webhookEndpointPolicy
+            ?? new WebhookEndpointPolicy;
     }
 
     /**
@@ -272,10 +278,14 @@ class AlertService
             $channelsTried[] = 'webhook';
 
             try {
+                $requestOptions = $this->webhookEndpointPolicy->requestOptions(
+                    (string) $config->webhook_url
+                );
+
                 // Format for Discord webhook compatibility
                 $alertColor = collect($alerts)->contains('type', 'critical') ? 16711680 : 16776960; // Red or Yellow
 
-                Http::timeout(10)->post($config->webhook_url, [
+                Http::withOptions($requestOptions)->timeout(10)->post($config->webhook_url, [
                     'content' => "**Capacity Alert** - {$locationName}",
                     'embeds' => [[
                         'title' => 'Resource Usage Alert',
