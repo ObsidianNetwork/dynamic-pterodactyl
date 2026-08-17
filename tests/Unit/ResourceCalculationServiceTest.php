@@ -220,7 +220,7 @@ class ResourceCalculationServiceTest extends LaravelTestCase
         $this->assertSame(['memory' => 7168, 'cpu' => 350, 'disk' => 46080], $result['nodes'][0]['available']);
     }
 
-    public function test_location_availability_ignores_malformed_included_relationships(): void
+    public function test_location_availability_rejects_malformed_included_relationships(): void
     {
         Http::fake([
             'panel.example.com/*' => Http::response([
@@ -235,11 +235,45 @@ class ResourceCalculationServiceTest extends LaravelTestCase
             ], 200),
         ]);
 
-        $result = $this->service->getLocationAvailability(1);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid nodes relationship payload');
 
-        Http::assertSentCount(1);
-        $this->assertSame([], $result['nodes']);
-        $this->assertSame(['memory' => 0, 'cpu' => 0, 'disk' => 0], $result['max_available']);
+        $this->service->getLocationAvailability(1);
+    }
+
+    public function test_location_availability_rejects_malformed_included_server_limits(): void
+    {
+        Http::fake([
+            'panel.example.com/*' => Http::response([
+                'object' => 'location',
+                'attributes' => [
+                    'id' => 1,
+                    'relationships' => [
+                        'nodes' => ['data' => [[
+                            'attributes' => [
+                                'id' => 5,
+                                'name' => 'Node 5',
+                                'fqdn' => 'node-5.example.com',
+                                'memory' => 8192,
+                                'disk' => 51200,
+                                'cpu_threads' => 4,
+                            ],
+                        ]]],
+                        'servers' => ['data' => [[
+                            'attributes' => [
+                                'node' => 5,
+                                'limits' => 'not-an-array',
+                            ],
+                        ]]],
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('invalid included server payload');
+
+        $this->service->getLocationAvailability(1);
     }
 
     public function test_snapshot_with_single_location_single_node(): void

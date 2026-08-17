@@ -231,8 +231,8 @@ class ResourceCalculationService
             ['include' => 'nodes,servers']
         );
 
-        $nodesData = $this->extractRelationshipData($response, 'nodes');
-        $serversData = $this->extractRelationshipData($response, 'servers');
+        $nodesData = $this->requireRelationshipData($response, 'nodes');
+        $serversData = $this->requireRelationshipData($response, 'servers');
 
         // Group servers by node_id for per-node allocation accounting
         $serversByNode = [];
@@ -241,8 +241,8 @@ class ResourceCalculationService
                 ? $server['attributes']
                 : null;
             $nodeId = $attributes['node'] ?? null;
-            if ($nodeId === null) {
-                continue;
+            if ($nodeId === null || ! is_array($attributes['limits'] ?? null)) {
+                throw new \RuntimeException('Pterodactyl API returned an invalid included server payload.');
             }
             $serversByNode[$nodeId][] = $attributes;
         }
@@ -253,7 +253,7 @@ class ResourceCalculationService
                 ? $node['attributes']
                 : null;
             if ($attrs === null || ! isset($attrs['id'], $attrs['name'], $attrs['fqdn'], $attrs['memory'], $attrs['disk'])) {
-                continue;
+                throw new \RuntimeException('Pterodactyl API returned an invalid included node payload.');
             }
             $nodeId = $attrs['id'];
             $nodes[] = [
@@ -423,6 +423,26 @@ class ResourceCalculationService
         }
 
         return [];
+    }
+
+    private function requireRelationshipData(array $payload, string $relationship): array
+    {
+        $attributes = is_array($payload['attributes'] ?? null) ? $payload['attributes'] : [];
+        $relationships = is_array($attributes['relationships'] ?? null)
+            ? $attributes['relationships']
+            : [];
+        $entry = is_array($relationships[$relationship] ?? null)
+            ? $relationships[$relationship]
+            : null;
+
+        if ($entry === null || ! is_array($entry['data'] ?? null)) {
+            throw new \RuntimeException(sprintf(
+                'Pterodactyl API returned an invalid %s relationship payload.',
+                $relationship
+            ));
+        }
+
+        return $entry['data'];
     }
 
     private function emptyClusterSnapshot(): array
