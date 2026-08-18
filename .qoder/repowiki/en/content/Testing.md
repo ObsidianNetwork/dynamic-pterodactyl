@@ -1,21 +1,39 @@
 # Testing
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+## Current Test Contract
+
+The cross-repository workflow checks PHP 8.3 and 8.4 against SQLite and MariaDB
+11/12, lints every changed PHP file, runs the full extension suite, exercises the
+Paymenter provisioning seam, checks formatting, and audits the pinned companion
+lock file for security advisories.
+
+Standalone SQLite tests must use `DB_DATABASE=:temporary:`. The guard claims a
+process-private named-memory database and rejects inherited generated URIs in
+child processes. MySQL/MariaDB tests may use only the explicitly named
+`paymenter_test` database while `APP_ENV=testing`.
+
+[Test bootstrap](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php) and
+[database guard](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/TestDatabaseGuard.php)
+
+
 <cite>
 **Referenced Files in This Document**
-- [phpunit.xml](file://phpunit.xml)
-- [tests/bootstrap.php](file://tests/bootstrap.php)
-- [tests/TestCase.php](file://tests/TestCase.php)
-- [tests/LaravelTestCase.php](file://tests/LaravelTestCase.php)
-- [Services/ReservationService.php](file://Services/ReservationService.php)
-- [Services/ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [Services/AlertService.php](file://Services/AlertService.php)
-- [Models/ResourceReservation.php](file://Models/ResourceReservation.php)
-- [Models/AlertConfig.php](file://Models/AlertConfig.php)
-- [tests/Unit/ReservationServiceTest.php](file://tests/Unit/ReservationServiceTest.php)
-- [tests/Unit/ResourceCalculationServiceTest.php](file://tests/Unit/ResourceCalculationServiceTest.php)
-- [tests/Unit/AlertServiceTest.php](file://tests/Unit/AlertServiceTest.php)
-- [tests/Feature/ReservationApiTest.php](file://tests/Feature/ReservationApiTest.php)
-- [tests/Feature/AvailabilityApiTest.php](file://tests/Feature/AvailabilityApiTest.php)
+- [phpunit.xml](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml)
+- [tests/bootstrap.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php)
+- [tests/TestCase.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/TestCase.php)
+- [tests/LaravelTestCase.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php)
+- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [Services/AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [Models/ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [Models/AlertConfig.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php)
+- [tests/Unit/ReservationServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ReservationServiceTest.php)
+- [tests/Unit/ResourceCalculationServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php)
+- [tests/Unit/AlertServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php)
+- [tests/Feature/ReservationApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php)
+- [tests/Feature/AvailabilityApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php)
 </cite>
 
 ## Table of Contents
@@ -67,21 +85,21 @@ U --> AC
 ```
 
 **Diagram sources**
-- [phpunit.xml:1-43](file://phpunit.xml#L1-L43)
-- [tests/bootstrap.php:1-21](file://tests/bootstrap.php#L1-L21)
-- [tests/TestCase.php:1-64](file://tests/TestCase.php#L1-L64)
-- [tests/LaravelTestCase.php:1-183](file://tests/LaravelTestCase.php#L1-L183)
-- [Services/ReservationService.php:1-454](file://Services/ReservationService.php#L1-L454)
-- [Services/ResourceCalculationService.php:1-545](file://Services/ResourceCalculationService.php#L1-L545)
-- [Services/AlertService.php:1-393](file://Services/AlertService.php#L1-L393)
-- [Models/ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L66)
-- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L57)
+- [phpunit.xml:1-43](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L1-L43)
+- [tests/bootstrap.php:1-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php#L1-L21)
+- [tests/TestCase.php:1-63](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/TestCase.php#L1-L63)
+- [tests/LaravelTestCase.php:1-183](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L1-L183)
+- [Services/ReservationService.php:1-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L1-L453)
+- [Services/ResourceCalculationService.php:1-545](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L1-L545)
+- [Services/AlertService.php:1-392](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L1-L392)
+- [Models/ResourceReservation.php:1-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L1-L65)
+- [Models/AlertConfig.php:1-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L1-L56)
 
 **Section sources**
-- [phpunit.xml:1-43](file://phpunit.xml#L1-L43)
-- [tests/bootstrap.php:1-21](file://tests/bootstrap.php#L1-L21)
-- [tests/TestCase.php:1-64](file://tests/TestCase.php#L1-L64)
-- [tests/LaravelTestCase.php:1-183](file://tests/LaravelTestCase.php#L1-L183)
+- [phpunit.xml:1-43](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L1-L43)
+- [tests/bootstrap.php:1-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php#L1-L21)
+- [tests/TestCase.php:1-63](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/TestCase.php#L1-L63)
+- [tests/LaravelTestCase.php:1-183](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L1-L183)
 
 ## Core Components
 Key components under test:
@@ -91,16 +109,16 @@ Key components under test:
 - Models: ResourceReservation and AlertConfig define data contracts and scopes used by services.
 
 **Section sources**
-- [Services/ReservationService.php:1-454](file://Services/ReservationService.php#L1-L454)
-- [Services/ResourceCalculationService.php:1-545](file://Services/ResourceCalculationService.php#L1-L545)
-- [Services/AlertService.php:1-393](file://Services/AlertService.php#L1-L393)
-- [Models/ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L66)
-- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L57)
+- [Services/ReservationService.php:1-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L1-L453)
+- [Services/ResourceCalculationService.php:1-545](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L1-L545)
+- [Services/AlertService.php:1-392](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L1-L392)
+- [Models/ResourceReservation.php:1-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L1-L65)
+- [Models/AlertConfig.php:1-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L1-L56)
 
 ## Architecture Overview
 The testing architecture isolates external dependencies and enforces deterministic environments:
 - phpunit.xml forces array cache/session/queue and sync queue.
-- tests/bootstrap.php aborts if DB_DATABASE is not a test database.
+- tests/bootstrap.php requires `APP_ENV=testing` and accepts only `paymenter_test`, `:memory:`, or the `:temporary:` sentinel. The sentinel generates an unpredictable process-private named in-memory SQLite database and retains an anchor connection before Paymenter boots; caller-supplied SQLite paths and URI names are rejected.
 - Feature tests load routes and use DatabaseTransactions to keep state isolated per test.
 - Unit tests mock or fake HTTP and DB interactions to avoid real calls.
 
@@ -111,7 +129,7 @@ sequenceDiagram
     participant L as "LaravelTestCase"
     participant S as "Service Under Test"
     participant E as "External System"
-    
+
     T->>B: "Load bootstrap"
     B-->>T: "Guard DB name; require base classes"
     T->>L: "createApplication()"
@@ -123,9 +141,9 @@ sequenceDiagram
 ```
 
 **Diagram sources**
-- [phpunit.xml:28-41](file://phpunit.xml#L28-L41)
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
-- [tests/LaravelTestCase.php:13-25](file://tests/LaravelTestCase.php#L13-L25)
+- [phpunit.xml:28-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L28-L41)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php#L23-L48)
+- [tests/LaravelTestCase.php:13-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L13-L25)
 
 ## Detailed Component Analysis
 
@@ -155,8 +173,8 @@ Present --> End(["Array result"])
 ```
 
 **Diagram sources**
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Services/ReservationService.php:407-452](file://Services/ReservationService.php#L407-L452)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Services/ReservationService.php:407-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L407-L452)
 
 Key test patterns:
 - Mock DB facade chains for confirm/cancel/extend to assert status transitions and audit calls.
@@ -170,16 +188,18 @@ Example references:
 - CleanupExpired marking pending rows as expired and auditing batch count.
 
 **Section sources**
-- [tests/Unit/ReservationServiceTest.php:1-800](file://tests/Unit/ReservationServiceTest.php#L1-L800)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Services/ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
-- [Services/ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
+- [tests/Unit/ReservationServiceTest.php:1-800](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ReservationServiceTest.php#L1-L800)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Services/ReservationService.php:166-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L281)
+- [Services/ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
 
 ### Resource Calculation Service Tests
 Focus areas:
 - Real-time availability fetching from Pterodactyl with pagination and relationship extraction.
 - Error handling for rate limits (429), server errors (5xx), malformed JSON, and connection exceptions with retries.
 - Cluster snapshot aggregation across locations and nodes, including utilization metrics.
+- Fail-closed rejection of duplicate node/server identities and inconsistent upstream relationships.
+- Page-count/total reconciliation, malformed fallback boundaries, and rejection of fractional capacity values.
 - Self-exclusion of current reservation token when verifying availability.
 
 ```mermaid
@@ -189,19 +209,17 @@ participant RCS as "ResourceCalculationService"
 participant H as "Http Client"
 participant DB as "Database"
 T->>RCS : getLocationAvailability(locationId, excludeToken?)
-RCS->>H : GET /api/application/nodes?filter[location_id]=...
-H-->>RCS : Nodes payload
-RCS->>H : GET /api/application/nodes/{id}?include=servers
-H-->>RCS : Servers payload
+RCS->>H : GET /api/application/locations/{id}?include=nodes,servers
+H-->>RCS : Location payload with nodes and servers
 RCS->>DB : Sum pending reservations by node
 DB-->>RCS : Reserved totals
 RCS-->>T : Availability with max_available and totals
 ```
 
 **Diagram sources**
-- [Services/ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [Services/ResourceCalculationService.php:226-245](file://Services/ResourceCalculationService.php#L226-L245)
-- [Services/ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
+- [Services/ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [Services/ResourceCalculationService.php:226-245](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L226-L245)
+- [Services/ResourceCalculationService.php:500-522](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L500-L522)
 
 Key test patterns:
 - Http::preventStrayRequests() to ensure no stray network calls.
@@ -210,10 +228,10 @@ Key test patterns:
 - Validate sanitized error messages that do not leak internal hostnames.
 
 **Section sources**
-- [tests/Unit/ResourceCalculationServiceTest.php:1-469](file://tests/Unit/ResourceCalculationServiceTest.php#L1-L469)
-- [Services/ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [Services/ResourceCalculationService.php:291-384](file://Services/ResourceCalculationService.php#L291-L384)
-- [Services/ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [tests/Unit/ResourceCalculationServiceTest.php:1-469](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L1-L469)
+- [Services/ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [Services/ResourceCalculationService.php:291-384](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L291-L384)
+- [Services/ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### Alert Service Tests
 Focus areas:
@@ -240,9 +258,9 @@ NextCfg --> |done| AEnd(["Done"])
 ```
 
 **Diagram sources**
-- [Services/AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [Services/AlertService.php:77-126](file://Services/AlertService.php#L77-L126)
-- [Services/AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [Services/AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [Services/AlertService.php:77-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L77-L126)
+- [Services/AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
 
 Key test patterns:
 - Isolate Facade application using a minimal container to avoid side effects.
@@ -251,9 +269,9 @@ Key test patterns:
 - Assert AlertDeliveryFailed event dispatch when all channels fail.
 
 **Section sources**
-- [tests/Unit/AlertServiceTest.php:1-771](file://tests/Unit/AlertServiceTest.php#L1-L771)
-- [Services/AlertService.php:33-248](file://Services/AlertService.php#L33-L248)
-- [Models/AlertConfig.php:1-57](file://Models/AlertConfig.php#L1-L57)
+- [tests/Unit/AlertServiceTest.php:1-770](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L1-L770)
+- [Services/AlertService.php:33-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L248)
+- [Models/AlertConfig.php:1-56](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertConfig.php#L1-L56)
 
 ### Feature Tests for API Endpoints
 Focus areas:
@@ -281,8 +299,8 @@ Ctrl-->>C : 200 OK {success : true, data}
 ```
 
 **Diagram sources**
-- [tests/Feature/ReservationApiTest.php:37-78](file://tests/Feature/ReservationApiTest.php#L37-L78)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [tests/Feature/ReservationApiTest.php:37-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L37-L78)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 Key test patterns:
 - Require routes/api.php before making requests.
@@ -291,8 +309,8 @@ Key test patterns:
 - Assert throttling behavior at both guest IP and user levels.
 
 **Section sources**
-- [tests/Feature/ReservationApiTest.php:1-491](file://tests/Feature/ReservationApiTest.php#L1-L491)
-- [tests/Feature/AvailabilityApiTest.php:1-95](file://tests/Feature/AvailabilityApiTest.php#L1-L95)
+- [tests/Feature/ReservationApiTest.php:1-490](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L1-L490)
+- [tests/Feature/AvailabilityApiTest.php:1-95](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L1-L95)
 
 ## Dependency Analysis
 Coupling and isolation:
@@ -312,14 +330,14 @@ ALS --> NOTIF["Notifications"]
 ```
 
 **Diagram sources**
-- [Services/ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [Services/ResourceCalculationService.php:12-21](file://Services/ResourceCalculationService.php#L12-L21)
-- [Services/AlertService.php:23-28](file://Services/AlertService.php#L23-L28)
+- [Services/ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [Services/ResourceCalculationService.php:12-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L12-L21)
+- [Services/AlertService.php:23-28](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L23-L28)
 
 **Section sources**
-- [Services/ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [Services/ResourceCalculationService.php:12-21](file://Services/ResourceCalculationService.php#L12-L21)
-- [Services/AlertService.php:23-28](file://Services/AlertService.php#L23-L28)
+- [Services/ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [Services/ResourceCalculationService.php:12-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L12-L21)
+- [Services/AlertService.php:23-28](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L23-L28)
 
 ## Performance Considerations
 - Keep tests fast by avoiding real network calls; always use Http::fake() for Pterodactyl endpoints.
@@ -331,7 +349,7 @@ ALS --> NOTIF["Notifications"]
 
 ## Troubleshooting Guide
 Common issues and fixes:
-- Running against wrong database: tests/bootstrap.php aborts unless DB_DATABASE is paymenter_test or :memory:. Ensure your environment matches.
+- Running against wrong database: tests/bootstrap.php aborts unless `DB_DATABASE` is `paymenter_test`, `:memory:`, or `:temporary:`. Use `:temporary:` for standalone SQLite; do not provide a filesystem path.
 - Stray HTTP requests: enable Http::preventStrayRequests() in setUp to catch unexpected network calls during unit tests.
 - Stale global state in alert tests: use #[RunTestsInSeparateProcesses] and #[PreserveGlobalState(false)] to isolate Facade containers.
 - Authorization failures: ensure Gate policies are registered and actors are set up correctly in tests.
@@ -343,10 +361,10 @@ Debugging tips:
 - Use assertDatabaseHas/assertDatabaseMissing to validate exact state changes in reservations and audit logs.
 
 **Section sources**
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
-- [tests/Unit/ResourceCalculationServiceTest.php:18-33](file://tests/Unit/ResourceCalculationServiceTest.php#L18-L33)
-- [tests/Unit/AlertServiceTest.php:26-62](file://tests/Unit/AlertServiceTest.php#L26-L62)
-- [tests/Unit/ReservationServiceTest.php:29-46](file://tests/Unit/ReservationServiceTest.php#L29-L46)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php#L23-L48)
+- [tests/Unit/ResourceCalculationServiceTest.php:18-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L18-L33)
+- [tests/Unit/AlertServiceTest.php:26-62](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L26-L62)
+- [tests/Unit/ReservationServiceTest.php:29-46](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ReservationServiceTest.php#L29-L46)
 
 ## Conclusion
 The test suite provides robust coverage across service logic, API endpoints, and alerting workflows. By enforcing strict isolation through array cache/session/queue, sync queue, and guarded database settings, tests remain deterministic and fast. Mocking and faking external dependencies ensures reliability while validating critical behaviors like idempotency, authorization, and error handling.
@@ -356,16 +374,16 @@ The test suite provides robust coverage across service logic, API endpoints, and
 ## Appendices
 
 ### How to Run the Test Suite
-- Ensure DB_DATABASE is set to paymenter_test or :memory:.
+- Set `DB_DATABASE` to `paymenter_test`, `:memory:`, or `:temporary:`. The standalone `:temporary:` database is generated in memory, shared with Laravel through its private URI, migrated on first application boot, and discarded at process shutdown.
 - Use the outer Paymenter vendor PHPUnit binary as configured by the project.
 - Run unit tests: vendor/bin/phpunit --testsuite=Unit
 - Run feature tests: vendor/bin/phpunit --testsuite=Feature
 - Run all tests: vendor/bin/phpunit
 
 **Section sources**
-- [phpunit.xml:13-20](file://phpunit.xml#L13-L20)
-- [phpunit.xml:28-41](file://phpunit.xml#L28-L41)
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
+- [phpunit.xml:13-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L13-L20)
+- [phpunit.xml:28-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L28-L41)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php#L23-L48)
 
 ### Writing New Tests
 - Unit tests:
@@ -378,9 +396,9 @@ The test suite provides robust coverage across service logic, API endpoints, and
   - Assert response codes, JSON structure, and database state.
 
 **Section sources**
-- [tests/LaravelTestCase.php:13-25](file://tests/LaravelTestCase.php#L13-L25)
-- [tests/Feature/ReservationApiTest.php:22-35](file://tests/Feature/ReservationApiTest.php#L22-L35)
-- [tests/Unit/ReservationServiceTest.php:52-67](file://tests/Unit/ReservationServiceTest.php#L52-L67)
+- [tests/LaravelTestCase.php:13-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php#L13-L25)
+- [tests/Feature/ReservationApiTest.php:22-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L22-L35)
+- [tests/Unit/ReservationServiceTest.php:52-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ReservationServiceTest.php#L52-L67)
 
 ### Mocking External Dependencies
 - Pterodactyl API:
@@ -393,22 +411,22 @@ The test suite provides robust coverage across service logic, API endpoints, and
   - Use Notification::fake() and Event::fake() to assert deliveries and event dispatches.
 
 **Section sources**
-- [tests/Unit/ResourceCalculationServiceTest.php:35-51](file://tests/Unit/ResourceCalculationServiceTest.php#L35-L51)
-- [tests/Unit/ResourceCalculationServiceTest.php:86-123](file://tests/Unit/ResourceCalculationServiceTest.php#L86-L123)
-- [tests/Unit/AlertServiceTest.php:87-126](file://tests/Unit/AlertServiceTest.php#L87-L126)
+- [tests/Unit/ResourceCalculationServiceTest.php:35-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L35-L51)
+- [tests/Unit/ResourceCalculationServiceTest.php:86-123](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L86-L123)
+- [tests/Unit/AlertServiceTest.php:87-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L87-L126)
 
 ### Test Database Setup and Fixtures
 - Database isolation:
   - phpunit.xml sets DB_CONNECTION and DB_DATABASE for tests.
-  - tests/bootstrap.php enforces test database guard.
+  - tests/bootstrap.php enforces the test database guard and retains the anchor connection for the process-private standalone SQLite database.
 - Fixtures:
   - Create minimal required records (products, config options, carts, cart items) within tests.
   - Use factories where available; otherwise insert raw rows via DB facade.
 
 **Section sources**
-- [phpunit.xml:34-36](file://phpunit.xml#L34-L36)
-- [tests/bootstrap.php:11-17](file://tests/bootstrap.php#L11-L17)
-- [tests/Feature/ReservationApiTest.php:402-446](file://tests/Feature/ReservationApiTest.php#L402-L446)
+- [phpunit.xml:34-36](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L34-L36)
+- [tests/bootstrap.php:23-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/tests/bootstrap.php#L23-L48)
+- [tests/Feature/ReservationApiTest.php:402-446](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L402-L446)
 
 ### Assertion Patterns
 - Response assertions:
@@ -421,9 +439,9 @@ The test suite provides robust coverage across service logic, API endpoints, and
   - Http::assertSentCount(), Http::assertNotSent().
 
 **Section sources**
-- [tests/Feature/ReservationApiTest.php:37-78](file://tests/Feature/ReservationApiTest.php#L37-L78)
-- [tests/Unit/AlertServiceTest.php:484-527](file://tests/Unit/AlertServiceTest.php#L484-L527)
-- [tests/Unit/ResourceCalculationServiceTest.php:35-51](file://tests/Unit/ResourceCalculationServiceTest.php#L35-L51)
+- [tests/Feature/ReservationApiTest.php:37-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L37-L78)
+- [tests/Unit/AlertServiceTest.php:484-527](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L484-L527)
+- [tests/Unit/ResourceCalculationServiceTest.php:35-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L35-L51)
 
 ### Examples: Reservation Workflows, Availability Calculations, Alert Systems
 - Reservation workflow:
@@ -439,11 +457,11 @@ The test suite provides robust coverage across service logic, API endpoints, and
   - Send emails/webhooks; record delivery logs; emit failure events when all channels fail.
 
 **Section sources**
-- [tests/Feature/ReservationApiTest.php:37-78](file://tests/Feature/ReservationApiTest.php#L37-L78)
-- [tests/Unit/ReservationServiceTest.php:509-550](file://tests/Unit/ReservationServiceTest.php#L509-L550)
-- [tests/Unit/ResourceCalculationServiceTest.php:162-193](file://tests/Unit/ResourceCalculationServiceTest.php#L162-L193)
-- [tests/Unit/ResourceCalculationServiceTest.php:195-252](file://tests/Unit/ResourceCalculationServiceTest.php#L195-L252)
-- [tests/Unit/AlertServiceTest.php:484-527](file://tests/Unit/AlertServiceTest.php#L484-L527)
+- [tests/Feature/ReservationApiTest.php:37-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L37-L78)
+- [tests/Unit/ReservationServiceTest.php:509-550](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ReservationServiceTest.php#L509-L550)
+- [tests/Unit/ResourceCalculationServiceTest.php:162-193](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L162-L193)
+- [tests/Unit/ResourceCalculationServiceTest.php:195-252](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L195-L252)
+- [tests/Unit/AlertServiceTest.php:484-527](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L484-L527)
 
 ### Debugging Techniques
 - Enable verbose output: vendor/bin/phpunit --verbose
@@ -452,8 +470,8 @@ The test suite provides robust coverage across service logic, API endpoints, and
 - Isolate failing tests with --filter to reduce noise.
 
 **Section sources**
-- [phpunit.xml:5-12](file://phpunit.xml#L5-L12)
-- [tests/Unit/AlertServiceTest.php:26-62](file://tests/Unit/AlertServiceTest.php#L26-L62)
+- [phpunit.xml:5-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/phpunit.xml#L5-L12)
+- [tests/Unit/AlertServiceTest.php:26-62](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/AlertServiceTest.php#L26-L62)
 
 ### Performance Profiling Approaches
 - Measure test execution time with --testdox or CI timing reports.

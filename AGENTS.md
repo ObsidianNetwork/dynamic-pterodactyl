@@ -1,24 +1,23 @@
 # PROJECT KNOWLEDGE BASE
 
-**Generated:** 2026-07-25 18:23 AEST
-**Commit:** `66a840a`
-**Branch:** `dynamic-slider`
+**Updated:** 2026-08-18 AEST
+**Authority:** Current reconciled successor source and `DECISIONS.md`
 
 ## OVERVIEW
 
-Nested Paymenter `Other` extension that complements the built-in Pterodactyl provisioner. It owns real-time capacity reads, short-lived reservations, lifecycle hooks, and Filament administration; Paymenter core remains the slider-pricing authority and the built-in server extension remains the provisioning authority.
+Nested Paymenter `Other` extension that complements the built-in Pterodactyl provisioner. It owns real-time capacity reads, server-owned reservations, lifecycle validation, and Filament administration; Paymenter core remains the slider-pricing authority and the built-in server extension remains the provisioning authority.
 
 ## STRUCTURE
 
 ```text
 DynamicPterodactyl/
 ├── DynamicPterodactyl.php       # boot, install/uninstall, policy, listeners, schedules
-├── Admin/                       # Filament 4 pages/resources; see Admin/AGENTS.md
-├── Http/                        # customer/admin API controllers, request, middleware
-├── Listeners/                   # cart, invoice, and service lifecycle adapters
+├── Admin/                       # Filament 5 pages/resources; see Admin/AGENTS.md
+├── Http/                        # aggregate customer and raw admin APIs
+├── Listeners/                   # transactional cart lifecycle adapters
 ├── Services/                    # reservation, capacity, alert, setup, audit core
-├── Models/                      # 4 ptero_* models plus AlertConfig observer
-├── database/migrations/         # 8 migrations, including retired pricing-table drop
+├── Models/                      # 9 capacity, reservation, alert, and lifecycle models
+├── database/migrations/         # 22 migrations, including durable lifecycle and encrypted-key upgrades
 ├── resources/views/admin/       # 1:1 Blade views for standalone admin pages
 ├── routes/api.php               # required from boot(); /api/dynamic-pterodactyl/*
 ├── tests/                       # isolated harness; see tests/AGENTS.md
@@ -32,9 +31,9 @@ DynamicPterodactyl/
 | Extension lifecycle / schedules | `DynamicPterodactyl.php` | cleanup every minute; alerts every five minutes |
 | Reservation state changes | `Services/ReservationService.php` | `Listeners/`, `Models/ResourceReservation.php` |
 | Capacity / node choice | `Services/ResourceCalculationService.php`, `Services/NodeSelectionService.php` | `08-ALGORITHMS.md` |
-| Checkout/payment reconciliation | `Listeners/CartItemCreatedListener.php`, `Listeners/InvoicePaidListener.php` | `04-EVENTS.md` |
-| Live API surface | `routes/api.php`, `Http/Controllers/Api/` | code outranks retired endpoints in `03-API.md` |
-| Core slider metadata / price preview | `Services/SliderConfigReaderService.php`, `Http/Controllers/Api/PricingController.php` | core `Plan` and `ConfigOption` methods own math |
+| Checkout/provisioning reconciliation | `Services/ReservationService.php`, companion Pterodactyl `createServer()` | `04-EVENTS.md` |
+| Live API surface | `routes/api.php`, `Http/Controllers/Api/` | `03-API.md` |
+| Customer stock quotes | `Services/ResourceQuoteService.php`, `Services/UpgradeReservationService.php`, quote controllers | complete-vector bounds; core `Plan` and `ConfigOption` methods own pricing |
 | Admin pages and actions | `Admin/AGENTS.md` | `resources/views/admin/` |
 | Tables / casts / lifecycle values | `Models/`, `database/migrations/` | `DECISIONS.md` before stale schema prose |
 | Test harness and coverage | `tests/AGENTS.md`, `phpunit.xml` | `tests/bootstrap.php` enforces DB isolation |
@@ -42,30 +41,35 @@ DynamicPterodactyl/
 
 ## CODE MAP
 
-Caller counts are CodeGraph static counts; Laravel events, container resolution, policies, schedules, and Filament discovery add runtime edges.
+Laravel events, container resolution, policies, schedules, and Filament discovery add runtime edges that text-reference counts do not capture.
 
-| Symbol | Type | Location | Refs | Role |
-|---|---|---|---:|---|
-| `DynamicPterodactyl::boot()` | method | `DynamicPterodactyl.php` | runtime | route, policy, observer, listener, schedule root |
-| `ResourceCalculationService` | class | `Services/ResourceCalculationService.php` | 41 | uncached panel reads and cluster capacity snapshots |
-| `ReservationService` | class | `Services/ReservationService.php` | 26 | reservation state machine, locking, idempotency, audit |
-| `AlertService` | class | `Services/AlertService.php` | 14 | threshold checks, delivery, shortfall notifications |
-| `NodeSelectionService` | class | `Services/NodeSelectionService.php` | 11 | best-fit scoring over current capacity |
-| `SliderConfigReaderService` | class | `Services/SliderConfigReaderService.php` | 5 | native `dynamic_slider` metadata reader |
-| `ConfigOptionSetupService` | class | `Services/ConfigOptionSetupService.php` | admin | transactional setup-wizard writes into core options |
-| `ResourceReservation` | model | `Models/ResourceReservation.php` | cross-layer | shared API, policy, service, listener, admin record |
-| `routes/api.php` | route entry | `routes/api.php` | runtime | customer, checkout, and admin route groups |
+| Symbol | Type | Location | Role |
+|---|---|---|---|
+| `DynamicPterodactyl::boot()` | method | `DynamicPterodactyl.php` | route, policy, observer, listener, schedule root |
+| `PterodactylInventoryService` | class | `Services/PterodactylInventoryService.php` | strict complete panel inventory and connection boundary |
+| `ResourceCalculationService` | class | `Services/ResourceCalculationService.php` | live cluster capacity snapshots plus local commitments |
+| `NodeCapacityPolicy` | model | `Models/NodeCapacityPolicy.php` | administrator-owned CPU and overcommit capacity authority |
+| `ReservationService` | class | `Services/ReservationService.php` | cart, login, checkout, and provisioning state machine |
+| `ReservationConfigurationService` | class | `Services/ReservationConfigurationService.php` | canonical payload and fingerprint authority |
+| `AlertService` | class | `Services/AlertService.php` | threshold checks, delivery, and shortfall notifications |
+| `WebhookEndpointPolicy` | class | `Services/WebhookEndpointPolicy.php` | public-HTTPS webhook and DNS-rebinding boundary |
+| `NodeSelectionService` | class | `Services/NodeSelectionService.php` | best-fit scoring over current capacity |
+| `ResourceQuoteService` | class | `Services/ResourceQuoteService.php` | complete-vector checkout bounds without node disclosure |
+| `ConfigOptionSetupService` | class | `Services/ConfigOptionSetupService.php` | transactional setup-wizard writes into core options |
+| `ResourceReservation` | model | `Models/ResourceReservation.php` | shared API, policy, service, listener, and admin record |
+| `routes/api.php` | route entry | `routes/api.php` | customer, checkout, and admin route groups |
 
 ## CONVENTIONS
 
 - Tables use `ptero_*`; memory/disk use MB, CPU uses percent, money uses `decimal(10,2)`, JSON keys use `snake_case`.
 - Reservation lifecycle is `pending -> confirmed | expired | cancelled`; `released` is retired.
-- Active retries use `idempotency_key`; reservation writes use transactions, `lockForUpdate()`, and deadlock retry.
-- Audit payloads store `token_prefix`, never a full reservation token; audit writes are best-effort around primary state changes.
-- Controllers validate/authorize then delegate. Customer responses expose aggregate capacity; raw node data is admin-only.
-- Route budgets are explicit: availability/pricing/admin `30/min`, reservations `10/min`.
-- Invoice-paid confirmation must re-check live availability before `ReservationService::confirm()` and notify on drift/shortfall.
-- Treat current code plus `DECISIONS.md` as authoritative. `README.md`, `CLAUDE.md`, and numbered specs retain some retired names and endpoints.
+- One pending hold is keyed by `cart_item_id`; reservation writes use transactions, `lockForUpdate()`, and deadlock retry.
+- Tokens are internal/admin-only and never appear in browser, cart, service, URL, or audit state.
+- Controllers validate/authorize then delegate. Customer responses expose only complete-vector bounds; raw node data is admin-only.
+- Quote defaults are `10/min` per IP and `60/min` per panel, with validated administrator bounds; admin routes remain `30/min`. There is no customer reservation, independent-max availability, or extension pricing route.
+- Provisioning must call `beginProvisioning()` and `completeProvisioning()` around the external create request.
+- CPU capacity comes only from the administrator-owned local `NodeCapacityPolicy`; stock Pterodactyl node payloads are not treated as CPU-capacity authority.
+- Treat current code plus `DECISIONS.md` as authoritative.
 - Record live work in `PROGRESS.md`; record newly settled architecture in `DECISIONS.md`.
 
 ## ANTI-PATTERNS (THIS PROJECT)
@@ -75,14 +79,14 @@ Caller counts are CodeGraph static counts; Laravel events, container resolution,
 - Do not cache Pterodactyl responses or snapshots; availability is a real-time contract.
 - Do not expose node-level capacity on customer routes.
 - Do not add a local `composer.json` or frontend bundle; the outer app supplies autoloading and native sliders.
-- Do not copy Filament v3 APIs into this Filament 4 codebase.
+- Do not copy legacy Filament v3/v4 APIs into this Filament 5 codebase.
 - Do not introduce `released`, `base_plus_addon`, full-token audit fields, or retired API endpoints.
 - Do not commit from the outer Paymenter worktree; this directory is its own git checkout.
 
 ## UNIQUE STYLES
 
 - Routes are loaded by `boot()` rather than extension-local framework discovery.
-- Four Paymenter events adapt cart/invoice/service lifecycle into the reservation service.
+- Cart created/updated/deleting events adapt cart lifecycle into the reservation service; provisioning is a direct companion-core integration.
 - Schedules are named inline closures in `boot()`; there are no local Job/Command classes.
 - Filament resources perform actions through services; standalone pages own 1:1 namespaced Blade views.
 - Pricing preview calls core `Plan::dynamicSliderBasePrice()` and `ConfigOption::calculateDynamicPriceDelta()` directly.
@@ -99,7 +103,7 @@ Caller counts are CodeGraph static counts; Laravel events, container resolution,
 php artisan schedule:work
 ```
 
-No extension-local Composer/npm build, lint command, or GitHub Actions workflow exists. This `.tools` mirror has no vendor tree; run PHPUnit in the deployed Paymenter tree or its `/var/www/paymenter` container.
+The extension has no local Composer/npm package. `.github/workflows/cross-repository-integration.yml` assembles the exact Paymenter companion and runs Pint, dependency audit, PHP 8.3/8.4 SQLite, and pinned MariaDB 11/12 tests. For local PHPUnit, use a Paymenter vendor tree and set `PAYMENTER_BASE_PATH` when the extension is not nested under that checkout.
 
 ## NOTES
 

@@ -18,8 +18,10 @@ Architectural decisions with rationale. Check here before re-debating a settled 
 **Rationale**:
 - Built-in extension has ~300 lines of server provisioning code
 - Reimplementing = bugs + missing upstream fixes
-- Companion pattern: we handle pricing/sliders, built-in handles server creation
-- If our extension fails, graceful degradation (product still works, just no sliders)
+- Companion pattern: Paymenter core handles pricing/sliders, this extension
+  handles stock commitments, and the built-in extension creates the server.
+- Dynamic products fail closed if the stock extension is unavailable; a static
+  fallback would permit overselling.
 
 **Trade-off**: Dependent on built-in extension structure. If Paymenter changes it significantly, we need to adapt.
 
@@ -36,7 +38,8 @@ Architectural decisions with rationale. Check here before re-debating a settled 
 - PteroSync (WHMCS module) uses real-time API successfully in production
 - Caching introduces staleness → overselling risk
 - Cache invalidation is complex (server created outside our system, admin changes, etc.)
-- Pterodactyl allows 240 requests/minute; we use ~5-10 per checkout
+- Quote traffic must remain within the deployment's configured Pterodactyl API
+  rate limit; frontend requests are debounced and superseded reads are aborted
 - 200ms API call is acceptable for checkout flow
 
 **Trade-off**: Slightly slower than cached reads. Acceptable.
@@ -104,8 +107,8 @@ Architectural decisions with rationale. Check here before re-debating a settled 
 ---
 
 ### Reservation TTL
-**Decision**: 15 minutes, extendable to 30  
-**Date**: November 2025  
+**Decision**: 15-minute cart hold followed by an exact seven-day invoice guarantee
+**Date**: November 2025 (revised July 2026)
 **Status**: Final
 
 **Context**: How long to hold resources during checkout?
@@ -114,18 +117,20 @@ Architectural decisions with rationale. Check here before re-debating a settled 
 - Too short (5 min): Customer can't complete checkout, frustrating
 - Too long (1 hour): Resources hoarded, artificial scarcity
 - 15 minutes: Enough for checkout, not enough to hurt others
-- Extension on checkout page: prevents expiry mid-payment
+- Checkout atomically converts the cart hold into a seven-day invoice guarantee
+- Successful payment converts it into a non-expiring `paid_committed` commitment
 - Cleanup job runs every minute: resources released promptly
 
-**Trade-off**: Edge case where slow customer loses reservation. Acceptable — they can re-add to cart.
+**Trade-off**: Unpaid invoices reserve stock for seven days. This is an explicit
+business choice; expired invoices are cancelled and their stock is released.
 
 ---
 
 ## User Interface
 
 ### Filament for Admin
-**Decision**: Filament v4  
-**Date**: November 2025  
+**Decision**: Filament v5
+**Date**: November 2025 (revised July 2026)
 **Status**: Final
 
 **Context**: What framework for admin UI?
@@ -197,6 +202,43 @@ Architectural decisions with rationale. Check here before re-debating a settled 
 
 ---
 
+## Decisions locked 2026-07-25
+
+These decisions supersede the earlier Filament 4, browser-reservation, invoice-confirmation, and CPU-weighted node-selection decisions.
+
+### 12. Paymenter baseline
+
+The companion fork targets Paymenter 1.5.7, Filament 5, and Livewire 4. The previous 1.4.7 baseline is release-blocking because it predates applicable security fixes.
+
+### 13. Reservation ownership
+
+Exactly one server-owned reservation exists per dynamic cart item. Customer reservation endpoints, bearer tokens, session storage, Livewire token state, and browser idempotency are retired.
+
+### 14. Immutable checkout identity
+
+Every new hold stores a canonical payload and SHA-256 fingerprint covering customer, cart, Paymenter server extension, hashed panel identity, product, plan, location, node, resources, quantity, currency, calculated price, pricing version, formula version, and option metadata. The capacity reader and provisioner must resolve to the same normalized panel URL. Guest login atomically updates both row ownership and the customer identity embedded in that payload.
+
+### 15. Provisioning is the consume boundary
+
+Checkout binds and extends a pending hold; it does not confirm it. The built-in Pterodactyl provisioner leases the row, overrides the actual node/resource settings, and marks it confirmed only after the external server create succeeds.
+
+### 16. CPU uses explicit per-node inventory (revised 2026-07-26)
+
+Pterodactyl does not publish physical node CPU capacity, so the extension owns
+an explicit `NodeCapacityPolicy` keyed by normalized panel identity and node
+UUID/ID/location. Administrators configure physical capacity in Pterodactyl
+percentage (`100` = one logical core) and an overcommit ratio in basis points.
+Enabled policies dedicate their nodes to the reservation-backed flow. Live
+server CPU limits and local commitments are subtracted from effective policy
+capacity; a missing, disabled, or identity-mismatched policy makes the node
+ineligible.
+
+### 17. Normalized provisioner keys
+
+Dynamic option environment variables are lowercase `memory`, `cpu`, `disk`, and `location`. This is the casing consumed by the built-in Pterodactyl extension. The normalization migration is intentionally irreversible.
+
+---
+
 ## How to Propose a Change
 
 If you believe a decision should be reconsidered:
@@ -240,11 +282,13 @@ Admin-only. Customers never see raw node-level data (node names, FQDNs, maintena
 
 ### 5. SetupWizard feature-test shipped status
 
-Unit coverage accepted for dp-06. The full Filament-action lifecycle end-to-end test is deferred to **dp-13** (SetupWizard atomicity + audit-log reliability), since that plan touches `ConfigOptionSetupService` and it's the natural place to wire the E2E test. The skipped placeholder in `tests/Feature/SetupWizardValidationTest.php` carries a `// TODO dp-13:` marker tracking this.
+The dp-13 SetupWizard atomicity and audit-reliability work shipped. Current
+coverage exercises validation and transactional configuration behavior; the
+cross-repository CI gate runs that suite on every remediation PR.
 
 ### 6. Test Isolation Mandate (dp-13, Apr 2026)
 
-Extension phpunit MUST set `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array`, `BCRYPT_ROUNDS=4`, `PULSE_ENABLED=false`, `TELESCOPE_ENABLED=false` — mirroring the root `phpunit.xml`. Failure to do so risks polluting the shared Redis/file cache on a development host, corrupting the settings key read by running web workers. This caused a production outage on 2026-04-23. The `bootstrap.php` guard provides a second line of defence (aborts if `DB_DATABASE` is not a recognised test DB). See `incidents.md` for forensics.
+Extension phpunit MUST set `CACHE_STORE=array`, `SESSION_DRIVER=array`, `QUEUE_CONNECTION=sync`, `MAIL_MAILER=array`, `BCRYPT_ROUNDS=4`, `PULSE_ENABLED=false`, `TELESCOPE_ENABLED=false` — mirroring the root `phpunit.xml`. Failure to do so risks polluting the shared Redis/file cache on a development host, corrupting the settings key read by running web workers. This caused a production outage on 2026-04-23. The `bootstrap.php` guard provides a second line of defence: it requires `APP_ENV=testing` and accepts only `paymenter_test`, `:memory:`, or the `:temporary:` sentinel. The sentinel creates an unpredictable process-private named in-memory SQLite database, retains an anchor PDO connection for its lifetime, and replaces `DB_DATABASE` before Paymenter boots. There is no filesystem pathname to substitute. Caller-supplied SQLite paths or URI names and empty database names are forbidden. See `incidents.md` for forensics.
 
 ### 7. SetupWizard Atomicity Contract (dp-13, Apr 2026)
 
@@ -283,3 +327,71 @@ PR author identity rule (PRIMARY): before `gh pr create`, the orchestrator and a
 Commit author email (secondary): git config MUST be `user.name = Jordanmuss99` and `user.email = 164892154+Jordanmuss99@users.noreply.github.com` (noreply form — default, avoids the GH007 push rejection that blocks `jordanmuss@hotmail.com`). Use the hotmail address only if the Jordanmuss99 account email-privacy setting is changed to allow public email pushes. Historical dp-11/dp-13/dp-12 commits using the noreply form are grandfathered — those PRs are merged and PR #9 proved the noreply form doesn't break auto-review.
 
 Orchestrator verification: when a subagent claims a PR is opened or merged, the orchestrator MUST independently run `gh pr view <N> --json author,createdAt,mergedAt,reviews` and treat `author.login != "Jordanmuss99"` OR `mergedAt - createdAt < 3 minutes` OR `cr_review_count < 1` as a contract violation regardless of the subagent's text. See `.sisyphus/notepads/dp-process-audit/incident-2026-04-24.md` for the remediation protocol.
+
+## Decisions locked 2026-07-26
+
+### 12. One customer stock contract
+
+The complete-vector resource quote endpoints are the only customer stock
+contract:
+
+- `POST /products/{product}/resource-quote` for checkout;
+- `POST /services/{service}/upgrade-quote` for an owned service.
+
+The older `/availability/{locationId}` endpoint is removed because independent
+RAM/CPU/disk maxima can come from different nodes and therefore do not describe
+a purchasable configuration. The extension-owned `/pricing/calculate` and
+`/pricing/config/{productId}` endpoints are also removed because Paymenter core
+owns pricing and slider metadata. Raw node availability remains admin-only.
+
+This decision supersedes the dp-09 config-reader route and the customer
+aggregate-availability portion of decision 4 above.
+
+### 13. Supported database portability
+
+The extension follows Paymenter's tested MariaDB and SQLite database support.
+MariaDB uses STORED generated columns for partial-unique reservation guards.
+SQLite uses equivalent partial unique indexes because SQLite cannot add a
+STORED generated column to an existing table. The SQLite migration also
+rebuilds the enum-like status CHECK constraint to admit `paid_committed`.
+Cross-repository CI must run the extension migrations and suite on PHP 8.3 and
+8.4 against both database families.
+
+### 14. Enabled capacity-policy nodes are dedicated
+
+An enabled `NodeCapacityPolicy` makes that panel/node exclusive to the
+reservation-backed lifecycle. Paymenter's built-in Pterodactyl provisioner
+rejects static creates pinned to that node, automatic deployment through any
+location containing it, and non-capacity upgrades of servers already on it.
+Explicit static paths on unmanaged nodes and locations remain supported.
+External panel administrators and automation remain subject to the separate
+exclusive-control operational contract.
+
+### 15. Fixed ports are deterministic across IPs
+
+Product allocation mappings identify a port, not an IP. If several free IPs on
+one node expose the same required port, the lowest allocation ID is selected.
+Dedicated-IP requests first constrain candidates to one unused IP group and
+then apply the same rule. Quote and reservation placement use the same
+`AllocationSelectionService`, so both accept and select the same inventory.
+Each non-`NONE` egg environment key maps to exactly one port because
+Pterodactyl variables are scalar. Multiple `NONE` entries remain valid
+unbound additional allocations.
+
+### 16. Legacy identity is never inferred
+
+Extension install, upgrade, and `app:extension:migrate` run a diagnostic
+readiness gate after migrations. Confirmed checkout commitments and active
+upgrade commitments must contain their complete immutable panel/server/user
+identity and signed configuration. The gate reports reservation/service IDs
+and missing fields, but never backfills from mutable product settings or a
+Pterodactyl external-ID lookup. Web uploads execute the anonymous
+`migration-readiness.php` contract directly from the newly activated
+destination tree, so a main extension class already loaded from the old version
+cannot bypass the new gate.
+
+Version updates are distinct from deactivation: live confirmed services still
+block disable/delete/uninstall, but a same-identity update is allowed in
+deployment maintenance after strict migrations/readiness and a queue-worker
+restart. Failed updates restore files only; extension migrations are
+forward-only and are explicitly never presented as rolled back.

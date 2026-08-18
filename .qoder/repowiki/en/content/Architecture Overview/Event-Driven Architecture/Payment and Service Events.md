@@ -1,20 +1,23 @@
 # Payment and Service Events
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [InvoicePaidListener.php](file://Listeners/InvoicePaidListener.php)
-- [ServiceCreatedListener.php](file://Listeners/ServiceCreatedListener.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [AlertService.php](file://Services/AlertService.php)
-- [AuditLogService.php](file://Services/AuditLogService.php)
-- [AuditsExtensionActions.php](file://Services/Concerns/AuditsExtensionActions.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [AuditLog.php](file://Models/AuditLog.php)
-- [ReservationController.php](file://Http/Controllers/Api/ReservationController.php)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
+- [InvoicePaidListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php)
+- [ServiceCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [AuditLogService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php)
+- [AuditsExtensionActions.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [AuditLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php)
+- [ReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
 </cite>
 
 ## Table of Contents
@@ -72,20 +75,20 @@ S4 --> D2
 ```
 
 **Diagram sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 **Section sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 ## Core Components
 - InvoicePaidListener: Orchestrates post-payment confirmation by retrieving the reservation token from the paid service, verifying current availability, confirming the reservation, and alerting on failures.
@@ -102,16 +105,16 @@ Key responsibilities:
 - Ensure idempotent reservation creation via unique active idempotency keys.
 
 **Section sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-20](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L20)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L20)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 ## Architecture Overview
 The payment-to-provisioning workflow uses event-driven processing with strong consistency guarantees at critical points.
@@ -152,10 +155,10 @@ end
 ```
 
 **Diagram sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ReservationService.php:166-199](file://Services/ReservationService.php#L166-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ReservationService.php:166-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
 
 ## Detailed Component Analysis
 
@@ -177,7 +180,7 @@ Failure handling:
 - All exceptions are caught and logged to ensure invoice processing continues even if one item fails.
 
 **Section sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
 
 #### Sequence: Payment Confirmation Flow
 ```mermaid
@@ -208,10 +211,10 @@ end
 ```
 
 **Diagram sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ReservationService.php:166-199](file://Services/ReservationService.php#L166-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ReservationService.php:166-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
 
 ### ReservationService: Idempotent Creation and State Transitions
 Responsibilities:
@@ -237,11 +240,11 @@ Complexity considerations:
 - Deadlock scenarios are retried up to five times.
 
 **Section sources**
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ReservationService.php:208-281](file://Services/ReservationService.php#L208-L281)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-20](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L20)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ReservationService.php:208-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L281)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L20)
 
 #### Flowchart: Reservation Creation with Idempotency
 ```mermaid
@@ -261,8 +264,8 @@ Audit --> Done(["Return reservation"])
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
 
 ### ResourceCalculationService: Real-Time Capacity Verification
 Responsibilities:
@@ -279,9 +282,9 @@ API interaction:
 - Returns degraded snapshots when the API is unavailable for cluster-wide queries, but availability checks remain strict.
 
 **Section sources**
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### AlertService: Shortfall Notifications
 Responsibilities:
@@ -294,7 +297,7 @@ Notification flow:
 - Catch and log delivery failures without aborting the caller.
 
 **Section sources**
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
 
 ### ServiceCreatedListener: Audit Trail Linking
 Responsibilities:
@@ -305,7 +308,7 @@ Note:
 - The actual confirmation should already have occurred via InvoicePaidListener; this listener primarily supports observability and audit trails.
 
 **Section sources**
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
 
 ### Audit Logging: Persistent Action History
 Responsibilities:
@@ -317,9 +320,9 @@ Safety:
 - Failures are logged and reported safely.
 
 **Section sources**
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 ### Data Model and Lifecycle
 Reservations track:
@@ -329,8 +332,8 @@ Reservations track:
 Indexes support efficient queries for cleanup, location-based locking, and filtering.
 
 **Section sources**
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
 
 ## Dependency Analysis
 The following diagram shows how components depend on each other during payment confirmation and provisioning.
@@ -348,11 +351,11 @@ AUD --> DB2["Audit Logs Table"]
 ```
 
 **Diagram sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
 
 Coupling and cohesion:
 - Listeners are thin orchestration layers delegating to focused services.
@@ -371,10 +374,10 @@ Interface contracts:
 - confirm returns a boolean indicating whether a pending reservation was successfully transitioned.
 
 **Section sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceCalculationService.php:200-214](file://Services/ResourceCalculationService.php#L200-L214)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceCalculationService.php:200-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L200-L214)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
 
 ## Performance Considerations
 - Real-time availability checks: Every confirmation calls the Pterodactyl API to ensure accurate capacity. This avoids stale cache issues but introduces latency.
@@ -421,11 +424,11 @@ Operational checks:
 - Review scheduled cleanup to ensure expired reservations are marked correctly.
 
 **Section sources**
-- [InvoicePaidListener.php:43-133](file://Listeners/InvoicePaidListener.php#L43-L133)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
-- [ReservationService.php:125-141](file://Services/ReservationService.php#L125-L141)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [InvoicePaidListener.php:43-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L43-L133)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
+- [ReservationService.php:125-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L125-L141)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
 
 ## Conclusion
 The payment and service event handling system ensures reliable reservation confirmation through real-time capacity verification, robust state transitions, and comprehensive auditing. Idempotency and retry mechanisms protect against duplicate operations and transient failures. Alerts provide visibility into capacity shortfalls and state drift, enabling timely operational intervention. The design emphasizes correctness and resilience while maintaining clear separation of concerns between event listeners, services, and data persistence.

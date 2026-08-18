@@ -1,13 +1,16 @@
 # Capacity Monitoring Endpoints
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [routes/api.php](file://routes/api.php)
-- [Http/Middleware/EnsureUserIsAdmin.php](file://Http/Middleware/EnsureUserIsAdmin.php)
-- [Http/Controllers/Api/Admin/AdminCapacityController.php](file://Http/Controllers/Api/Admin/AdminCapacityController.php)
-- [Http/Controllers/Api/AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [Services/ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [tests/Feature/AdminApiTest.php](file://tests/Feature/AdminApiTest.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [Http/Middleware/EnsureUserIsAdmin.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php)
+- [Http/Controllers/Api/AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [Services/ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [tests/Feature/AdminApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php)
 </cite>
 
 ## Table of Contents
@@ -49,13 +52,13 @@ Rcs2 --> Ptero
 ```
 
 **Diagram sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
-- [Http/Controllers/Api/AvailabilityController.php:54-69](file://Http/Controllers/Api/AvailabilityController.php#L54-L69)
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
+- [Http/Controllers/Api/AvailabilityController.php:54-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L54-L69)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Core Components
 - AdminCapacityController::summary: Returns a structured snapshot of capacity across all locations, mapping internal snapshots to location summaries and exposing generated_at timestamps and optional error fields.
@@ -70,10 +73,10 @@ Key responsibilities:
 - Aggregation of node-level metrics into location-level summaries for admin consumption.
 
 **Section sources**
-- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
-- [Http/Controllers/Api/AvailabilityController.php:54-69](file://Http/Controllers/Api/AvailabilityController.php#L54-L69)
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [Http/Middleware/EnsureUserIsAdmin.php:11-21](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L21)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
+- [Http/Controllers/Api/AvailabilityController.php:54-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L54-L69)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [Http/Middleware/EnsureUserIsAdmin.php:11-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L21)
 
 ## Architecture Overview
 The capacity monitoring flow involves authenticated admin requests routed through middleware, invoking controllers that delegate to ResourceCalculationService for live data aggregation from Pterodactyl. Responses include success flags, data payloads, and error indicators where applicable.
@@ -98,10 +101,10 @@ Ctrl-->>Admin : JSON {success, data{locations, generated_at, error}}
 ```
 
 **Diagram sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [Http/Middleware/EnsureUserIsAdmin.php:11-21](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L21)
-- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [Http/Middleware/EnsureUserIsAdmin.php:11-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L21)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
 
 ## Detailed Component Analysis
 
@@ -171,10 +174,10 @@ Usage Notes:
 - If error is present, investigate upstream Pterodactyl connectivity or rate limits.
 
 **Section sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [tests/Feature/AdminApiTest.php:132-166](file://tests/Feature/AdminApiTest.php#L132-L166)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [tests/Feature/AdminApiTest.php:132-166](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L132-L166)
 
 ### Endpoint: GET /api/dynamic-pterodactyl/admin/availability/{locationId}/nodes
 Purpose:
@@ -237,10 +240,10 @@ Usage Notes:
 - Review server_count to understand workload distribution.
 
 **Section sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [Http/Controllers/Api/AvailabilityController.php:54-69](file://Http/Controllers/Api/AvailabilityController.php#L54-L69)
-- [Services/ResourceCalculationService.php:24-67](file://Services/ResourceCalculationService.php#L24-L67)
-- [tests/Feature/AdminApiTest.php:177-200](file://tests/Feature/AdminApiTest.php#L177-L200)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [Http/Controllers/Api/AvailabilityController.php:54-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L54-L69)
+- [Services/ResourceCalculationService.php:24-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L24-L67)
+- [tests/Feature/AdminApiTest.php:177-200](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AdminApiTest.php#L177-L200)
 
 ### Data Model and Aggregation Logic
 ResourceCalculationService constructs cluster snapshots and per-location availability by:
@@ -262,15 +265,15 @@ ReturnSnapshot --> End(["End"])
 ```
 
 **Diagram sources**
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [Services/ResourceCalculationService.php:246-289](file://Services/ResourceCalculationService.php#L246-L289)
-- [Services/ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [Services/ResourceCalculationService.php:246-289](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L246-L289)
+- [Services/ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 **Section sources**
-- [Services/ResourceCalculationService.php:24-67](file://Services/ResourceCalculationService.php#L24-L67)
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [Services/ResourceCalculationService.php:246-289](file://Services/ResourceCalculationService.php#L246-L289)
-- [Services/ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
+- [Services/ResourceCalculationService.php:24-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L24-L67)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [Services/ResourceCalculationService.php:246-289](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L246-L289)
+- [Services/ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
 
 ## Dependency Analysis
 The capacity monitoring endpoints depend on:
@@ -291,13 +294,13 @@ Rcs --> Ptero["Pterodactyl API"]
 ```
 
 **Diagram sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
-- [Http/Controllers/Api/AvailabilityController.php:54-69](file://Http/Controllers/Api/AvailabilityController.php#L54-L69)
-- [Services/ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php:17-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L61)
+- [Http/Controllers/Api/AvailabilityController.php:54-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L54-L69)
+- [Services/ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
 
 **Section sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L32-L40)
 
 ## Performance Considerations
 - Real-time API approach: No caching of Pterodactyl responses ensures accurate availability but may increase latency under load.
@@ -326,10 +329,10 @@ Diagnostic steps:
 - Validate locationId and node existence in Pterodactyl.
 
 **Section sources**
-- [Http/Middleware/EnsureUserIsAdmin.php:11-21](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L21)
-- [Http/Controllers/Api/Admin/AdminCapacityController.php:53-61](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L53-L61)
-- [Http/Controllers/Api/AvailabilityController.php:54-69](file://Http/Controllers/Api/AvailabilityController.php#L54-L69)
-- [Services/ResourceCalculationService.php:410-424](file://Services/ResourceCalculationService.php#L410-L424)
+- [Http/Middleware/EnsureUserIsAdmin.php:11-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L21)
+- [Http/Controllers/Api/Admin/AdminCapacityController.php:53-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L53-L61)
+- [Http/Controllers/Api/AvailabilityController.php:54-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L54-L69)
+- [Services/ResourceCalculationService.php:410-424](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L410-L424)
 
 ## Conclusion
 The capacity monitoring endpoints provide administrators with essential insights into system health and resource utilization across Pterodactyl clusters. The aggregate capacity endpoint offers high-level metrics for quick assessments, while the node-level availability endpoint enables deep dives into specific locations. Both endpoints enforce strict authentication and rate limiting to ensure secure and sustainable operation. By leveraging these APIs, administrators can proactively identify bottlenecks, manage capacity planning, and respond to resource exhaustion issues effectively.

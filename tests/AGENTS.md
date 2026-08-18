@@ -23,7 +23,7 @@ Largest files are `Unit/ReservationServiceTest.php` and `Unit/AlertServiceTest.p
 
 | Task | Start at | Notes |
 |---|---|---|
-| Harness boot / DB safety | `bootstrap.php`, `../phpunit.xml` | `paymenter_test` / `:memory:` guard is enforced before app boot |
+| Harness boot / DB safety | `bootstrap.php`, `TestDatabaseGuard.php`, `../phpunit.xml` | `paymenter_test`, `:memory:`, or the `:temporary:` sentinel for an internally generated named in-memory SQLite database is enforced before app boot |
 | Lightweight service seam | `TestCase.php` | Mockery cleanup, `createPricingConfig()`, `createNodeData()`, `standardResources()` |
 | App-backed test seam | `LaravelTestCase.php` | Paymenter kernel boot, `createConfigOption()`, slider defaults, node fixtures |
 | Reservation state / audits | `Unit/ReservationServiceTest.php` | Mixes facade mocks and real DB assertions under transactions |
@@ -40,7 +40,7 @@ Largest files are `Unit/ReservationServiceTest.php` and `Unit/AlertServiceTest.p
 - Any DB-writing test must use `Illuminate\Foundation\Testing\DatabaseTransactions`; this includes DB-backed `Unit/` tests and all current API feature tests.
 - Feature API tests must `require __DIR__ . '/../../routes/api.php';` in `setUp()` because extension routes are loaded manually by `DynamicPterodactyl::boot()` at runtime.
 - For schedule assertions, boot the extension in the test and inspect `app(Schedule::class)->events()`; no local Job/Command classes exist.
-- The bootstrap refuses unsafe databases: `DB_DATABASE` must be `paymenter_test`, `:memory:`, or empty before Laravel boots.
+- The bootstrap refuses unsafe databases and requires `APP_ENV=testing`. `DB_DATABASE` must be `paymenter_test`, `:memory:`, or the `:temporary:` sentinel. For `:temporary:`, the guard generates an unpredictable process-private named in-memory SQLite database, retains an anchor PDO connection, and replaces `DB_DATABASE` before Paymenter boots. User-supplied SQLite paths and URI names are never accepted. `LaravelTestCase` migrates the shared in-memory database on first application boot; process teardown discards it.
 - `phpunit.xml` fixes testing env, `MAIL_MAILER=array`, `SESSION_DRIVER=array`, `CACHE_STORE=array` with legacy `CACHE_DRIVER=file`, sync queue, and service-source warning restrictions.
 - Use shared fixture helpers before creating local copies: `standardResources()`, `createNodeData()`, `createConfigOption()`, and per-file helpers such as configured products/cart items.
 - Common fakes are `Mockery` service/container bindings, `Http::fake()` with `Http::preventStrayRequests()` for panel calls, `Notification::fake()`, `Event::fake()`, `Log::spy()`, `Config::set()`, and `Gate::policy()`.
@@ -55,7 +55,7 @@ Largest files are `Unit/ReservationServiceTest.php` and `Unit/AlertServiceTest.p
 - Do not put app/factory/facade tests on raw `TestCase` except the existing separate-process `AlertService` facade isolation seam.
 - Do not claim `Unit/` files are all pure units; several intentionally boot Laravel and write DB rows.
 - Do not duplicate root command blocks, generic PHPUnit advice, or project-wide anti-patterns here.
-- Do not loosen the `paymenter_test` / `:memory:` bootstrap guard.
+- Do not broaden the database guard beyond `paymenter_test`, `:memory:`, or the internally generated `:temporary:` workflow. Never accept a caller-supplied SQLite path or named-memory URI.
 - Do not add live Pterodactyl network calls; fake panel HTTP explicitly and prevent strays when testing capacity reads.
 - Do not expose or assert full reservation tokens in audit payloads; assert `token_prefix` behavior.
-- Current direct coverage gaps to watch: `CartItemCreatedListener`, `ServiceCreatedListener`, `PricingController::getConfig()`, and `AuditLogService` retrieval methods.
+- Current direct coverage gaps to watch: full cart-listener database integration and `AuditLogService` retrieval methods.

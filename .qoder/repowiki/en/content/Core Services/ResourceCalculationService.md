@@ -1,13 +1,16 @@
 # ResourceCalculationService
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [NodeSelectionService.php](file://Services/NodeSelectionService.php)
-- [api.php](file://routes/api.php)
-- [ResourceCalculationServiceTest.php](file://tests/Unit/ResourceCalculationServiceTest.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [NodeSelectionService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php)
+- [api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [ResourceCalculationServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php)
 </cite>
 
 ## Table of Contents
@@ -50,13 +53,13 @@ RCS --> DB["Local DB<br/>ptero_resource_reservations"]
 ```
 
 **Diagram sources**
-- [api.php:17-25](file://routes/api.php#L17-L25)
-- [ResourceCalculationService.php:26-222](file://Services/ResourceCalculationService.php#L26-L222)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
+- [ResourceCalculationService.php:26-222](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L222)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [NodeSelectionService.php:22-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L86)
 
 **Section sources**
-- [api.php:17-25](file://routes/api.php#L17-L25)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
 
 ## Core Components
 - ResourceCalculationService: Real-time availability calculations, cluster snapshot building, connection diagnostics, and verification against requirements.
@@ -73,10 +76,10 @@ Responsibilities summary:
 - Expose verifyAvailability() to gate payment-time allocations
 
 **Section sources**
-- [ResourceCalculationService.php:26-222](file://Services/ResourceCalculationService.php#L26-L222)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [ResourceCalculationService.php:26-222](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L222)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [NodeSelectionService.php:22-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L86)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
 
 ## Architecture Overview
 The service uses a thin HTTP client wrapper around Pterodactyl’s Application API with retries on transient connection errors, strict timeouts, and sanitized error propagation. For cluster-wide snapshots, it batches node and server data retrieval to reduce API calls while preserving accuracy.
@@ -89,11 +92,9 @@ participant HTTP as "HTTP Client"
 participant Ptero as "Pterodactyl API"
 participant DB as "Local DB"
 Caller->>RCS : getLocationAvailability(locationId[, token])
-RCS->>HTTP : GET /nodes?filter[location_id]
-HTTP-->>RCS : Nodes list
-loop per node
-RCS->>HTTP : GET /nodes/{id}?include=servers
-HTTP-->>RCS : Node + servers
+RCS->>HTTP : GET /locations/{id}?include=nodes,servers
+HTTP-->>RCS : Location with nodes and servers
+loop per included node
 RCS->>DB : SUM(pending reservations for node)
 DB-->>RCS : Reserved totals
 RCS->>RCS : Compute effective totals and available
@@ -110,10 +111,10 @@ RCS-->>Caller : Cluster snapshot or degraded snapshot
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:26-141](file://Services/ResourceCalculationService.php#L26-L141)
-- [ResourceCalculationService.php:291-384](file://Services/ResourceCalculationService.php#L291-L384)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:26-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L141)
+- [ResourceCalculationService.php:313-406](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L313-L406)
+- [ResourceCalculationService.php:407-486](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L407-L486)
+- [ResourceCalculationService.php:487-631](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L487-L631)
 
 ## Detailed Component Analysis
 
@@ -134,8 +135,10 @@ Return value:
   - total_allocated: sum of allocated resources across nodes
 
 Processing logic:
-- Fetches nodes in the location via Pterodactyl
-- For each node, fetches servers and pending reservations
+- Fetches the location with included nodes and servers in one Pterodactyl request
+- Groups included servers by node and fetches pending reservations for each node
+- Rejects duplicate node, server, or location identities instead of overwriting or double-counting upstream records
+- Requires integer resource capacities and complete pagination totals/counts; truncated pages and fractional values fail closed
 - Computes effective totals using overallocation settings
 - Subtracts allocated and reserved resources to derive available
 - Aggregates max and totals across nodes
@@ -147,11 +150,11 @@ Usage pattern example:
 - Called by NodeSelectionService to evaluate candidates and by AvailabilityController to expose location-level capacity.
 
 **Section sources**
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:146-152](file://Services/ResourceCalculationService.php#L146-L152)
-- [ResourceCalculationService.php:226-245](file://Services/ResourceCalculationService.php#L226-L245)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
-- [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:146-152](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L146-L152)
+- [ResourceCalculationService.php:223-264](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L223-L264)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
+- [ResourceCalculationService.php:500-522](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L500-L522)
 
 ### Method: buildClusterSnapshot()
 Purpose:
@@ -179,9 +182,9 @@ Degraded mode:
 - When Pterodactyl is unavailable, returns an empty snapshot plus an error marker so UIs remain usable.
 
 **Section sources**
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:291-357](file://Services/ResourceCalculationService.php#L291-L357)
-- [ResourceCalculationService.php:393-417](file://Services/ResourceCalculationService.php#L393-L417)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ResourceCalculationService.php:291-357](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L291-L357)
+- [ResourceCalculationService.php:393-417](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L393-L417)
 
 ### Method: verifyAvailability(nodeId, requirements, excludeReservationToken = null)
 Purpose:
@@ -204,8 +207,8 @@ Use case:
 - Gate final confirmation to prevent race conditions between availability checks and payment completion.
 
 **Section sources**
-- [ResourceCalculationService.php:197-214](file://Services/ResourceCalculationService.php#L197-L214)
-- [ResourceCalculationService.php:524-534](file://Services/ResourceCalculationService.php#L524-L534)
+- [ResourceCalculationService.php:197-214](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L197-L214)
+- [ResourceCalculationService.php:524-534](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L524-L534)
 
 ### Method: testConnection()
 Purpose:
@@ -220,23 +223,23 @@ Behavior:
 - Validates response shape and extracts useful metadata
 
 **Section sources**
-- [ResourceCalculationService.php:154-195](file://Services/ResourceCalculationService.php#L154-L195)
+- [ResourceCalculationService.php:154-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L154-L195)
 
 ### Internal helpers and integration points
 - pterodactylGet(): Centralized HTTP call with retry on connection errors, rate limit detection, and sanitized error messages.
 - pterodactylGetPaginatedData(): Paginates through Pterodactyl lists.
 - getPendingReservations()/getPendingReservationsForNodes(): Sums pending reservations by node to subtract from available resources.
-- extractRelationshipData(): Normalizes relationship payloads from Pterodactyl.
+- requireRelationshipData(): Requires an array relationship payload and distinguishes a genuinely absent relationship from a present but malformed container or data value.
 
 Integration with reservation system:
 - Pending reservations are read from the local DB and subtracted from available resources to prevent overselling.
 - ReservationService uses pessimistic locking and idempotency keys to ensure safe creation and confirmation flows.
 
 **Section sources**
-- [ResourceCalculationService.php:359-391](file://Services/ResourceCalculationService.php#L359-L391)
-- [ResourceCalculationService.php:426-450](file://Services/ResourceCalculationService.php#L426-L450)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [ResourceCalculationService.php:359-391](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L359-L391)
+- [ResourceCalculationService.php:426-450](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L426-L450)
+- [ResourceCalculationService.php:487-631](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L487-L631)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 ### Class diagram
 ```mermaid
@@ -252,7 +255,6 @@ class ResourceCalculationService {
 -getPendingReservations(nodeId, excludeReservationToken) array
 -getPendingReservationsForNodes(nodeIds) array
 -fetchNodesInLocation(locationId) array
--fetchServersOnNode(nodeId) array
 -buildNodeAvailabilityFromServers(node, servers, pendingReservations) array
 -fetchAllLocations() array
 -fetchClusterNodes() array
@@ -286,10 +288,10 @@ ResourceCalculationService --> ResourceReservation : "reads pending"
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:10-545](file://Services/ResourceCalculationService.php#L10-L545)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [NodeSelectionService.php:5-88](file://Services/NodeSelectionService.php#L5-L88)
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [ResourceCalculationService.php:10-545](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L545)
+- [ReservationService.php:16-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L453)
+- [NodeSelectionService.php:5-88](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L88)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
 
 ## Dependency Analysis
 - External dependency: Pterodactyl Application API via HTTP client
@@ -310,13 +312,13 @@ External integrations:
 - Pterodactyl API rate limit awareness and retry behavior are implemented centrally in pterodactylGet().
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [NodeSelectionService.php:22-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L86)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 ## Performance Considerations
 - No caching: Real-time queries avoid staleness and overselling risks.
-- Batched API calls: buildClusterSnapshot() uses include=servers and paginated endpoints to minimize round trips while maintaining accuracy.
+- Batched API calls: getLocationAvailability() reads a location with include=nodes,servers in one request; buildClusterSnapshot() uses include=servers and paginated endpoints.
 - Timeouts and retries:
   - Default per-call timeout and connectTimeout protect against slow or hanging connections.
   - Retry only on transient connection errors; 429 and 5xx do not retry to respect upstream signals.
@@ -337,6 +339,12 @@ Common issues and how they surface:
   - Throws a RuntimeException with a rate limit message; callers should back off and retry later.
 - Invalid JSON payload:
   - Throws a RuntimeException indicating invalid JSON; indicates upstream misconfiguration or proxy issue.
+- Duplicate or inconsistent identities:
+  - Throws a RuntimeException before availability is calculated so repeated upstream records cannot distort totals.
+- Incomplete pagination or non-integral capacity:
+  - Rejects page counts/totals that do not match returned records and resource values that are not non-negative integers.
+- Missing included-server relationship:
+  - Uses the separately paginated server index only when the relationship is absent; a present but malformed relationship remains a hard failure.
 - Missing location_id:
   - getNodeLocation() throws when the node response lacks location_id; indicates malformed upstream data.
 
@@ -351,11 +359,11 @@ Operational tips:
 - If frequent 5xx occur, consider increasing retry budgets or reducing snapshot frequency.
 
 **Section sources**
-- [ResourceCalculationService.php:154-195](file://Services/ResourceCalculationService.php#L154-L195)
-- [ResourceCalculationService.php:410-424](file://Services/ResourceCalculationService.php#L410-L424)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationService.php:524-534](file://Services/ResourceCalculationService.php#L524-L534)
-- [api.php:17-25](file://routes/api.php#L17-L25)
+- [ResourceCalculationService.php:154-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L154-L195)
+- [ResourceCalculationService.php:410-424](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L410-L424)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:524-534](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L524-L534)
+- [api.php:17-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L25)
 
 ## Conclusion
 ResourceCalculationService provides accurate, real-time availability by querying Pterodactyl and accounting for pending reservations. Its design prioritizes correctness over speed: no caching, batched API calls, and robust error handling. Together with ReservationService and NodeSelectionService, it ensures that customers are offered realistic options and that the system prevents overselling throughout the checkout flow.

@@ -1,18 +1,34 @@
 # Getting Started
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+## Current Setup Path
+
+Install the DynamicPterodactyl extension and its matching Paymenter companion as
+one reviewed release. Run migrations before booting the extension, configure the
+panel URL and application key, define per-node capacity policies, confirm
+exclusive provisioning control, and use the setup wizard to create native
+Paymenter dynamic-slider options. Do not deploy either side independently.
+
+Use the product resource-quote endpoint for checkout previews; reservations are
+created by Paymenter cart events, not by a public reservation API.
+
+[[Architecture Overview|Architecture-Overview]]
+
+
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [routes/api.php](file://routes/api.php)
-- [Admin/Pages/SetupWizard.php](file://Admin/Pages/SetupWizard.php)
-- [Services/ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [Services/SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [Listeners/CartItemCreatedListener.php](file://Listeners/CartItemCreatedListener.php)
-- [Http/Controllers/Api/AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [Services/ReservationService.php](file://Services/ReservationService.php)
-- [Models/ResourceReservation.php](file://Models/ResourceReservation.php)
-- [AGENTS.md](file://AGENTS.md)
-- [DECISIONS.md](file://DECISIONS.md)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [Admin/Pages/SetupWizard.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php)
+- [Services/ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [Services/SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [Listeners/CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php)
+- [Http/Controllers/Api/AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [Models/ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [AGENTS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/AGENTS.md)
+- [DECISIONS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md)
 </cite>
 
 ## Table of Contents
@@ -37,9 +53,9 @@ Key behaviors:
 - Customer-facing endpoints return only aggregate capacity per location; node-level details are admin-only.
 
 **Section sources**
-- [DynamicPterodactyl.php:25-75](file://DynamicPterodactyl.php#L25-L75)
-- [AGENTS.md:7-11](file://AGENTS.md#L7-L11)
-- [DECISIONS.md:28-45](file://DECISIONS.md#L28-L45)
+- [DynamicPterodactyl.php:25-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L25-L75)
+- [AGENTS.md:7-11](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/AGENTS.md#L7-L11)
+- [DECISIONS.md:28-45](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md#L28-L45)
 
 ## Project Structure
 The extension lives under Paymenter as an “Other” extension and integrates via its boot process. It registers routes, policies, listeners, and scheduled tasks that tie into Paymenter’s cart and invoice lifecycle.
@@ -54,12 +70,12 @@ A --> F["Scheduled jobs<br/>cleanup expired reservations every minute<br/>check 
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Core Components
 - Extension entrypoint: loads routes, policies, observers, event listeners, and schedules.
@@ -70,13 +86,13 @@ A --> F["Scheduled jobs<br/>cleanup expired reservations every minute<br/>check 
 - Listeners: bridge Paymenter events (cart/invoice/service) into reservation actions.
 
 **Section sources**
-- [DynamicPterodactyl.php:45-127](file://DynamicPterodactyl.php#L45-L127)
-- [Admin/Pages/SetupWizard.php:26-75](file://Admin/Pages/SetupWizard.php#L26-L75)
-- [Services/ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [Services/SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [Http/Controllers/Api/AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Listeners/CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
+- [DynamicPterodactyl.php:45-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L45-L127)
+- [Admin/Pages/SetupWizard.php:26-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L26-L75)
+- [Services/ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [Services/SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [Http/Controllers/Api/AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Listeners/CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
 
 ## Architecture Overview
 This extension complements the built-in Pterodactyl server extension. It does not provision servers itself; it ensures resources are available and reserved while customers complete checkout.
@@ -101,9 +117,9 @@ Ext-->>Paymenter : Link reservation to service
 ```
 
 **Diagram sources**
-- [Listeners/CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [DynamicPterodactyl.php:106-145](file://DynamicPterodactyl.php#L106-L145)
+- [Listeners/CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [DynamicPterodactyl.php:106-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L106-L145)
 
 ## Detailed Component Analysis
 
@@ -117,8 +133,8 @@ Ext-->>Paymenter : Link reservation to service
 These settings are exposed through the extension’s configuration UI and used by services to connect to Pterodactyl and manage reservation lifetimes.
 
 **Section sources**
-- [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)
-- [DynamicPterodactyl.php:78-91](file://DynamicPterodactyl.php#L78-L91)
+- [DynamicPterodactyl.php:48-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L48-L75)
+- [DynamicPterodactyl.php:78-91](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L78-L91)
 
 ### Initial Setup: Creating Dynamic Sliders
 Use the Filament-based Setup Wizard to add RAM, CPU, and Disk sliders to a product:
@@ -129,9 +145,9 @@ Use the Filament-based Setup Wizard to add RAM, CPU, and Disk sliders to a produ
 The wizard writes native dynamic_slider ConfigOptions to Paymenter core. These options drive both the frontend sliders and pricing calculations.
 
 **Section sources**
-- [Admin/Pages/SetupWizard.php:26-75](file://Admin/Pages/SetupWizard.php#L26-L75)
-- [Services/ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [Services/ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
+- [Admin/Pages/SetupWizard.php:26-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L26-L75)
+- [Services/ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [Services/ConfigOptionSetupService.php:117-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L171)
 
 ### Quick Start: Verify the Extension Is Working
 - Ensure Pterodactyl credentials are configured in the extension settings.
@@ -147,9 +163,9 @@ Relevant endpoints:
 - GET /api/dynamic-pterodactyl/pricing/config/{productId}
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
-- [Http/Controllers/Api/AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [Listeners/CartItemCreatedListener.php:47-87](file://Listeners/CartItemCreatedListener.php#L47-L87)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [Http/Controllers/Api/AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [Listeners/CartItemCreatedListener.php:47-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L47-L87)
 
 ### How Reservations Work
 - Creation: When a cart item with dynamic sliders is added, the extension reads slider values, selects a best-fit node from live availability, and creates a pending reservation with a TTL.
@@ -174,14 +190,14 @@ Expire --> EndExpired["Released back to pool"]
 ```
 
 **Diagram sources**
-- [Listeners/CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Services/ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
+- [Listeners/CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Services/ReservationService.php:384-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L384-L405)
 
 **Section sources**
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Services/ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
-- [Models/ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Services/ReservationService.php:384-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L384-L405)
+- [Models/ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
 
 ### Relationship to Paymenter’s Built-in Pterodactyl Server Extension
 - This extension is a companion enhancement. It handles dynamic sliders, availability, and reservations.
@@ -189,8 +205,8 @@ Expire --> EndExpired["Released back to pool"]
 - If this extension fails, the product still works without sliders (graceful degradation).
 
 **Section sources**
-- [DynamicPterodactyl.php:33-40](file://DynamicPterodactyl.php#L33-L40)
-- [DECISIONS.md:9-25](file://DECISIONS.md#L9-L25)
+- [DynamicPterodactyl.php:33-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L33-L40)
+- [DECISIONS.md:9-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DECISIONS.md#L9-L25)
 
 ## Dependency Analysis
 ```mermaid
@@ -208,16 +224,16 @@ SliderCfg["SliderConfigReaderService"] --> ConfigOpt["ConfigOption (dynamic_slid
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
-- [Http/Controllers/Api/AvailabilityController.php:11-20](file://Http/Controllers/Api/AvailabilityController.php#L11-L20)
-- [Admin/Pages/SetupWizard.php:26-75](file://Admin/Pages/SetupWizard.php#L26-L75)
-- [Services/ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [Services/SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [Http/Controllers/Api/AvailabilityController.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L11-L20)
+- [Admin/Pages/SetupWizard.php:26-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L26-L75)
+- [Services/ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [Services/SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Performance Considerations
 - Real-time availability: Pterodactyl API responses are never cached; availability is always fresh. Batch calls are used to reduce overhead.
@@ -229,7 +245,7 @@ SliderCfg["SliderConfigReaderService"] --> ConfigOpt["ConfigOption (dynamic_slid
 
 ## Troubleshooting Guide
 Common setup issues and resolutions:
-- Missing Pterodactyl credentials: Ensure panel URL and API key are set in extension settings. Without them, availability checks and reservations cannot succeed.
+- Missing Pterodactyl credentials: Ensure the panel URL and an application API key with Locations, Nodes, and Servers read access are set in extension settings. Without all three permissions, availability checks and reservations cannot succeed.
 - No sliders appearing: Use the Setup Wizard to create dynamic_slider options for the product. Verify the product has at least one slider enabled.
 - Availability shows zero capacity: Confirm Pterodactyl nodes have headroom for the requested resources. Check the availability endpoint for the selected location.
 - Reservation not created on cart add: Ensure the product has dynamic_slider options and a location is selected. Errors are logged but do not block cart operations.
@@ -244,11 +260,11 @@ Where to look:
 - Logs: Listener errors when creating reservations.
 
 **Section sources**
-- [DynamicPterodactyl.php:48-75](file://DynamicPterodactyl.php#L48-L75)
-- [Admin/Pages/SetupWizard.php:26-75](file://Admin/Pages/SetupWizard.php#L26-L75)
-- [Http/Controllers/Api/AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [Listeners/CartItemCreatedListener.php:79-87](file://Listeners/CartItemCreatedListener.php#L79-L87)
-- [Services/ReservationService.php:384-405](file://Services/ReservationService.php#L384-L405)
+- [DynamicPterodactyl.php:48-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L48-L75)
+- [Admin/Pages/SetupWizard.php:26-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L26-L75)
+- [Http/Controllers/Api/AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [Listeners/CartItemCreatedListener.php:79-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L79-L87)
+- [Services/ReservationService.php:384-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L384-L405)
 
 ## Conclusion
 The Dynamic Pterodactyl extension enhances your Pterodactyl products with dynamic RAM/CPU/Disk sliders, real-time availability checks, and short-lived reservations to prevent overselling during checkout. It integrates seamlessly with Paymenter’s built-in Pterodactyl server extension, leaving provisioning to the core while focusing on availability and reservation management. Use the Setup Wizard to configure sliders, verify availability via the API, and rely on automatic reservation lifecycle handling during the cart-to-payment flow.
@@ -274,4 +290,4 @@ The Dynamic Pterodactyl extension enhances your Pterodactyl products with dynami
   - GET /api/dynamic-pterodactyl/admin/availability/{locationId}/nodes
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)

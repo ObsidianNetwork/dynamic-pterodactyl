@@ -1,17 +1,20 @@
 # ConfigOptionSetupService
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [AuditsExtensionActions.php](file://Services/Concerns/AuditsExtensionActions.php)
-- [PricingController.php](file://Http/Controllers/Api/PricingController.php)
-- [StoreReservationRequest.php](file://Http/Requests/StoreReservationRequest.php)
-- [2025_01_01_000002_create_ptero_pricing_configs_table.php](file://database/migrations/2025_01_01_000002_create_ptero_pricing_configs_table.php)
-- [2025_01_01_000005_drop_ptero_pricing_configs_table.php](file://database/migrations/2025_01_01_000005_drop_ptero_pricing_configs_table.php)
-- [ConfigOptionSetupServiceTest.php](file://tests/Unit/ConfigOptionSetupServiceTest.php)
-- [SetupWizardValidationTest.php](file://tests/Feature/SetupWizardValidationTest.php)
-- [LaravelTestCase.php](file://tests/LaravelTestCase.php)
+- [ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [AuditsExtensionActions.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php)
+- [PricingController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php)
+- [StoreReservationRequest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php)
+- [2025_01_01_000002_create_ptero_pricing_configs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000002_create_ptero_pricing_configs_table.php)
+- [2025_01_01_000005_drop_ptero_pricing_configs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000005_drop_ptero_pricing_configs_table.php)
+- [ConfigOptionSetupServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ConfigOptionSetupServiceTest.php)
+- [SetupWizardValidationTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/SetupWizardValidationTest.php)
+- [LaravelTestCase.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/LaravelTestCase.php)
 </cite>
 
 ## Table of Contents
@@ -44,14 +47,14 @@ H["StoreReservationRequest"] --> C
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [PricingController.php:38-76](file://Http/Controllers/Api/PricingController.php#L38-L76)
-- [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [PricingController.php:38-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L38-L76)
+- [StoreReservationRequest.php:75-140](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L75-L140)
 
 **Section sources**
-- [ConfigOptionSetupService.php:1-260](file://Services/ConfigOptionSetupService.php#L1-L260)
-- [SliderConfigReaderService.php:1-69](file://Services/SliderConfigReaderService.php#L1-L69)
+- [ConfigOptionSetupService.php:1-259](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L1-L259)
+- [SliderConfigReaderService.php:1-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L1-L68)
 
 ## Core Components
 - ConfigOptionSetupService: Creates/updates dynamic_slider ConfigOptions for memory, CPU, disk, and optionally Location; validates pricing metadata; audits setup runs.
@@ -66,14 +69,14 @@ Key responsibilities:
 - Provide helpers to detect existing slider options and count products with sliders.
 
 **Section sources**
-- [ConfigOptionSetupService.php:14-42](file://Services/ConfigOptionSetupService.php#L14-L42)
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [ConfigOptionSetupService.php:79-146](file://Services/ConfigOptionSetupService.php#L79-L146)
-- [ConfigOptionSetupService.php:148-171](file://Services/ConfigOptionSetupService.php#L148-L171)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
-- [ConfigOptionSetupService.php:208-258](file://Services/ConfigOptionSetupService.php#L208-L258)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [ConfigOptionSetupService.php:14-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L14-L42)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [ConfigOptionSetupService.php:79-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L79-L146)
+- [ConfigOptionSetupService.php:148-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L148-L171)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
+- [ConfigOptionSetupService.php:208-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L208-L258)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
 
 ## Architecture Overview
 The service orchestrates slider creation within a single transaction. For each enabled resource type, it either updates an existing dynamic_slider option or creates a new one, attaching it to the product. Pricing metadata is validated before persisting. If locations are provided, a Location select option and its child options are created. After success, an audit entry is recorded.
@@ -105,10 +108,10 @@ Svc-->>Admin : created options map
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [ConfigOptionSetupService.php:79-146](file://Services/ConfigOptionSetupService.php#L79-L146)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [ConfigOptionSetupService.php:79-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L79-L146)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
 
 ## Detailed Component Analysis
 
@@ -131,10 +134,10 @@ Output:
 - Map of resource types to created/updated ConfigOption instances, plus location if created.
 
 **Section sources**
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [ConfigOptionSetupService.php:79-146](file://Services/ConfigOptionSetupService.php#L79-L146)
-- [ConfigOptionSetupService.php:148-171](file://Services/ConfigOptionSetupService.php#L148-L171)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [ConfigOptionSetupService.php:79-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L79-L146)
+- [ConfigOptionSetupService.php:148-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L148-L171)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
 
 ### Validating configuration constraints
 - Pricing metadata validation is delegated to Paymenter’s DynamicSliderPricingRule during buildResourceMetadata.
@@ -149,8 +152,8 @@ Validation rules enforced at setup time include:
 These rules mirror those used elsewhere in the system to ensure consistency between setup and runtime.
 
 **Section sources**
-- [ConfigOptionSetupService.php:117-146](file://Services/ConfigOptionSetupService.php#L117-L146)
-- [07-PRICING-MODELS.md:309-319](file://07-PRICING-MODELS.md#L309-L319)
+- [ConfigOptionSetupService.php:117-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L146)
+- [07-PRICING-MODELS.md:309-319](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L309-L319)
 
 ### Integrating with Paymenter’s pricing engine
 - The service does not calculate prices. It stores metadata consumed by Paymenter core pricing methods:
@@ -172,15 +175,15 @@ Submit --> End(["Checkout/Reservation"])
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:117-146](file://Services/ConfigOptionSetupService.php#L117-L146)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [PricingController.php:38-76](file://Http/Controllers/Api/PricingController.php#L38-L76)
-- [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
+- [ConfigOptionSetupService.php:117-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L146)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [PricingController.php:38-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L38-L76)
+- [StoreReservationRequest.php:75-140](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L75-L140)
 
 **Section sources**
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [PricingController.php:38-76](file://Http/Controllers/Api/PricingController.php#L38-L76)
-- [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [PricingController.php:38-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L38-L76)
+- [StoreReservationRequest.php:75-140](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L75-L140)
 
 ### Relationship between slider configurations and product definitions
 - Each dynamic_slider ConfigOption is linked to a product via the pivot table.
@@ -189,9 +192,9 @@ Submit --> End(["Checkout/Reservation"])
 - Location options are hierarchical: a parent “Location” option with child options representing available locations.
 
 **Section sources**
-- [ConfigOptionSetupService.php:79-115](file://Services/ConfigOptionSetupService.php#L79-L115)
-- [ConfigOptionSetupService.php:173-206](file://Services/ConfigOptionSetupService.php#L173-L206)
-- [ConfigOptionSetupService.php:235-248](file://Services/ConfigOptionSetupService.php#L235-L248)
+- [ConfigOptionSetupService.php:79-115](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L79-L115)
+- [ConfigOptionSetupService.php:173-206](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L206)
+- [ConfigOptionSetupService.php:235-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L235-L248)
 
 ### Migration procedures for updating existing slider setups
 - Historical ptero_pricing_configs table was removed; slider configuration now lives in ConfigOption metadata.
@@ -205,9 +208,9 @@ Migration notes:
 - The drop migration removes the legacy table and documents data loss on rollback; reconfiguration should be done via the Setup Wizard after rollback.
 
 **Section sources**
-- [2025_01_01_000005_drop_ptero_pricing_configs_table.php:12-27](file://database/migrations/2025_01_01_000005_drop_ptero_pricing_configs_table.php#L12-L27)
-- [ConfigOptionSetupService.php:208-233](file://Services/ConfigOptionSetupService.php#L208-L233)
-- [ConfigOptionSetupService.php:235-248](file://Services/ConfigOptionSetupService.php#L235-L248)
+- [2025_01_01_000005_drop_ptero_pricing_configs_table.php:12-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000005_drop_ptero_pricing_configs_table.php#L12-L27)
+- [ConfigOptionSetupService.php:208-233](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L208-L233)
+- [ConfigOptionSetupService.php:235-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L235-L248)
 
 ### Common configuration patterns
 - Linear pricing: set base_price and per-resource rates (e.g., memory_rate, cpu_rate, disk_rate).
@@ -221,10 +224,10 @@ Examples validated by tests:
 - Audit logging of setup runs with correct payload.
 
 **Section sources**
-- [ConfigOptionSetupServiceTest.php:25-51](file://tests/Unit/ConfigOptionSetupServiceTest.php#L25-L51)
-- [ConfigOptionSetupServiceTest.php:53-76](file://tests/Unit/ConfigOptionSetupServiceTest.php#L53-L76)
-- [ConfigOptionSetupServiceTest.php:78-106](file://tests/Unit/ConfigOptionSetupServiceTest.php#L78-L106)
-- [SetupWizardValidationTest.php:75-93](file://tests/Feature/SetupWizardValidationTest.php#L75-L93)
+- [ConfigOptionSetupServiceTest.php:25-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ConfigOptionSetupServiceTest.php#L25-L51)
+- [ConfigOptionSetupServiceTest.php:53-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ConfigOptionSetupServiceTest.php#L53-L76)
+- [ConfigOptionSetupServiceTest.php:78-106](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ConfigOptionSetupServiceTest.php#L78-L106)
+- [SetupWizardValidationTest.php:75-93](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/SetupWizardValidationTest.php#L75-L93)
 
 ### Troubleshooting invalid setups
 Symptoms and causes:
@@ -242,9 +245,9 @@ Recovery:
 - Inspect audit logs to confirm successful setup runs.
 
 **Section sources**
-- [ConfigOptionSetupService.php:117-146](file://Services/ConfigOptionSetupService.php#L117-L146)
-- [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
-- [ConfigOptionSetupServiceTest.php:25-51](file://tests/Unit/ConfigOptionSetupServiceTest.php#L25-L51)
+- [ConfigOptionSetupService.php:117-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L146)
+- [StoreReservationRequest.php:75-140](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L75-L140)
+- [ConfigOptionSetupServiceTest.php:25-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ConfigOptionSetupServiceTest.php#L25-L51)
 
 ## Dependency Analysis
 - External dependencies:
@@ -280,14 +283,14 @@ ConfigOptionSetupService --> SliderConfigReaderService : "conceptual read path"
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:10-258](file://Services/ConfigOptionSetupService.php#L10-L258)
-- [SliderConfigReaderService.php:7-66](file://Services/SliderConfigReaderService.php#L7-L66)
-- [AuditsExtensionActions.php:8-32](file://Services/Concerns/AuditsExtensionActions.php#L8-L32)
+- [ConfigOptionSetupService.php:10-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L10-L258)
+- [SliderConfigReaderService.php:7-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L7-L66)
+- [AuditsExtensionActions.php:8-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L8-L32)
 
 **Section sources**
-- [ConfigOptionSetupService.php:10-258](file://Services/ConfigOptionSetupService.php#L10-L258)
-- [SliderConfigReaderService.php:7-66](file://Services/SliderConfigReaderService.php#L7-L66)
-- [AuditsExtensionActions.php:8-32](file://Services/Concerns/AuditsExtensionActions.php#L8-L32)
+- [ConfigOptionSetupService.php:10-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L10-L258)
+- [SliderConfigReaderService.php:7-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L7-L66)
+- [AuditsExtensionActions.php:8-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L8-L32)
 
 ## Performance Considerations
 - All slider creations/updates occur within a single database transaction to minimize partial writes and simplify rollback.
@@ -310,9 +313,9 @@ ConfigOptionSetupService --> SliderConfigReaderService : "conceptual read path"
   - Confirm audit logs show a successful setup_run action.
 
 **Section sources**
-- [ConfigOptionSetupService.php:117-146](file://Services/ConfigOptionSetupService.php#L117-L146)
-- [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
-- [ConfigOptionSetupServiceTest.php:25-51](file://tests/Unit/ConfigOptionSetupServiceTest.php#L25-L51)
+- [ConfigOptionSetupService.php:117-146](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L146)
+- [StoreReservationRequest.php:75-140](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L75-L140)
+- [ConfigOptionSetupServiceTest.php:25-51](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ConfigOptionSetupServiceTest.php#L25-L51)
 
 ## Conclusion
 ConfigOptionSetupService centralizes the creation and validation of dynamic slider options for Paymenter products. It standardizes slider metadata, enforces pricing constraints via core rules, and integrates seamlessly with downstream components that read slider configuration and perform pricing previews and validations. The migration to native ConfigOption metadata simplifies the architecture and improves maintainability. Administrators can safely re-run setup to update configurations while preserving data integrity through transactions and robust validation.
@@ -344,7 +347,7 @@ Req-->>Admin : Success or validation errors
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [PricingController.php:38-76](file://Http/Controllers/Api/PricingController.php#L38-L76)
-- [StoreReservationRequest.php:75-140](file://Http/Requests/StoreReservationRequest.php#L75-L140)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [PricingController.php:38-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L38-L76)
+- [StoreReservationRequest.php:75-140](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L75-L140)

@@ -1,17 +1,20 @@
 # Audit Logs Table
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, tables, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [AuditLog.php](file://Models/AuditLog.php)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
-- [AuditLogService.php](file://Services/AuditLogService.php)
-- [AuditsExtensionActions.php](file://Services/Concerns/AuditsExtensionActions.php)
-- [AlertConfigObserver.php](file://Models/Observers/AlertConfigObserver.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [AlertService.php](file://Services/AlertService.php)
-- [ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [AuditLogPage.php](file://Admin/Pages/AuditLogPage.php)
-- [audit-log.blade.php](file://resources/views/admin/audit-log.blade.php)
+- [AuditLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
+- [AuditLogService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php)
+- [AuditsExtensionActions.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php)
+- [AlertConfigObserver.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [AuditLogPage.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php)
+- [audit-log.blade.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/audit-log.blade.php)
 </cite>
 
 ## Table of Contents
@@ -60,21 +63,21 @@ Model --> M
 ```
 
 **Diagram sources**
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:10-82](file://Services/AuditLogService.php#L10-L82)
-- [AuditsExtensionActions.php:8-33](file://Services/Concerns/AuditsExtensionActions.php#L8-L33)
-- [ReservationService.php:102-112](file://Services/ReservationService.php#L102-L112)
-- [AlertService.php:238-245](file://Services/AlertService.php#L238-L245)
-- [ConfigOptionSetupService.php:69-74](file://Services/ConfigOptionSetupService.php#L69-L74)
-- [AlertConfigObserver.php:12-59](file://Models/Observers/AlertConfigObserver.php#L12-L59)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AuditLogService.php:10-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L10-L82)
+- [AuditsExtensionActions.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L8-L33)
+- [ReservationService.php:102-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L102-L112)
+- [AlertService.php:238-245](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L238-L245)
+- [ConfigOptionSetupService.php:69-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L69-L74)
+- [AlertConfigObserver.php:12-59](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php#L12-L59)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
 
 **Section sources**
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:10-82](file://Services/AuditLogService.php#L10-L82)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AuditLogService.php:10-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L10-L82)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
 
 ## Core Components
 - Schema and model: The ptero_audit_logs table stores who performed an action, what was changed, change details, request context, and timestamp. The Eloquent model disables automatic timestamps and casts JSON fields to arrays.
@@ -89,10 +92,10 @@ Key responsibilities:
 - Persist request context (ip_address, user_agent) and created_at.
 
 **Section sources**
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:15-82](file://Services/AuditLogService.php#L15-L82)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AuditLogService.php:15-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L82)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
 
 ## Architecture Overview
 The audit logging architecture follows a service-oriented pattern with a shared trait to ensure consistent, resilient logging across components.
@@ -113,9 +116,9 @@ DB-->>Admin : Paginated results
 ```
 
 **Diagram sources**
-- [AuditsExtensionActions.php:10-33](file://Services/Concerns/AuditsExtensionActions.php#L10-L33)
-- [AuditLogService.php:15-82](file://Services/AuditLogService.php#L15-L82)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
+- [AuditsExtensionActions.php:10-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L33)
+- [AuditLogService.php:15-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L82)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
 
 ## Detailed Component Analysis
 
@@ -150,8 +153,8 @@ Complexity notes:
 - The table is append-only; rows are never updated after creation.
 
 **Section sources**
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
 
 ### Logging Patterns
 - Centralized writes via AuditLogService::log():
@@ -175,15 +178,15 @@ Typical audit entries:
 - Setup run: action=setup_run, entity_type=product_config, payload includes sliders configured and count.
 
 **Section sources**
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [AuditsExtensionActions.php:10-33](file://Services/Concerns/AuditsExtensionActions.php#L10-L33)
-- [AlertConfigObserver.php:12-59](file://Models/Observers/AlertConfigObserver.php#L12-L59)
-- [ReservationService.php:102-112](file://Services/ReservationService.php#L102-L112)
-- [ReservationService.php:191-196](file://Services/ReservationService.php#L191-L196)
-- [ReservationService.php:234-238](file://Services/ReservationService.php#L234-L238)
-- [ReservationService.php:273-278](file://Services/ReservationService.php#L273-L278)
-- [AlertService.php:238-245](file://Services/AlertService.php#L238-L245)
-- [ConfigOptionSetupService.php:69-74](file://Services/ConfigOptionSetupService.php#L69-L74)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [AuditsExtensionActions.php:10-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L33)
+- [AlertConfigObserver.php:12-59](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php#L12-L59)
+- [ReservationService.php:102-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L102-L112)
+- [ReservationService.php:191-196](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L191-L196)
+- [ReservationService.php:234-238](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L234-L238)
+- [ReservationService.php:273-278](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L273-L278)
+- [AlertService.php:238-245](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L238-L245)
+- [ConfigOptionSetupService.php:69-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L69-L74)
 
 ### Querying and Filtering
 - Filtered retrieval:
@@ -201,8 +204,8 @@ Example filter usage:
 - Show only updates to alert configurations.
 
 **Section sources**
-- [AuditLogService.php:46-82](file://Services/AuditLogService.php#L46-L82)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
+- [AuditLogService.php:46-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L46-L82)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
 
 ### Relationship to Other Components
 - Reservations:
@@ -261,12 +264,12 @@ AuditLogService --> AuditLog : "persists"
 ```
 
 **Diagram sources**
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
-- [AuditLogService.php:15-82](file://Services/AuditLogService.php#L15-L82)
-- [ReservationService.php:102-112](file://Services/ReservationService.php#L102-L112)
-- [AlertConfigObserver.php:12-59](file://Models/Observers/AlertConfigObserver.php#L12-L59)
-- [AlertService.php:238-245](file://Services/AlertService.php#L238-L245)
-- [ConfigOptionSetupService.php:69-74](file://Services/ConfigOptionSetupService.php#L69-L74)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
+- [AuditLogService.php:15-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L82)
+- [ReservationService.php:102-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L102-L112)
+- [AlertConfigObserver.php:12-59](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/Observers/AlertConfigObserver.php#L12-L59)
+- [AlertService.php:238-245](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L238-L245)
+- [ConfigOptionSetupService.php:69-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L69-L74)
 
 ## Dependency Analysis
 - Direct dependencies:
@@ -284,9 +287,9 @@ AuditLogService --> AuditLog : "persists"
 Potential circular dependencies: None observed.
 
 **Section sources**
-- [AuditLogService.php:1-41](file://Services/AuditLogService.php#L1-L41)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:42-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L42-L47)
+- [AuditLogService.php:1-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L1-L41)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:42-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L42-L47)
 
 ## Performance Considerations
 - Indexing strategy:
@@ -323,9 +326,9 @@ Operational checks:
 - Review admin UI filters to ensure they match expected entity types and actions.
 
 **Section sources**
-- [AuditsExtensionActions.php:10-33](file://Services/Concerns/AuditsExtensionActions.php#L10-L33)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:36-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L36-L47)
+- [AuditsExtensionActions.php:10-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L33)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:36-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L36-L47)
 
 ## Conclusion
 The audit logs table provides a robust, indexed foundation for tracking administrative and system events across reservations, alert configurations, and product setup processes. The service layer centralizes logging, while the admin UI offers practical filtering and visualization. With careful retention policies and targeted queries, the audit trail remains performant and actionable for administrators.
@@ -365,12 +368,12 @@ The audit logs table provides a robust, indexed foundation for tracking administ
   - payload: sliders configured, count
 
 **Section sources**
-- [ReservationService.php:102-112](file://Services/ReservationService.php#L102-L112)
-- [ReservationService.php:191-196](file://Services/ReservationService.php#L191-L196)
-- [ReservationService.php:234-238](file://Services/ReservationService.php#L234-L238)
-- [ReservationService.php:273-278](file://Services/ReservationService.php#L273-L278)
-- [AlertService.php:238-245](file://Services/AlertService.php#L238-L245)
-- [ConfigOptionSetupService.php:69-74](file://Services/ConfigOptionSetupService.php#L69-L74)
+- [ReservationService.php:102-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L102-L112)
+- [ReservationService.php:191-196](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L191-L196)
+- [ReservationService.php:234-238](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L234-L238)
+- [ReservationService.php:273-278](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L273-L278)
+- [AlertService.php:238-245](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L238-L245)
+- [ConfigOptionSetupService.php:69-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L69-L74)
 
 ### Admin Filtering Capabilities
 - Filters supported in the admin table:
@@ -380,5 +383,5 @@ The audit logs table provides a robust, indexed foundation for tracking administ
   - entity_id, user_id, date_from, date_to
 
 **Section sources**
-- [AuditLogPage.php:64-78](file://Admin/Pages/AuditLogPage.php#L64-L78)
-- [AuditLogService.php:46-69](file://Services/AuditLogService.php#L46-L69)
+- [AuditLogPage.php:64-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L64-L78)
+- [AuditLogService.php:46-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L46-L69)

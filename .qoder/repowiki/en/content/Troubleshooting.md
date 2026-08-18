@@ -1,19 +1,22 @@
 # Troubleshooting
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [api.php](file://routes/api.php)
-- [AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [ReservationController.php](file://Http/Controllers/Api/ReservationController.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [NodeSelectionService.php](file://Services/NodeSelectionService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [CartItemCreatedListener.php](file://Listeners/CartItemCreatedListener.php)
-- [InvoicePaidListener.php](file://Listeners/InvoicePaidListener.php)
-- [AlertService.php](file://Services/AlertService.php)
-- [AuditsExtensionActions.php](file://Services/Concerns/AuditsExtensionActions.php)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [ReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [NodeSelectionService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php)
+- [InvoicePaidListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [AuditsExtensionActions.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
 </cite>
 
 ## Table of Contents
@@ -55,17 +58,17 @@ Listeners --> ResSvc
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [api.php:17-40](file://routes/api.php#L17-L40)
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
-- [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [ResourceCalculationService.php:26-222](file://Services/ResourceCalculationService.php#L26-L222)
-- [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [ResourceCalculationService.php:26-222](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L222)
+- [NodeSelectionService.php:22-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L86)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Core Components
 - AvailabilityController exposes per-location availability and node details, returning only aggregate capacity to customers.
@@ -76,12 +79,12 @@ Listeners --> ResSvc
 - AlertService periodically evaluates capacity thresholds and sends notifications via email or webhooks, logging delivery outcomes.
 
 **Section sources**
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
-- [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [ResourceCalculationService.php:26-222](file://Services/ResourceCalculationService.php#L26-L222)
-- [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [ResourceCalculationService.php:26-222](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L222)
+- [NodeSelectionService.php:22-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L86)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
 
 ## Architecture Overview
 The system enforces real-time availability by querying Pterodactyl on each request without caching. Reservations protect capacity during checkout using database transactions with pessimistic locks and retries on deadlock. Alerts run on schedules to monitor utilization and notify administrators.
@@ -96,20 +99,20 @@ participant S as "ResourceCalculationService"
 participant P as "Pterodactyl API"
 C->>R : GET /api/dynamic-pterodactyl/availability/{locationId}
 R->>A : getByLocation(locationId)
-A->>N : getMaxAvailable(locationId)
-N->>S : getLocationAvailability(locationId)
-S->>P : GET /api/application/nodes (with filters)
+A->>S : getLocationAvailability(locationId)
+S->>P : GET /api/application/locations/{id}?include=nodes,servers
 P-->>S : nodes + servers
-S-->>N : locationData
-N-->>A : max_available
+S-->>A : locationData
+A->>N : getMaxAvailable(locationId, locationData)
+N-->>A : max_available from same snapshot
 A-->>C : {success,data}
 ```
 
 **Diagram sources**
-- [api.php:17-22](file://routes/api.php#L17-L22)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [NodeSelectionService.php:81-86](file://Services/NodeSelectionService.php#L81-L86)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [NodeSelectionService.php:81-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L81-L86)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 ## Detailed Component Analysis
 
@@ -120,7 +123,7 @@ Symptoms:
 - Error logs show connection exceptions or HTTP error codes.
 
 Root causes:
-- Invalid or missing Pterodactyl URL or API key in extension settings.
+- Invalid or missing Pterodactyl URL or application API key, or missing read access to Locations, Nodes, or Servers.
 - Network connectivity issues or firewall restrictions.
 - Rate limiting (HTTP 429) from Pterodactyl.
 - Non-JSON or malformed responses.
@@ -131,7 +134,7 @@ Diagnostics:
 - Check throttling middleware on routes to ensure requests are not being rejected due to excessive frequency.
 
 Resolution steps:
-- Verify extension settings contain a valid panel URL and application API key.
+- Verify extension settings contain a valid panel URL and an application API key with Locations, Nodes, and Servers read access.
 - Confirm network access to the Pterodactyl panel host and port.
 - If encountering 429, reduce request frequency or adjust client retry/backoff behavior.
 - Review server logs for detailed error context when non-JSON payloads occur.
@@ -147,12 +150,12 @@ Err --> End
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
 
 **Section sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ### Rate Limiting Responses (HTTP 429)
 Symptoms:
@@ -169,8 +172,8 @@ Resolution steps:
 - Monitor logs for repeated 429 occurrences and investigate upstream load.
 
 **Section sources**
-- [ResourceCalculationService.php:473-475](file://Services/ResourceCalculationService.php#L473-L475)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [ResourceCalculationService.php:473-475](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L473-L475)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ### Reservation Conflicts and Idempotency
 Symptoms:
@@ -210,12 +213,12 @@ RS->>DB : COMMIT
 ```
 
 **Diagram sources**
-- [ReservationController.php:24-60](file://Http/Controllers/Api/ReservationController.php#L24-L60)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [ReservationController.php:24-60](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L60)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
 
 ### Database Locking and Deadlocks
 Symptoms:
@@ -232,9 +235,9 @@ Resolution steps:
 - Monitor database metrics for lock waits and adjust workload accordingly.
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:444-452](file://Services/ReservationService.php#L444-L452)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:55-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L55-L61)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:444-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L444-L452)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:55-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L55-L61)
 
 ### Timeout Issues
 Symptoms:
@@ -251,7 +254,7 @@ Resolution steps:
 - Review logs for repeated connection exceptions and address infrastructure issues.
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### Availability Discrepancies
 Symptoms:
@@ -267,8 +270,8 @@ Resolution steps:
 - Validate that nodes are not in maintenance mode and that pending reservations are accounted for.
 
 **Section sources**
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 ### Reservation Expiration Behavior
 Symptoms:
@@ -285,9 +288,9 @@ Resolution steps:
 - Monitor scheduled jobs to ensure they run every minute.
 
 **Section sources**
-- [DynamicPterodactyl.php:116-121](file://DynamicPterodactyl.php#L116-L121)
-- [ReservationService.php:385-405](file://Services/ReservationService.php#L385-L405)
-- [ReservationController.php:102-136](file://Http/Controllers/Api/ReservationController.php#L102-L136)
+- [DynamicPterodactyl.php:116-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L121)
+- [ReservationService.php:385-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L385-L405)
+- [ReservationController.php:102-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L102-L136)
 
 ### Alert Configuration Problems
 Symptoms:
@@ -304,9 +307,9 @@ Resolution steps:
 - Inspect alert delivery logs for channel-specific errors.
 
 **Section sources**
-- [DynamicPterodactyl.php:123-126](file://DynamicPterodactyl.php#L123-L126)
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [DynamicPterodactyl.php:123-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L123-L126)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
 
 ## Dependency Analysis
 The extension’s runtime depends on:
@@ -324,12 +327,12 @@ Core --> Schedule["Scheduler"]
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Performance Considerations
 - Avoid caching Pterodactyl responses; rely on real-time queries for accuracy.
@@ -352,13 +355,13 @@ Diagnostics:
 - Confirm route throttling is not rejecting requests prematurely.
 
 **Section sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ### Authentication Failures
 Steps:
-- Confirm the application API key has sufficient permissions in Pterodactyl.
+- Confirm the application API key has read access to Locations, Nodes, and Servers in Pterodactyl.
 - Verify Authorization header usage in internal calls.
 - Review logs for 4xx errors indicating invalid credentials.
 
@@ -367,8 +370,8 @@ Diagnostics:
 - Check for malformed headers or incorrect base URL formatting.
 
 **Section sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### Rate Limiting Responses
 Steps:
@@ -381,8 +384,8 @@ Diagnostics:
 - Evaluate whether batched operations can reduce total requests.
 
 **Section sources**
-- [ResourceCalculationService.php:473-475](file://Services/ResourceCalculationService.php#L473-L475)
-- [api.php:17-40](file://routes/api.php#L17-L40)
+- [ResourceCalculationService.php:473-475](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L473-L475)
+- [api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ### Reservation Conflicts
 Steps:
@@ -395,8 +398,8 @@ Diagnostics:
 - Confirm pending reservation locks are functioning under load.
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
 
 ### Database Locking Deadlocks
 Steps:
@@ -409,8 +412,8 @@ Diagnostics:
 - Audit long-running queries and external processes holding locks.
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:444-452](file://Services/ReservationService.php#L444-L452)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:444-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L444-L452)
 
 ### Timeout Issues
 Steps:
@@ -423,7 +426,7 @@ Diagnostics:
 - Measure end-to-end request durations to pinpoint bottlenecks.
 
 **Section sources**
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ### Availability Discrepancies
 Steps:
@@ -436,8 +439,8 @@ Diagnostics:
 - Review logs for node selection decisions and scoring.
 
 **Section sources**
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
-- [NodeSelectionService.php:22-86](file://Services/NodeSelectionService.php#L22-L86)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [NodeSelectionService.php:22-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L86)
 
 ### Reservation Expiration Behavior
 Steps:
@@ -450,9 +453,9 @@ Diagnostics:
 - Review logs for cleanup runs and expired batch updates.
 
 **Section sources**
-- [DynamicPterodactyl.php:116-121](file://DynamicPterodactyl.php#L116-L121)
-- [ReservationService.php:385-405](file://Services/ReservationService.php#L385-L405)
-- [ReservationController.php:102-136](file://Http/Controllers/Api/ReservationController.php#L102-L136)
+- [DynamicPterodactyl.php:116-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L121)
+- [ReservationService.php:385-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L385-L405)
+- [ReservationController.php:102-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L102-L136)
 
 ### Alert Configuration Problems
 Steps:
@@ -465,9 +468,9 @@ Diagnostics:
 - Review logs for webhook and email delivery errors.
 
 **Section sources**
-- [DynamicPterodactyl.php:123-126](file://DynamicPterodactyl.php#L123-L126)
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [DynamicPterodactyl.php:123-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L123-L126)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)
 
 ### Log Analysis Techniques
 - Focus on logs from controllers, services, and listeners for error contexts.
@@ -475,10 +478,10 @@ Diagnostics:
 - Correlate timestamps across routes, services, and database operations.
 
 **Section sources**
-- [AvailabilityController.php:45-52](file://Http/Controllers/Api/AvailabilityController.php#L45-L52)
-- [ReservationController.php:49-59](file://Http/Controllers/Api/ReservationController.php#L49-L59)
-- [ResourceCalculationService.php:473-498](file://Services/ResourceCalculationService.php#L473-L498)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [AvailabilityController.php:45-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L45-L52)
+- [ReservationController.php:49-59](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L49-L59)
+- [ResourceCalculationService.php:473-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L473-L498)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
 
 ### Performance Profiling Approaches
 - Profile HTTP calls to Pterodactyl to identify slow endpoints.
@@ -512,9 +515,9 @@ This guide consolidates diagnosis and resolution steps for common issues in the 
 - Inspect alert delivery logs to diagnose notification failures.
 
 **Section sources**
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ReservationService.php:335-382](file://Services/ReservationService.php#L335-L382)
-- [AlertService.php:304-323](file://Services/AlertService.php#L304-L323)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ReservationService.php:335-382](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L335-L382)
+- [AlertService.php:304-323](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L304-L323)
 
 ### FAQ
 - Why does availability differ between customer and admin views?
@@ -525,7 +528,7 @@ This guide consolidates diagnosis and resolution steps for common issues in the 
   - Check alert configuration activity, thresholds, admin recipients, and delivery logs for channel-specific errors.
 
 **Section sources**
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
-- [DynamicPterodactyl.php:116-126](file://DynamicPterodactyl.php#L116-L126)
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:128-248](file://Services/AlertService.php#L128-L248)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [DynamicPterodactyl.php:116-126](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L116-L126)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:128-248](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L248)

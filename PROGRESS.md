@@ -6,9 +6,9 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 ## Current Status
 
-**Phase**: dp-19 slider→reservation-API wiring shipped
-**Last Updated**: 2026-04-27
-**Last Session**: dp-19 shipped. Wired `dynamicSliderGroup` Alpine component to `POST /api/dynamic-pterodactyl/reservation`; swapped route middleware to `checkout` for guest support; made `cart_item_id` optional; added `Cart::checkout()` confirmation hook; 3 new guest tests green; CodeRabbit 2 findings fixed.
+**Phase**: PR #22 + PR #23 successor review and handoff
+**Last Updated**: 2026-08-18
+**Last Session**: Fully rebased PR #22 onto the reviewed PR #23 work, restored every deployment protection, validated the exact extension/Paymenter pair across the full CI matrix and live read-only API path, and reconciled the preserved Qoder/GitHub Wiki.
 
 ---
 
@@ -16,7 +16,12 @@ Active implementation tracking. **Claude: Update this as you work.**
 
 > **For Claude**: Read this + "Current Session State" to quickly understand where we are.
 
-All documentation and scaffolding complete. 9 spec files + 4 support files (CLAUDE.md, DECISIONS.md, PROGRESS.md, CHANGELOG.md) + skeleton directory. Ready to begin Phase 1: Database migrations and core models. Start with 01-DATABASE.md.
+All dp-NN backlog items are implemented. The completed successor is staged on `agent/rebase-pr22-on-pr23`; original draft PR #22 and prerequisite draft PR #23 remain unchanged for history. The exact Paymenter companion is published as draft PR #24. Mutagen deployment remains paused until the successor and companion are reviewed, merged, and separately authorized for deployment.
+
+The Qoder metadata and canonical Wiki source links pin the latest code-bearing
+predecessor. The later publication commit is intentionally not self-pinned:
+its Git object ID cannot be known until the content containing that ID has
+already been committed.
 
 ---
 
@@ -58,6 +63,7 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 | dp-16 | Docs sync: align 03-API + 05-ADMIN-UI + 09-IMPLEMENTATION with post-dp-13 architecture | Shipped — squash `f5f88c7` (PR #19) | Apr 2026 |
 | dp-18 | Capacity-fanout Performance: batch admin-view Pterodactyl reads | Shipped — squash `be4756f` (PR #20) | Apr 2026 |
 | dp-19 | Wire customer-facing slider to reservation API (guest support) | Shipped — direct commits on `dynamic-slider` | Apr 2026 |
+| dp-20 | Reservation lifecycle fixes (cart-clear race, confirm-return, cleanup cron, expires_at guard) | Shipped inside dp-19 commit `a861479` (no separate PR) | Apr 2026 |
 
 ---
 
@@ -66,20 +72,33 @@ All documentation and scaffolding complete. 9 spec files + 4 support files (CLAU
 > **Claude**: Update this frequently during work, not just at session end.
 > This survives compaction and helps resume quickly.
 
-**Last checkpoint**: 2026-04-27
-**Working on**: No active task
-**Status**: dp-19 shipped. `dynamicSliderGroup` Alpine wired to reservation API; guest support via `checkout` middleware; `Cart::checkout()` confirms reservations with extension-disabled fallback. CodeRabbit findings fixed (Alpine x-data fallback + obsidian theme sync).
+**Last checkpoint**: 2026-08-18
+**Working on**: Exact-SHA review and successor draft PR handoff
+**Status**: The full PR #22 rebase is complete with every PR #23 safety fix preserved. `NodeCapacityPolicy`, zero-as-unlimited rejection, API-key encryption/migration, strict inventory validation, sanitized errors, and the private SQLite test database guard are present. The cross-repository PHP 8.3/8.4 SQLite and MariaDB 11/12 matrix is configured and green at the last reviewed commit.
 **Current file**: PROGRESS.md
-**Next action**: All dp-NN backlog items complete. Next work determined by driver.
-**Blockers**: None
+**Next action**: Finish the fresh exact-SHA review, open the successor draft PR targeting `dynamic-slider`, and retain PR #22/#23 as superseded history until the replacement path is approved. Resume Mutagen only as a separately authorized deployment step after both repositories are merged and the migration checklist is complete.
+**Blockers**: Production deployment remains intentionally paused. The extension successor must ship with Paymenter companion PR #24, database backups and both migration sets, configured per-node capacity policies, confirmed exclusive provisioning control, a successful real-panel staging lifecycle canary, and an approved deployment window.
 
 ### This Session's Changes:
 
-1. dp-19 — direct commits on `dynamic-slider` (extension) and `dynamic-slider/1.4.7` (outer Paymenter).
+1. Preserved the useful panel close-out and PR #23 changes, then rebased the complete PR #22 history onto them without rewriting either published draft branch.
+2. Consolidated live panel access behind `PterodactylInventoryService`, with complete pagination accounting, integral resource validation, duplicate/orphan rejection, local `NodeCapacityPolicy`, and zero-as-unlimited fail-closed behavior.
+3. Restored the Paymenter-owned service and upgrade lifecycle seams, API-key encryption migration, durable commitments, scheduler health checks, and cancellation/provisioning safeguards.
+4. Replaced caller-selected SQLite test paths with the process-private `:temporary:` named-memory database workflow, including separate-process coverage.
+5. Pinned the audited Paymenter companion, added the cross-repository PHP/SQLite/MariaDB matrix, pinned third-party workflow actions to immutable commits, and completed a read-only live Pterodactyl inventory smoke test.
+6. Preserved all 42 migrated Qoder pages, marked superseded deep dives as historical, published the reconciled canonical architecture, and verified the standalone Wiki hierarchy, source links, and anchors.
+7. Redacted credential-bearing webhook transport failures from application logs and alert delivery history, with persisted failure-path coverage.
+8. Extended the webhook public-address boundary to reject deprecated IPv6 site-local space (`fec0::/10`) before transport pinning.
+9. Rejected legacy IPv4-compatible IPv6 space (`::/96`), preventing embedded loopback/private IPv4 destinations from reaching transport pinning.
+10. Reconciled the webhook denylist with the current IANA registry by rejecting the non-global dummy IPv6 prefix (`100:0:0:1::/64`).
 
 ---
 
 ## dp-19 — Wire customer-facing slider to reservation API
+
+> **Historical milestone.** This records the April 2026 implementation. The
+> reconciled successor uses customer quote endpoints and Paymenter cart/service
+> lifecycle seams instead of the retired public reservation endpoint.
 
 **Status**: Shipped  
 **PR**: committed directly on `dynamic-slider` (default branch; no PR base)  
@@ -98,6 +117,10 @@ Closed the architectural gap where `dynamicSliderGroup` Alpine component never c
 
 
 ## dp-18 — Capacity-fanout Performance: batch admin-view Pterodactyl reads
+
+> **Historical milestone.** This records the original batching work. The
+> successor centralizes strict paginated location, node, server, and allocation
+> reads in `PterodactylInventoryService`.
 
 **Status**: Shipped  
 **PR**: #20  
@@ -118,7 +141,12 @@ Update this section:
 
 ---
 
-## Up Next
+## Historical Implementation Checklist
+
+> **Archived reference.** The checklist below records the original phased
+> implementation and intentionally retains names that were later retired. It is
+> not a current source inventory or deployment plan. Use **Current Status** and
+> **Current Session State** above for the active contract.
 
 ### Phase 1: Foundation (COMPLETE)
 - [x] Create extension directory structure
@@ -178,9 +206,13 @@ See 09-IMPLEMENTATION.md for full phase breakdown.
 
 ---
 
-## Blockers / Questions
+## Current Deployment Blockers
 
-*None currently*
+Production deployment is intentionally paused pending approval and merge of the
+extension successor and Paymenter companion PR #24, database backups and both
+migration sets, configured per-node capacity policies, confirmed exclusive
+provisioning control, a successful real-panel staging lifecycle canary, and an
+approved deployment window.
 
 <!-- 
 Format for blockers:
@@ -343,5 +375,5 @@ When debugging, record:
 - Clear "Current Session State" or set to next task
 
 **When blocked**:
-- Add to "Blockers / Questions" section
+- Add to "Current Deployment Blockers" section
 - Be specific about what's needed

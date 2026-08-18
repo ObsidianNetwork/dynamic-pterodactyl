@@ -1,14 +1,17 @@
 # Node Selection Service
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [NodeSelectionService.php](file://Services/NodeSelectionService.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [NodeSelectionServiceTest.php](file://tests/Unit/NodeSelectionServiceTest.php)
-- [ResourceCalculationServiceTest.php](file://tests/Unit/ResourceCalculationServiceTest.php)
-- [2026_04_22_000001_drop_released_from_reservation_status.php](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
+- [NodeSelectionService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [NodeSelectionServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php)
+- [ResourceCalculationServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php)
+- [2026_04_22_000001_drop_released_from_reservation_status.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
 </cite>
 
 ## Table of Contents
@@ -43,15 +46,15 @@ RCSvc --> DB
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 **Section sources**
-- [NodeSelectionService.php:1-88](file://Services/NodeSelectionService.php#L1-L88)
-- [ResourceCalculationService.php:1-545](file://Services/ResourceCalculationService.php#L1-L545)
-- [ReservationService.php:1-454](file://Services/ReservationService.php#L1-L454)
-- [ResourceReservation.php:1-66](file://Models/ResourceReservation.php#L1-L66)
+- [NodeSelectionService.php:1-88](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L1-L88)
+- [ResourceCalculationService.php:1-545](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L1-L545)
+- [ReservationService.php:1-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L1-L453)
+- [ResourceReservation.php:1-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L1-L65)
 
 ## Core Components
 - NodeSelectionService: Selects the best node using weighted headroom scoring and filters out unsuitable nodes (maintenance mode or insufficient resources).
@@ -64,10 +67,10 @@ Key responsibilities:
 - Concurrency safety: ReservationService uses lockForUpdate on pending reservations within a transaction and retries on deadlock.
 
 **Section sources**
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:146-289](file://Services/ResourceCalculationService.php#L146-L289)
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:146-289](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L146-L289)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
 
 ## Architecture Overview
 The selection flow is driven by ReservationService when creating a reservation:
@@ -90,8 +93,8 @@ C->>R : create(productId, locationId, resources)
 R->>D : BEGIN TRANSACTION + lockForUpdate(pending reservations)
 R->>N : selectBestNode(locationId, resources)
 N->>RC : getLocationAvailability(locationId)
-RC->>P : GET /nodes, /nodes/{id}?include=servers
-P-->>RC : node/server attributes
+RC->>P : GET /locations/{id}?include=nodes,servers
+P-->>RC : location, node, and server attributes
 RC->>D : SUM(pending reservations per node)
 RC-->>N : {nodes[], max_available}
 N-->>R : best node or null
@@ -105,10 +108,10 @@ R->>D : COMMIT
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
 
 ## Detailed Component Analysis
 
@@ -145,7 +148,7 @@ Sort --> ReturnBest["Return best node"]
 ```
 
 **Diagram sources**
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
 
 Edge cases handled:
 - Insufficient capacity: If no node can fit the request, returns null.
@@ -154,14 +157,14 @@ Edge cases handled:
 - Dynamic resource changes: Uses real-time availability; decisions reflect current cluster state.
 
 **Section sources**
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [NodeSelectionServiceTest.php:32-70](file://tests/Unit/NodeSelectionServiceTest.php#L32-L70)
-- [NodeSelectionServiceTest.php:75-112](file://tests/Unit/NodeSelectionServiceTest.php#L75-L112)
-- [NodeSelectionServiceTest.php:117-154](file://tests/Unit/NodeSelectionServiceTest.php#L117-L154)
-- [NodeSelectionServiceTest.php:159-195](file://tests/Unit/NodeSelectionServiceTest.php#L159-L195)
-- [NodeSelectionServiceTest.php:200-236](file://tests/Unit/NodeSelectionServiceTest.php#L200-L236)
-- [NodeSelectionServiceTest.php:241-267](file://tests/Unit/NodeSelectionServiceTest.php#L241-L267)
-- [NodeSelectionServiceTest.php:272-311](file://tests/Unit/NodeSelectionServiceTest.php#L272-L311)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [NodeSelectionServiceTest.php:32-70](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L32-L70)
+- [NodeSelectionServiceTest.php:75-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L75-L112)
+- [NodeSelectionServiceTest.php:117-154](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L117-L154)
+- [NodeSelectionServiceTest.php:159-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L159-L195)
+- [NodeSelectionServiceTest.php:200-236](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L200-L236)
+- [NodeSelectionServiceTest.php:241-267](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L241-L267)
+- [NodeSelectionServiceTest.php:272-311](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L272-L311)
 
 ### ResourceCalculationService: Real-Time Availability
 - Purpose: Provide accurate, up-to-date availability for nodes and locations.
@@ -184,24 +187,23 @@ class ResourceCalculationService {
 +verifyAvailability(nodeId, requirements, excludeToken) bool
 -calculateNodeAvailability(node, excludeToken) array
 -fetchNodesInLocation(locationId) array
--fetchServersOnNode(nodeId) array
 -getPendingReservations(nodeId, excludeToken) array
 }
 ```
 
 **Diagram sources**
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:146-289](file://Services/ResourceCalculationService.php#L146-L289)
-- [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:146-289](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L146-L289)
+- [ResourceCalculationService.php:500-522](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L500-L522)
 
 How it supports NodeSelectionService:
 - Supplies per-node available and total capacities, including maintenance flags.
 - Ensures pending reservations reduce available resources so selections account for concurrent allocations.
 
 **Section sources**
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
-- [ResourceCalculationService.php:146-289](file://Services/ResourceCalculationService.php#L146-L289)
-- [ResourceCalculationService.php:500-522](file://Services/ResourceCalculationService.php#L500-L522)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
+- [ResourceCalculationService.php:146-289](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L146-L289)
+- [ResourceCalculationService.php:500-522](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L500-L522)
 
 ### ReservationService: Creation Flow and Concurrency
 - Transactional creation:
@@ -232,17 +234,17 @@ R->>D : COMMIT
 ```
 
 **Diagram sources**
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
 
 Integration with ResourceCalculationService:
 - NodeSelectionService depends on ResourceCalculationService for live availability, ensuring selection decisions are based on current cluster state rather than historical patterns.
 
 **Section sources**
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
-- [ReservationService.php:166-199](file://Services/ReservationService.php#L166-L199)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
-- [ReservationService.php:250-281](file://Services/ReservationService.php#L250-L281)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
+- [ReservationService.php:166-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L199)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
+- [ReservationService.php:250-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L250-L281)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
 
 ### ResourceReservation Model and Status Flow
 - Fields include token, idempotency_key, node_id, location_id, resource amounts, pricing, status, and expires_at.
@@ -258,12 +260,12 @@ Pending --> Cancelled : "cancel(token)"
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:8-19](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L19)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:8-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L19)
 
 **Section sources**
-- [ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:8-19](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L19)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:8-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L19)
 
 ## Dependency Analysis
 - NodeSelectionService depends on ResourceCalculationService for real-time availability.
@@ -280,14 +282,14 @@ ReservationService --> DB
 ```
 
 **Diagram sources**
-- [ReservationService.php:20-27](file://Services/ReservationService.php#L20-L27)
-- [NodeSelectionService.php:7-12](file://Services/NodeSelectionService.php#L7-L12)
-- [ResourceCalculationService.php:12-21](file://Services/ResourceCalculationService.php#L12-L21)
+- [ReservationService.php:20-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L27)
+- [NodeSelectionService.php:7-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L7-L12)
+- [ResourceCalculationService.php:12-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L12-L21)
 
 **Section sources**
-- [ReservationService.php:20-27](file://Services/ReservationService.php#L20-L27)
-- [NodeSelectionService.php:7-12](file://Services/NodeSelectionService.php#L7-L12)
-- [ResourceCalculationService.php:12-21](file://Services/ResourceCalculationService.php#L12-L21)
+- [ReservationService.php:20-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L27)
+- [NodeSelectionService.php:7-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L7-L12)
+- [ResourceCalculationService.php:12-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L12-L21)
 
 ## Performance Considerations
 - Real-time API calls: ResourceCalculationService avoids caching Pterodactyl responses; this ensures accuracy but introduces latency proportional to the number of nodes and servers.
@@ -316,9 +318,9 @@ Relevant behaviors:
 - Deadlock retries protect reservation creation under load.
 
 **Section sources**
-- [ReservationService.php:75-79](file://Services/ReservationService.php#L75-L79)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationServiceTest.php:175-193](file://tests/Unit/ResourceCalculationServiceTest.php#L175-L193)
+- [ReservationService.php:75-79](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L75-L79)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationServiceTest.php:175-193](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L175-L193)
 
 ## Conclusion
 NodeSelectionService implements a robust weighted best-fit algorithm that balances load distribution and avoids hotspots by prioritizing memory headroom, then disk, then CPU. It relies on ResourceCalculationService for real-time availability, ensuring decisions reflect the current cluster state. ReservationService orchestrates creation with strong concurrency controls, maintaining a strict reservation lifecycle. Together, these components provide reliable, scalable resource allocation across Pterodactyl nodes.

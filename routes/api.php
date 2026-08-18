@@ -7,26 +7,31 @@
  */
 
 use Illuminate\Support\Facades\Route;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\PricingController;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ReservationController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminCapacityController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\Admin\AdminReservationController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\AvailabilityController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\ResourceQuoteController;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Controllers\Api\UpgradeQuoteController;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Http\Middleware\EnsureUserIsAdmin;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\QuoteRateLimiterService;
 
-// Availability and pricing — throttled (30 req/min) to protect Pterodactyl API budget
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'auth', 'throttle:30,1'])->group(function () {
-    Route::get('/availability/{locationId}', [AvailabilityController::class, 'getByLocation']);
-    Route::post('/pricing/calculate', [PricingController::class, 'calculate']);
-    Route::get('/pricing/config/{productId}', [PricingController::class, 'getConfig']);
+// Customer stock quote — guest-safe, CSRF-protected, and intentionally does
+// not expose node identity or other infrastructure detail.
+Route::prefix('api/dynamic-pterodactyl')->middleware([
+    'web',
+    'throttle:'.QuoteRateLimiterService::NAME,
+])->group(function () {
+    Route::post('/products/{product}/resource-quote', ResourceQuoteController::class)
+        ->whereNumber('product');
 });
 
-// Reservation endpoints — throttled (10 req/min) for checkout-retry burst tolerance without enabling abuse
-Route::prefix('api/dynamic-pterodactyl')->middleware(['web', 'checkout', 'throttle:10,1'])->group(function () {
-    Route::post('/reservation', [ReservationController::class, 'create']);
-    Route::get('/reservation/{token}', [ReservationController::class, 'get']);
-    Route::delete('/reservation/{token}', [ReservationController::class, 'cancel']);
-    Route::post('/reservation/{token}/extend', [ReservationController::class, 'extend']);
+// Existing-service stock quotes are authenticated and customer-owned.
+Route::prefix('api/dynamic-pterodactyl')->middleware([
+    'web',
+    'auth',
+    'throttle:'.QuoteRateLimiterService::NAME,
+])->group(function () {
+    Route::post('/services/{service}/upgrade-quote', UpgradeQuoteController::class);
 });
 
 // Admin routes — session-based, gated by non-null role (matches User::canAccessPanel)

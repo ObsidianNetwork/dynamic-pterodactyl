@@ -14,6 +14,8 @@ class AlertConfig extends Model
         'location_name',
         'memory_warning_threshold',
         'memory_critical_threshold',
+        'cpu_warning_threshold',
+        'cpu_critical_threshold',
         'disk_warning_threshold',
         'disk_critical_threshold',
         'email_notifications',
@@ -29,6 +31,7 @@ class AlertConfig extends Model
         'notification_emails' => 'array',
         'email_notifications' => 'boolean',
         'webhook_notifications' => 'boolean',
+        'webhook_url' => 'encrypted',
         'is_active' => 'boolean',
         'last_notification_at' => 'datetime',
     ];

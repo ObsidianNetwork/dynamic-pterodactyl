@@ -1,13 +1,16 @@
 # SliderConfigReaderService
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [PricingController.php](file://Http/Controllers/Api/PricingController.php)
-- [SliderConfigReaderServiceTest.php](file://tests/Unit/SliderConfigReaderServiceTest.php)
-- [ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [07-PRICING-MODELS.md](file://07-PRICING-MODELS.md)
+- [SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [PricingController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php)
+- [SliderConfigReaderServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/SliderConfigReaderServiceTest.php)
+- [ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [07-PRICING-MODELS.md](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md)
 </cite>
 
 ## Table of Contents
@@ -40,15 +43,15 @@ F["DynamicPterodactyl<br/>Extension boot"] --> A
 ```
 
 **Diagram sources**
-- [PricingController.php:12-145](file://Http/Controllers/Api/PricingController.php#L12-L145)
-- [SliderConfigReaderService.php:7-66](file://Services/SliderConfigReaderService.php#L7-L66)
-- [ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [07-PRICING-MODELS.md:19-27](file://07-PRICING-MODELS.md#L19-L27)
+- [PricingController.php:12-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L145)
+- [SliderConfigReaderService.php:7-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L7-L66)
+- [ConfigOptionSetupService.php:117-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L171)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [07-PRICING-MODELS.md:19-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L19-L27)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [PricingController.php:12-145](file://Http/Controllers/Api/PricingController.php#L12-L145)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [PricingController.php:12-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L145)
 
 ## Core Components
 - SliderConfigReaderService: Reads and normalizes slider metadata for a product into a stable structure suitable for frontend rendering.
@@ -62,10 +65,10 @@ Key responsibilities:
 - Never compute prices; delegate pricing to core methods invoked elsewhere.
 
 **Section sources**
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
-- [07-PRICING-MODELS.md:19-27](file://07-PRICING-MODELS.md#L19-L27)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [ConfigOptionSetupService.php:117-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L171)
+- [07-PRICING-MODELS.md:19-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L19-L27)
 
 ## Architecture Overview
 The service is part of a read path that powers the frontend’s dynamic sliders. Controllers request slider configuration, which the service resolves from database-backed ConfigOptions marked as dynamic_slider. Pricing calculations are performed separately by core methods and aggregated by the controller.
@@ -92,9 +95,9 @@ PC-->>FE : JSON response with total and breakdown
 ```
 
 **Diagram sources**
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [07-PRICING-MODELS.md:19-27](file://07-PRICING-MODELS.md#L19-L27)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [07-PRICING-MODELS.md:19-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L19-L27)
 
 ## Detailed Component Analysis
 
@@ -150,12 +153,12 @@ Next -- "No" --> ReturnFull["Return { has_config: true, sliders: {...} }"]
 ```
 
 **Diagram sources**
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
 
 **Section sources**
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [SliderConfigReaderServiceTest.php:25-68](file://tests/Unit/SliderConfigReaderServiceTest.php#L25-L68)
-- [SliderConfigReaderServiceTest.php:92-132](file://tests/Unit/SliderConfigReaderServiceTest.php#L92-L132)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [SliderConfigReaderServiceTest.php:25-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/SliderConfigReaderServiceTest.php#L25-L68)
+- [SliderConfigReaderServiceTest.php:92-132](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/SliderConfigReaderServiceTest.php#L92-L132)
 
 ### PricingController Integration
 Responsibilities:
@@ -191,12 +194,12 @@ PC-->>FE : JSON with total and breakdown
 ```
 
 **Diagram sources**
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [07-PRICING-MODELS.md:19-27](file://07-PRICING-MODELS.md#L19-L27)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [07-PRICING-MODELS.md:19-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L19-L27)
 
 **Section sources**
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [07-PRICING-MODELS.md:19-27](file://07-PRICING-MODELS.md#L19-L27)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [07-PRICING-MODELS.md:19-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L19-L27)
 
 ### ConfigOptionSetupService and Metadata Schema
 Role:
@@ -234,12 +237,12 @@ ConfigOptionSetupService --> ConfigOption : "creates/updates"
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
 
 **Section sources**
-- [ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
-- [07-PRICING-MODELS.md:31-53](file://07-PRICING-MODELS.md#L31-L53)
-- [07-PRICING-MODELS.md:290-330](file://07-PRICING-MODELS.md#L290-L330)
+- [ConfigOptionSetupService.php:117-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L171)
+- [07-PRICING-MODELS.md:31-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L31-L53)
+- [07-PRICING-MODELS.md:290-329](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L290-L329)
 
 ### Example Slider Configuration Structures
 Typical structures produced by the service for frontend consumption:
@@ -257,8 +260,8 @@ Typical structures produced by the service for frontend consumption:
 These structures are derived from ConfigOption metadata and normalized to ensure consistent keys and defaults even if some fields are missing.
 
 **Section sources**
-- [SliderConfigReaderService.php:27-52](file://Services/SliderConfigReaderService.php#L27-L52)
-- [SliderConfigReaderServiceTest.php:25-68](file://tests/Unit/SliderConfigReaderServiceTest.php#L25-L68)
+- [SliderConfigReaderService.php:27-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L27-L52)
+- [SliderConfigReaderServiceTest.php:25-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/SliderConfigReaderServiceTest.php#L25-L68)
 
 ### Error Handling for Missing or Invalid Configurations
 - No sliders found: getConfig returns has_config=false and empty sliders; controller responds with a 404-style message.
@@ -266,10 +269,10 @@ These structures are derived from ConfigOption metadata and normalized to ensure
 - Calculation failures: Controller catches exceptions during pricing calculation and returns a structured error response, optionally including debug details when enabled.
 
 **Section sources**
-- [SliderConfigReaderService.php:18-23](file://Services/SliderConfigReaderService.php#L18-L23)
-- [SliderConfigReaderService.php:27-31](file://Services/SliderConfigReaderService.php#L27-L31)
-- [PricingController.php:36-41](file://Http/Controllers/Api/PricingController.php#L36-L41)
-- [PricingController.php:104-121](file://Http/Controllers/Api/PricingController.php#L104-L121)
+- [SliderConfigReaderService.php:18-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L18-L23)
+- [SliderConfigReaderService.php:27-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L27-L31)
+- [PricingController.php:36-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L36-L41)
+- [PricingController.php:104-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L104-L121)
 
 ### Integration Patterns with Other Services
 - PricingController depends on SliderConfigReaderService via constructor injection to fetch slider definitions.
@@ -278,10 +281,10 @@ These structures are derived from ConfigOption metadata and normalized to ensure
 - Extension boot process registers routes and schedules but does not interfere with pricing logic.
 
 **Section sources**
-- [PricingController.php:12-19](file://Http/Controllers/Api/PricingController.php#L12-L19)
-- [PricingController.php:69-94](file://Http/Controllers/Api/PricingController.php#L69-L94)
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
+- [PricingController.php:12-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L19)
+- [PricingController.php:69-94](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L69-L94)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
 
 ## Dependency Analysis
 Coupling and cohesion:
@@ -310,14 +313,14 @@ W["ConfigOptionSetupService"] --> M
 ```
 
 **Diagram sources**
-- [SliderConfigReaderService.php:5-66](file://Services/SliderConfigReaderService.php#L5-L66)
-- [PricingController.php:12-145](file://Http/Controllers/Api/PricingController.php#L12-L145)
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
+- [SliderConfigReaderService.php:5-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L5-L66)
+- [PricingController.php:12-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L145)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
 
 **Section sources**
-- [SliderConfigReaderService.php:5-66](file://Services/SliderConfigReaderService.php#L5-L66)
-- [PricingController.php:12-145](file://Http/Controllers/Api/PricingController.php#L12-L145)
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
+- [SliderConfigReaderService.php:5-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L5-L66)
+- [PricingController.php:12-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L145)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
 
 ## Performance Considerations
 - Query efficiency: The service filters by product and type, minimizing result sets.
@@ -344,9 +347,9 @@ Operational tips:
 - Ensure pricing metadata matches supported models (linear, tiered, base_addon).
 
 **Section sources**
-- [PricingController.php:36-41](file://Http/Controllers/Api/PricingController.php#L36-L41)
-- [PricingController.php:104-121](file://Http/Controllers/Api/PricingController.php#L104-L121)
-- [ConfigOptionSetupService.php:124-131](file://Services/ConfigOptionSetupService.php#L124-L131)
+- [PricingController.php:36-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L36-L41)
+- [PricingController.php:104-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L104-L121)
+- [ConfigOptionSetupService.php:124-131](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L124-L131)
 
 ## Conclusion
 SliderConfigReaderService provides a clean, read-only interface to dynamic slider configuration for Paymenter products. It abstracts away metadata variations and delivers a stable structure to the frontend while delegating pricing calculations to Paymenter core. Its tight integration with PricingController and compatibility with ConfigOptionSetupService ensures consistent configuration lifecycle management. By adhering to separation of concerns, the service remains simple, testable, and resilient to configuration edge cases.
@@ -376,5 +379,5 @@ SliderConfigReaderService provides a clean, read-only interface to dynamic slide
       - model: pricing model used
 
 **Section sources**
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [07-PRICING-MODELS.md:290-330](file://07-PRICING-MODELS.md#L290-L330)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [07-PRICING-MODELS.md:290-329](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/07-PRICING-MODELS.md#L290-L329)

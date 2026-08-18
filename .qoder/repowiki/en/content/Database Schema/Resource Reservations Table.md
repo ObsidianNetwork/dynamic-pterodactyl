@@ -1,17 +1,20 @@
 # Resource Reservations Table
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
-- [2026_04_22_000001_drop_released_from_reservation_status.php](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ReservationController.php](file://Http/Controllers/Api/ReservationController.php)
-- [AdminReservationController.php](file://Http/Controllers/Api/Admin/AdminReservationController.php)
-- [CartItemCreatedListener.php](file://Listeners/CartItemCreatedListener.php)
-- [StoreReservationRequest.php](file://Http/Requests/StoreReservationRequest.php)
-- [ResourceReservationPolicy.php](file://Policies/ResourceReservationPolicy.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [2026_04_22_000001_drop_released_from_reservation_status.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php)
+- [AdminReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php)
+- [CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php)
+- [StoreReservationRequest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php)
+- [ResourceReservationPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php)
 </cite>
 
 ## Table of Contents
@@ -57,23 +60,23 @@ RQ --> C
 ```
 
 **Diagram sources**
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
-- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L70)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [ReservationService.php:16-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminReservationController.php:9-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [CartItemCreatedListener.php:11-173](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L11-L173)
+- [StoreReservationRequest.php:10-162](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
-- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L70)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [ReservationService.php:16-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminReservationController.php:9-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [CartItemCreatedListener.php:11-173](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L11-L173)
+- [StoreReservationRequest.php:10-162](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Core Components
 - Schema and constraints are defined in the initial migration and subsequent migrations that adjust status values and add idempotency support.
@@ -85,16 +88,16 @@ RQ --> C
 - ResourceReservationPolicy enforces authorization rules for viewing, confirming, cancelling, and extending reservations.
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
-- [CartItemCreatedListener.php:11-174](file://Listeners/CartItemCreatedListener.php#L11-L174)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-70](file://Policies/ResourceReservationPolicy.php#L9-L70)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [ReservationService.php:16-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L453)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminReservationController.php:9-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
+- [CartItemCreatedListener.php:11-173](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L11-L173)
+- [StoreReservationRequest.php:10-162](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Architecture Overview
 The reservation lifecycle ensures temporary resource holds until payment completes or TTL expires. Creation uses pessimistic locking to avoid overselling, and idempotency prevents duplicate reservations under concurrent requests. Status transitions are enforced at the service layer with authorization checks via policies.
@@ -124,14 +127,14 @@ Controller-->>Client : result
 ```
 
 **Diagram sources**
-- [ReservationController.php:24-79](file://Http/Controllers/Api/ReservationController.php#L24-L79)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceReservationPolicy.php:55-58](file://Policies/ResourceReservationPolicy.php#L55-L58)
+- [ReservationController.php:24-79](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L79)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceReservationPolicy.php:55-58](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L55-L58)
 
 **Section sources**
-- [ReservationController.php:24-79](file://Http/Controllers/Api/ReservationController.php#L24-L79)
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ResourceReservationPolicy.php:55-58](file://Policies/ResourceReservationPolicy.php#L55-L58)
+- [ReservationController.php:24-79](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L79)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ResourceReservationPolicy.php:55-58](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L55-L58)
 
 ## Detailed Component Analysis
 
@@ -177,9 +180,9 @@ Foreign Keys:
 - user_id -> users(id) on delete set null
 
 **Section sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:8-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L27)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
 
 ### Eloquent Model: ResourceReservation
 - Fillable fields include token, idempotency_key, cart_item_id, service_id, user_id, node_id, location_id, memory, cpu, disk, calculated_price, pricing_breakdown, status, admin_notes, expires_at
@@ -195,7 +198,7 @@ Foreign Keys:
   - belongsTo Service
 
 **Section sources**
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
 
 ### Service Layer: ReservationService
 Key responsibilities:
@@ -230,11 +233,11 @@ Concurrency and safety:
 - Idempotency duplicate detection and handling
 
 **Section sources**
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ReservationService.php:208-281](file://Services/ReservationService.php#L208-L281)
-- [ReservationService.php:312-382](file://Services/ReservationService.php#L312-L382)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ReservationService.php:208-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L281)
+- [ReservationService.php:312-382](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L382)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
 
 ### API Controllers
 - Customer-facing ReservationController:
@@ -250,9 +253,9 @@ Authorization:
 - Policies enforce ownership for view/cancel/extend and allow admin panel access for broader operations
 
 **Section sources**
-- [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [AdminReservationController.php:18-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
-- [ResourceReservationPolicy.php:14-68](file://Policies/ResourceReservationPolicy.php#L14-L68)
+- [ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [AdminReservationController.php:18-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L74)
+- [ResourceReservationPolicy.php:14-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L68)
 
 ### Request Validation: StoreReservationRequest
 - Validates product_id, location_id, resource sliders (memory, cpu, disk)
@@ -262,7 +265,7 @@ Authorization:
 - Supports idempotency_key via header or body
 
 **Section sources**
-- [StoreReservationRequest.php:12-163](file://Http/Requests/StoreReservationRequest.php#L12-L163)
+- [StoreReservationRequest.php:12-162](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L12-L162)
 
 ### Listener: CartItemCreatedListener
 - Detects products with dynamic_slider config options
@@ -272,8 +275,8 @@ Authorization:
 - Logs errors without blocking cart operations
 
 **Section sources**
-- [CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [CartItemCreatedListener.php:93-172](file://Listeners/CartItemCreatedListener.php#L93-L172)
+- [CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [CartItemCreatedListener.php:93-172](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L93-L172)
 
 ### Authorization: ResourceReservationPolicy
 - Admin bypass for panel access
@@ -281,7 +284,7 @@ Authorization:
 - Admin-only viewAny for listing all reservations
 
 **Section sources**
-- [ResourceReservationPolicy.php:14-68](file://Policies/ResourceReservationPolicy.php#L14-L68)
+- [ResourceReservationPolicy.php:14-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L68)
 
 ## Dependency Analysis
 The reservation table depends on external entities through foreign keys and is consumed by multiple application layers.
@@ -324,8 +327,8 @@ USERS ||--o{ PTERO_RESOURCE_RESERVATIONS : "user_id"
 ```
 
 **Diagram sources**
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:11-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L11-L78)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L31)
 
 Coupling and cohesion:
 - High cohesion within ReservationService for state transitions and TTL management
@@ -341,9 +344,9 @@ External integrations:
 - Audit logging via extension actions
 
 **Section sources**
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
 
 ## Performance Considerations
 Index strategies:
@@ -384,10 +387,10 @@ Operational checks:
 - Validate foreign key integrity for cart_item_id, service_id, user_id
 
 **Section sources**
-- [ReservationService.php:43-199](file://Services/ReservationService.php#L43-L199)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [AdminReservationController.php:36-74](file://Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
-- [StoreReservationRequest.php:51-112](file://Http/Requests/StoreReservationRequest.php#L51-L112)
+- [ReservationService.php:43-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L199)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [AdminReservationController.php:36-74](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L36-L74)
+- [StoreReservationRequest.php:51-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L51-L112)
 
 ## Conclusion
 The resource reservations table provides a robust mechanism to temporarily reserve Pterodactyl node resources during checkout, ensuring consistency through pessimistic locking, idempotency, and strict status transitions. Its schema supports token-based tracking, cart and service relationships, user associations, and precise resource accounting. With targeted indexes and service-layer logic, it scales to handle large datasets while maintaining performance and reliability.
@@ -409,9 +412,9 @@ cancelled --> [*]
 ```
 
 **Diagram sources**
-- [ReservationService.php:166-199](file://Services/ReservationService.php#L166-L199)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
+- [ReservationService.php:166-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L199)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
 
 ### Common Query Patterns
 - Find pending non-expired reservations for a location:
@@ -422,5 +425,5 @@ cancelled --> [*]
   - Filter by status, location_id, node_id, user_id; order by created_at desc; paginate
 
 **Section sources**
-- [ReservationService.php:312-382](file://Services/ReservationService.php#L312-L382)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
+- [ReservationService.php:312-382](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L312-L382)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)

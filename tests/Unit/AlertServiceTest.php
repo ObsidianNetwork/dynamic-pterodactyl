@@ -3,21 +3,29 @@
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests\Unit;
 
 use App\Models\User;
+use Illuminate\Container\Container;
+use Illuminate\Encryption\Encrypter;
+use Illuminate\Events\Dispatcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\Client\Factory;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 use Mockery;
+use Mockery\MockInterface;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Events\AlertDeliveryFailed;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\CapacityAlertNotification;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ProvisioningFailedNotification;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Notifications\ReservationShortfallNotification;
-use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AuditLogService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Services\WebhookEndpointPolicy;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\LaravelTestCase;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Tests\TestCase;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
@@ -35,8 +43,9 @@ class AlertServiceTest extends TestCase
 
     private function setFacadeApplication(?object $dispatcher = null): void
     {
-        $app = new \Illuminate\Container\Container;
-        $app->instance('events', $dispatcher ?? new \Illuminate\Events\Dispatcher($app));
+        $app = new Container;
+        $app->instance('events', $dispatcher ?? new Dispatcher($app));
+        $app->instance('encrypter', new Encrypter(str_repeat('a', 32), 'AES-256-CBC'));
         $app->instance('log', new class
         {
             public function emergency(...$arguments): void {}
@@ -57,11 +66,11 @@ class AlertServiceTest extends TestCase
 
             public function log(...$arguments): void {}
         });
-        $app->instance('http', new \Illuminate\Http\Client\Factory);
-        \Illuminate\Support\Facades\Facade::setFacadeApplication($app);
+        $app->instance('http', new Factory);
+        Facade::setFacadeApplication($app);
     }
 
-    private function bindEventDispatcherMock(): \Mockery\MockInterface
+    private function bindEventDispatcherMock(): MockInterface
     {
         $dispatcher = Mockery::spy(\Illuminate\Contracts\Events\Dispatcher::class);
         $this->setFacadeApplication($dispatcher);
@@ -69,11 +78,16 @@ class AlertServiceTest extends TestCase
         return $dispatcher;
     }
 
-    private function makeService(): AlertService
+    private function makeService(?WebhookEndpointPolicy $policy = null): AlertService
     {
         $mockResource = Mockery::mock(ResourceCalculationService::class);
 
-        return new AlertService($mockResource);
+        return new AlertService(
+            $mockResource,
+            $policy ?? new WebhookEndpointPolicy(
+                static fn (string $host): array => ['93.184.216.34']
+            )
+        );
     }
 
     private function invokeSendNotifications(AlertService $service, object $config, array $availability, array $alerts): mixed
@@ -82,6 +96,61 @@ class AlertServiceTest extends TestCase
         $method->setAccessible(true);
 
         return $method->invoke($service, $config, $availability, $alerts);
+    }
+
+    public function test_capacity_thresholds_include_holds_and_authoritative_cpu(): void
+    {
+        $method = new \ReflectionMethod(
+            AlertService::class,
+            'checkThresholds'
+        );
+        $method->setAccessible(true);
+        $alerts = $method->invoke(
+            $this->makeService(),
+            [
+                'total_capacity' => [
+                    'memory' => 100,
+                    'cpu' => 100,
+                    'disk' => 100,
+                ],
+                // Only ten is provisioned; the other 85 is held capacity.
+                'total_allocated' => [
+                    'memory' => 10,
+                    'cpu' => 10,
+                    'disk' => 10,
+                ],
+                'total_available' => [
+                    'memory' => 5,
+                    'cpu' => 15,
+                    'disk' => 90,
+                ],
+            ],
+            (object) [
+                'memory_warning_threshold' => 80,
+                'memory_critical_threshold' => 90,
+                'cpu_warning_threshold' => 80,
+                'cpu_critical_threshold' => 90,
+                'disk_warning_threshold' => 80,
+                'disk_critical_threshold' => 90,
+            ]
+        );
+
+        $this->assertSame([
+            [
+                'type' => 'critical',
+                'resource' => 'memory',
+                'utilization' => 95.0,
+                'usage_percent' => 95.0,
+                'threshold' => 90,
+            ],
+            [
+                'type' => 'warning',
+                'resource' => 'cpu',
+                'utilization' => 85.0,
+                'usage_percent' => 85.0,
+                'threshold' => 80,
+            ],
+        ], $alerts);
     }
 
     public function test_notify_shortfall_emails_all_admins(): void
@@ -161,7 +230,7 @@ class AlertServiceTest extends TestCase
         Log::spy();
 
         $query = Mockery::mock();
-        $query->shouldReceive('get')->once()->andReturn(new Collection());
+        $query->shouldReceive('get')->once()->andReturn(new Collection);
 
         $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
@@ -177,10 +246,15 @@ class AlertServiceTest extends TestCase
 
     public function test_capacity_alert_email_fans_out_to_all_admins(): void
     {
-        $recipientA = new class
+        $query = Mockery::mock();
+        $user = Mockery::mock('alias:App\\Models\\User');
+
+        $recipientA = new class extends User
         {
             public int $id = 101;
 
+            public string $email = 'admin-a@example.com';
+
             public array $notifications = [];
 
             public function notify($notification): void
@@ -189,10 +263,12 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $recipientB = new class
+        $recipientB = new class extends User
         {
             public int $id = 202;
 
+            public string $email = 'admin-b@example.com';
+
             public array $notifications = [];
 
             public function notify($notification): void
@@ -201,10 +277,7 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $query = Mockery::mock();
         $query->shouldReceive('get')->once()->andReturn(new Collection([$recipientA, $recipientB]));
-
-        $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
         $service = $this->makeService();
@@ -215,7 +288,7 @@ class AlertServiceTest extends TestCase
                 'location_id' => 9,
                 'location_name' => 'AMS-1',
                 'email_notifications' => true,
-                'notification_emails' => json_encode(['ops@example.com']),
+                'notification_emails' => json_encode([]),
                 'webhook_notifications' => false,
                 'webhook_url' => null,
             ],
@@ -234,12 +307,12 @@ class AlertServiceTest extends TestCase
         $this->assertSame('AMS-1', $recipientA->notifications[0]->alertConfig->location_name);
     }
 
-    public function test_capacity_alert_email_logs_warning_when_no_admins(): void
+    public function test_capacity_alert_email_logs_warning_when_no_recipients(): void
     {
         Log::spy();
 
         $query = Mockery::mock();
-        $query->shouldReceive('get')->once()->andReturn(new Collection());
+        $query->shouldReceive('get')->once()->andReturn(new Collection);
 
         $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
@@ -252,7 +325,7 @@ class AlertServiceTest extends TestCase
                 'location_id' => null,
                 'location_name' => null,
                 'email_notifications' => true,
-                'notification_emails' => json_encode(['ops@example.com']),
+                'notification_emails' => json_encode([]),
                 'webhook_notifications' => false,
                 'webhook_url' => null,
             ],
@@ -266,16 +339,21 @@ class AlertServiceTest extends TestCase
         );
 
         Log::shouldHaveReceived('warning')->with(
-            'No admin recipients configured for capacity alert',
+            'No email recipients configured for capacity alert',
             Mockery::on(fn (array $context) => $context['alert_config_id'] === 99)
         );
     }
 
     public function test_capacity_alert_email_uses_evaluated_location_for_global_scope(): void
     {
-        $recipient = new class
+        $query = Mockery::mock();
+        $user = Mockery::mock('alias:App\\Models\\User');
+
+        $recipient = new class extends User
         {
             public int $id = 303;
+
+            public string $email = 'admin@example.com';
 
             public array $notifications = [];
 
@@ -285,10 +363,7 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $query = Mockery::mock();
         $query->shouldReceive('get')->once()->andReturn(new Collection([$recipient]));
-
-        $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
         $service = $this->makeService();
@@ -299,7 +374,7 @@ class AlertServiceTest extends TestCase
                 'location_id' => null,
                 'location_name' => null,
                 'email_notifications' => true,
-                'notification_emails' => json_encode(['ops@example.com']),
+                'notification_emails' => json_encode([]),
                 'webhook_notifications' => false,
                 'webhook_url' => null,
             ],
@@ -323,9 +398,14 @@ class AlertServiceTest extends TestCase
     {
         Log::spy();
 
-        $failingRecipient = new class
+        $query = Mockery::mock();
+        $user = Mockery::mock('alias:App\\Models\\User');
+
+        $failingRecipient = new class extends User
         {
             public int $id = 7;
+
+            public string $email = 'failing-admin@example.com';
 
             public function notify($notification): void
             {
@@ -333,9 +413,11 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $healthyRecipient = new class
+        $healthyRecipient = new class extends User
         {
             public int $id = 8;
+
+            public string $email = 'healthy-admin@example.com';
 
             public array $notifications = [];
 
@@ -345,10 +427,7 @@ class AlertServiceTest extends TestCase
             }
         };
 
-        $query = Mockery::mock();
         $query->shouldReceive('get')->once()->andReturn(new Collection([$failingRecipient, $healthyRecipient]));
-
-        $user = Mockery::mock('alias:App\\Models\\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
         $service = $this->makeService();
@@ -359,7 +438,7 @@ class AlertServiceTest extends TestCase
                 'location_id' => 1,
                 'location_name' => 'DFW-1',
                 'email_notifications' => true,
-                'notification_emails' => json_encode(['ops@example.com']),
+                'notification_emails' => json_encode([]),
                 'webhook_notifications' => false,
                 'webhook_url' => null,
             ],
@@ -383,7 +462,7 @@ class AlertServiceTest extends TestCase
         Http::fake(['*' => Http::response('Server Error', 500)]);
 
         $query = Mockery::mock();
-        $query->shouldReceive('get')->once()->andReturn(new Collection());
+        $query->shouldReceive('get')->once()->andReturn(new Collection);
         $user = Mockery::mock('alias:App\Models\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
@@ -395,7 +474,7 @@ class AlertServiceTest extends TestCase
                 'location_id' => 1,
                 'location_name' => 'Test',
                 'email_notifications' => true,
-                'notification_emails' => json_encode(['ops@example.com']),
+                'notification_emails' => json_encode([]),
                 'webhook_notifications' => true,
                 'webhook_url' => 'https://hooks.example.com/test',
             ],
@@ -432,13 +511,82 @@ class AlertServiceTest extends TestCase
         Log::shouldHaveReceived('error')->with('Webhook notification failed', Mockery::any());
     }
 
+    public function test_public_webhook_passes_pinned_transport_options_to_laravel(): void
+    {
+        $capturedOptions = null;
+        Http::fake(function ($request, array $options) use (&$capturedOptions) {
+            $capturedOptions = $options;
+
+            return Http::response([], 204);
+        });
+
+        $result = $this->invokeSendNotifications(
+            $this->makeService(),
+            (object) [
+                'id' => 44,
+                'location_id' => 1,
+                'location_name' => 'Test',
+                'email_notifications' => false,
+                'notification_emails' => json_encode([]),
+                'webhook_notifications' => true,
+                'webhook_url' => 'https://hooks.example.com/test',
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'memory', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $this->assertTrue($result);
+        $this->assertIsArray($capturedOptions);
+        $this->assertFalse($capturedOptions['allow_redirects']);
+        $this->assertSame(CURLPROTO_HTTPS, $capturedOptions['curl'][CURLOPT_PROTOCOLS]);
+        $this->assertSame('', $capturedOptions['curl'][CURLOPT_PROXY]);
+        $this->assertSame(
+            ['hooks.example.com:443:93.184.216.34'],
+            $capturedOptions['curl'][CURLOPT_RESOLVE]
+        );
+    }
+
+    public function test_non_public_webhook_is_rejected_before_an_http_request(): void
+    {
+        $dispatcher = $this->bindEventDispatcherMock();
+        Http::preventStrayRequests();
+        Log::spy();
+
+        $service = $this->makeService(new WebhookEndpointPolicy(
+            static fn (string $host): array => ['127.0.0.1']
+        ));
+        $result = $this->invokeSendNotifications(
+            $service,
+            (object) [
+                'id' => 43,
+                'location_id' => 1,
+                'location_name' => 'Test',
+                'email_notifications' => false,
+                'notification_emails' => json_encode([]),
+                'webhook_notifications' => true,
+                'webhook_url' => 'https://hooks.example.com/test',
+            ],
+            ['total_capacity' => ['memory' => 100, 'disk' => 100], 'total_allocated' => ['memory' => 90, 'disk' => 90]],
+            [['type' => 'warning', 'resource' => 'memory', 'utilization' => 90.0, 'usage_percent' => 90.0, 'threshold' => 80]],
+        );
+
+        $this->assertFalse($result);
+        Http::assertNothingSent();
+        $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
+        Log::shouldHaveReceived('error')->with(
+            'Webhook notification failed',
+            Mockery::on(fn (array $context) => $context['alert_config_id'] === 43
+                && $context['webhook_host'] === 'hooks.example.com')
+        );
+    }
+
     public function test_alert_with_no_recipients_does_not_deliver_email(): void
     {
         $dispatcher = $this->bindEventDispatcherMock();
         Log::spy();
 
         $query = Mockery::mock();
-        $query->shouldReceive('get')->once()->andReturn(new Collection());
+        $query->shouldReceive('get')->once()->andReturn(new Collection);
         $user = Mockery::mock('alias:App\Models\User');
         $user->shouldReceive('whereNotNull')->once()->with('role_id')->andReturn($query);
 
@@ -450,7 +598,7 @@ class AlertServiceTest extends TestCase
                 'location_id' => null,
                 'location_name' => null,
                 'email_notifications' => true,
-                'notification_emails' => json_encode(['ops@example.com']),
+                'notification_emails' => json_encode([]),
                 'webhook_notifications' => false,
                 'webhook_url' => null,
             ],
@@ -460,9 +608,8 @@ class AlertServiceTest extends TestCase
 
         $this->assertFalse($result);
         $dispatcher->shouldHaveReceived('dispatch')->with(Mockery::type(AlertDeliveryFailed::class));
-        Log::shouldHaveReceived('warning')->with('No admin recipients configured for capacity alert', Mockery::any());
+        Log::shouldHaveReceived('warning')->with('No email recipients configured for capacity alert', Mockery::any());
     }
-
 }
 
 class AlertServiceAuditTest extends LaravelTestCase
@@ -471,7 +618,12 @@ class AlertServiceAuditTest extends LaravelTestCase
 
     private function makeService(ResourceCalculationService $resourceService): AlertService
     {
-        return new AlertService($resourceService);
+        return new AlertService(
+            $resourceService,
+            new WebhookEndpointPolicy(
+                static fn (string $host): array => ['93.184.216.34']
+            )
+        );
     }
 
     private function runCheck(AlertService $service, AlertConfig $alertConfig): void
@@ -479,6 +631,51 @@ class AlertServiceAuditTest extends LaravelTestCase
         $method = new \ReflectionMethod($service, 'checkAlertConfig');
         $method->setAccessible(true);
         $method->invoke($service, $alertConfig);
+    }
+
+    public function test_terminal_upgrade_failure_notifies_and_audits_full_identity(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['role_id' => 1]);
+        $service = $this->makeService(
+            Mockery::mock(ResourceCalculationService::class)
+        );
+        $snapshot = [
+            'operation' => 'upgrade',
+            'upgrade_id' => 41,
+            'service_id' => 42,
+            'invoice_id' => 43,
+            'reservation_id' => 44,
+            'node_id' => 45,
+            'attempts' => 5,
+            'error' => 'Panel rejected the build.',
+        ];
+
+        $service->notifyUpgradeFailure($snapshot);
+
+        Notification::assertSentTo(
+            $admin,
+            ProvisioningFailedNotification::class,
+            fn (ProvisioningFailedNotification $notification): bool => $notification->snapshot === $snapshot
+        );
+        $this->assertDatabaseHas('ptero_audit_logs', [
+            'action' => 'upgrade_failure_alerted',
+            'entity_type' => 'resource_reservation',
+            'entity_id' => 44,
+        ]);
+        $audit = DB::table('ptero_audit_logs')
+            ->where('action', 'upgrade_failure_alerted')
+            ->where('entity_id', 44)
+            ->latest('id')
+            ->first();
+        $this->assertSame([
+            'upgrade_id' => 41,
+            'service_id' => 42,
+            'invoice_id' => 43,
+            'reservation_id' => 44,
+            'attempts' => 5,
+            'error' => 'Panel rejected the build.',
+        ], json_decode($audit->new_values, true));
     }
 
     public function test_capacity_alert_writes_audit_row_on_successful_send(): void
@@ -663,7 +860,7 @@ class AlertServiceAuditTest extends LaravelTestCase
         Event::assertDispatched(AlertDeliveryFailed::class);
     }
 
-    public function test_capacity_alert_no_admins_dispatches_delivery_failed_event(): void
+    public function test_configured_email_delivers_without_an_admin_account(): void
     {
         Event::fake();
         Notification::fake();
@@ -693,7 +890,16 @@ class AlertServiceAuditTest extends LaravelTestCase
         $service = $this->makeService($resourceService);
         $this->runCheck($service, $alertConfig);
 
-        Event::assertDispatched(AlertDeliveryFailed::class);
+        Notification::assertSentOnDemand(
+            CapacityAlertNotification::class,
+            fn (
+                CapacityAlertNotification $notification,
+                array $channels,
+                object $notifiable
+            ): bool => $notifiable->routes['mail'] === 'ops@example.com'
+                && $channels === ['mail']
+        );
+        Event::assertNotDispatched(AlertDeliveryFailed::class);
     }
 
     public function test_capacity_alert_success_does_not_dispatch_delivery_failed_event(): void

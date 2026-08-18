@@ -1,24 +1,27 @@
 # Admin Interface
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, tables, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [Dashboard.php](file://Admin/Pages/Dashboard.php)
-- [NodeMonitoring.php](file://Admin/Pages/NodeMonitoring.php)
-- [SetupWizard.php](file://Admin/Pages/SetupWizard.php)
-- [AuditLogPage.php](file://Admin/Pages/AuditLogPage.php)
-- [ReservationResource.php](file://Admin/Resources/ReservationResource.php)
-- [AlertConfigResource.php](file://Admin/Resources/AlertConfigResource.php)
-- [dashboard.blade.php](file://resources/views/admin/dashboard.blade.php)
-- [node-monitoring.blade.php](file://resources/views/admin/node-monitoring.blade.php)
-- [setup-wizard.blade.php](file://resources/views/admin/setup-wizard.blade.php)
-- [audit-log.blade.php](file://resources/views/admin/audit-log.blade.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [AuditLogService.php](file://Services/AuditLogService.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [AuditLog.php](file://Models/AuditLog.php)
-- [ResourceReservationPolicy.php](file://Policies/ResourceReservationPolicy.php)
-- [EnsureUserIsAdmin.php](file://Http/Middleware/EnsureUserIsAdmin.php)
+- [Dashboard.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php)
+- [NodeMonitoring.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php)
+- [SetupWizard.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php)
+- [AuditLogPage.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php)
+- [ReservationResource.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php)
+- [AlertConfigResource.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php)
+- [dashboard.blade.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/dashboard.blade.php)
+- [node-monitoring.blade.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/node-monitoring.blade.php)
+- [setup-wizard.blade.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/setup-wizard.blade.php)
+- [audit-log.blade.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/audit-log.blade.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [AuditLogService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [AuditLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php)
+- [ResourceReservationPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php)
+- [EnsureUserIsAdmin.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php)
 </cite>
 
 ## Table of Contents
@@ -83,27 +86,27 @@ AL --> ALS
 ```
 
 **Diagram sources**
-- [Dashboard.php:11-25](file://Admin/Pages/Dashboard.php#L11-L25)
-- [NodeMonitoring.php:8-20](file://Admin/Pages/NodeMonitoring.php#L8-L20)
-- [SetupWizard.php:26-42](file://Admin/Pages/SetupWizard.php#L26-L42)
-- [AuditLogPage.php:15-29](file://Admin/Pages/AuditLogPage.php#L15-L29)
-- [ReservationResource.php:15-27](file://Admin/Resources/ReservationResource.php#L15-L27)
-- [AlertConfigResource.php:27-39](file://Admin/Resources/AlertConfigResource.php#L27-L39)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
-- [ResourceCalculationService.php:10-22](file://Services/ResourceCalculationService.php#L10-L22)
-- [ReservationService.php:16-35](file://Services/ReservationService.php#L16-L35)
-- [AuditLogService.php:10-41](file://Services/AuditLogService.php#L10-L41)
+- [Dashboard.php:11-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L11-L25)
+- [NodeMonitoring.php:8-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L8-L20)
+- [SetupWizard.php:26-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L26-L42)
+- [AuditLogPage.php:15-29](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L15-L29)
+- [ReservationResource.php:15-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L15-L27)
+- [AlertConfigResource.php:27-39](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L27-L39)
+- [dashboard.blade.php:1-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/dashboard.blade.php#L1-L103)
+- [node-monitoring.blade.php:1-109](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/node-monitoring.blade.php#L1-L109)
+- [setup-wizard.blade.php:1-5](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/setup-wizard.blade.php#L1-L5)
+- [audit-log.blade.php:1-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/audit-log.blade.php#L1-L47)
+- [ResourceCalculationService.php:10-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L22)
+- [ReservationService.php:16-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L35)
+- [AuditLogService.php:10-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L10-L41)
 
 **Section sources**
-- [Dashboard.php:11-25](file://Admin/Pages/Dashboard.php#L11-L25)
-- [NodeMonitoring.php:8-20](file://Admin/Pages/NodeMonitoring.php#L8-L20)
-- [SetupWizard.php:26-42](file://Admin/Pages/SetupWizard.php#L26-L42)
-- [AuditLogPage.php:15-29](file://Admin/Pages/AuditLogPage.php#L15-L29)
-- [ReservationResource.php:15-27](file://Admin/Resources/ReservationResource.php#L15-L27)
-- [AlertConfigResource.php:27-39](file://Admin/Resources/AlertConfigResource.php#L27-L39)
+- [Dashboard.php:11-25](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L11-L25)
+- [NodeMonitoring.php:8-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L8-L20)
+- [SetupWizard.php:26-42](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L26-L42)
+- [AuditLogPage.php:15-29](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L15-L29)
+- [ReservationResource.php:15-27](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L15-L27)
+- [AlertConfigResource.php:27-39](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L27-L39)
 
 ## Core Components
 - Dashboard page: Displays connection status, key stats (products with sliders, pending reservations, revenue, conversion), and per-location capacity with health indicators.
@@ -114,16 +117,16 @@ AL --> ALS
 - Alert config resource: Create/edit/delete alert configurations with thresholds, notification channels, cooldowns, and test send.
 
 **Section sources**
-- [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
-- [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
-- [SetupWizard.php:50-427](file://Admin/Pages/SetupWizard.php#L50-L427)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
-- [AuditLogPage.php:31-103](file://Admin/Pages/AuditLogPage.php#L31-L103)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
-- [ReservationResource.php:34-127](file://Admin/Resources/ReservationResource.php#L34-L127)
-- [AlertConfigResource.php:41-176](file://Admin/Resources/AlertConfigResource.php#L41-L176)
+- [Dashboard.php:27-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L73)
+- [dashboard.blade.php:1-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/dashboard.blade.php#L1-L103)
+- [NodeMonitoring.php:22-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L22-L61)
+- [node-monitoring.blade.php:1-109](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/node-monitoring.blade.php#L1-L109)
+- [SetupWizard.php:50-427](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L50-L427)
+- [setup-wizard.blade.php:1-5](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/setup-wizard.blade.php#L1-L5)
+- [AuditLogPage.php:31-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L103)
+- [audit-log.blade.php:1-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/audit-log.blade.php#L1-L47)
+- [ReservationResource.php:34-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L34-L127)
+- [AlertConfigResource.php:41-176](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L41-L176)
 
 ## Architecture Overview
 The admin UI renders data via Filament pages/resources which call services. Services interact with Pterodactyl API and internal databases. Policies enforce permissions on sensitive actions.
@@ -146,10 +149,10 @@ Page-->>Admin : Rendered Filament view
 ```
 
 **Diagram sources**
-- [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ReservationService.php:335-382](file://Services/ReservationService.php#L335-L382)
+- [Dashboard.php:27-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L73)
+- [NodeMonitoring.php:22-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L22-L61)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ReservationService.php:335-382](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L335-L382)
 
 ## Detailed Component Analysis
 
@@ -175,13 +178,13 @@ ShowErr --> Render
 ```
 
 **Diagram sources**
-- [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
+- [Dashboard.php:27-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L73)
+- [dashboard.blade.php:1-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/dashboard.blade.php#L1-L103)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
 
 **Section sources**
-- [Dashboard.php:27-115](file://Admin/Pages/Dashboard.php#L27-L115)
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
+- [Dashboard.php:27-115](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L115)
+- [dashboard.blade.php:1-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/dashboard.blade.php#L1-L103)
 
 ### Node Monitoring
 - Purpose: Real-time view of node utilization and availability per location.
@@ -206,13 +209,13 @@ NM-->>Admin : Render table with utilization
 ```
 
 **Diagram sources**
-- [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
+- [NodeMonitoring.php:22-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L22-L61)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [node-monitoring.blade.php:1-109](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/node-monitoring.blade.php#L1-L109)
 
 **Section sources**
-- [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
+- [NodeMonitoring.php:22-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L22-L61)
+- [node-monitoring.blade.php:1-109](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/node-monitoring.blade.php#L1-L109)
 
 ### Setup Wizard
 - Purpose: Configure dynamic slider options for a selected product, including pricing models and allowed locations.
@@ -238,12 +241,12 @@ G --> |Yes| I["Success Notification & Reset Form"]
 ```
 
 **Diagram sources**
-- [SetupWizard.php:50-427](file://Admin/Pages/SetupWizard.php#L50-L427)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
+- [SetupWizard.php:50-427](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L50-L427)
+- [setup-wizard.blade.php:1-5](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/setup-wizard.blade.php#L1-L5)
 
 **Section sources**
-- [SetupWizard.php:50-509](file://Admin/Pages/SetupWizard.php#L50-L509)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
+- [SetupWizard.php:50-509](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L50-L509)
+- [setup-wizard.blade.php:1-5](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/setup-wizard.blade.php#L1-L5)
 
 ### Audit Log Viewer
 - Purpose: Track administrative actions and display recent alert delivery failures.
@@ -269,12 +272,12 @@ AuditLogPage --> AuditLog : "queries"
 ```
 
 **Diagram sources**
-- [AuditLogPage.php:31-103](file://Admin/Pages/AuditLogPage.php#L31-L103)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [AuditLogPage.php:31-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L103)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)
 
 **Section sources**
-- [AuditLogPage.php:31-103](file://Admin/Pages/AuditLogPage.php#L31-L103)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
+- [AuditLogPage.php:31-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L103)
+- [audit-log.blade.php:1-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/audit-log.blade.php#L1-L47)
 
 ### Reservation Management Resource
 - Purpose: Manual intervention for pending reservations (extend TTL, cancel) and bulk cleanup of expired ones.
@@ -306,14 +309,14 @@ RR-->>Admin : Confirmation
 ```
 
 **Diagram sources**
-- [ReservationResource.php:87-127](file://Admin/Resources/ReservationResource.php#L87-L127)
-- [ReservationService.php:250-281](file://Services/ReservationService.php#L250-L281)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
+- [ReservationResource.php:87-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L87-L127)
+- [ReservationService.php:250-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L250-L281)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
 
 **Section sources**
-- [ReservationResource.php:34-127](file://Admin/Resources/ReservationResource.php#L34-L127)
-- [ReservationService.php:250-405](file://Services/ReservationService.php#L250-L405)
-- [ResourceReservationPolicy.php:14-68](file://Policies/ResourceReservationPolicy.php#L14-L68)
+- [ReservationResource.php:34-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L34-L127)
+- [ReservationService.php:250-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L250-L405)
+- [ResourceReservationPolicy.php:14-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L68)
 
 ### Alert Configuration CRUD
 - Purpose: Define alert rules per location or globally, set thresholds, choose notification channels, and test alerts.
@@ -336,10 +339,10 @@ AlertConfigResource --> AlertService : "uses"
 ```
 
 **Diagram sources**
-- [AlertConfigResource.php:41-176](file://Admin/Resources/AlertConfigResource.php#L41-L176)
+- [AlertConfigResource.php:41-176](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L41-L176)
 
 **Section sources**
-- [AlertConfigResource.php:41-176](file://Admin/Resources/AlertConfigResource.php#L41-L176)
+- [AlertConfigResource.php:41-176](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L41-L176)
 
 ## Dependency Analysis
 Key dependencies between admin components and services:
@@ -355,20 +358,20 @@ AlertCfg["Alert Config Resource"] --> RCS
 ```
 
 **Diagram sources**
-- [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [SetupWizard.php:442-457](file://Admin/Pages/SetupWizard.php#L442-L457)
-- [AuditLogPage.php:83-103](file://Admin/Pages/AuditLogPage.php#L83-L103)
-- [ReservationResource.php:99-123](file://Admin/Resources/ReservationResource.php#L99-L123)
-- [AlertConfigResource.php:158-163](file://Admin/Resources/AlertConfigResource.php#L158-L163)
+- [Dashboard.php:27-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L73)
+- [NodeMonitoring.php:22-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L22-L61)
+- [SetupWizard.php:442-457](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L442-L457)
+- [AuditLogPage.php:83-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L83-L103)
+- [ReservationResource.php:99-123](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L99-L123)
+- [AlertConfigResource.php:158-163](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L158-L163)
 
 **Section sources**
-- [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [NodeMonitoring.php:22-61](file://Admin/Pages/NodeMonitoring.php#L22-L61)
-- [SetupWizard.php:442-457](file://Admin/Pages/SetupWizard.php#L442-L457)
-- [AuditLogPage.php:83-103](file://Admin/Pages/AuditLogPage.php#L83-L103)
-- [ReservationResource.php:99-123](file://Admin/Resources/ReservationResource.php#L99-L123)
-- [AlertConfigResource.php:158-163](file://Admin/Resources/AlertConfigResource.php#L158-L163)
+- [Dashboard.php:27-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L73)
+- [NodeMonitoring.php:22-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/NodeMonitoring.php#L22-L61)
+- [SetupWizard.php:442-457](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/SetupWizard.php#L442-L457)
+- [AuditLogPage.php:83-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L83-L103)
+- [ReservationResource.php:99-123](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/ReservationResource.php#L99-L123)
+- [AlertConfigResource.php:158-163](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Resources/AlertConfigResource.php#L158-L163)
 
 ## Performance Considerations
 - Real-time data: The dashboard and node monitoring fetch live data from Pterodactyl; avoid excessive polling. Use Filament’s poll feature judiciously (e.g., reservations list polls every 30 seconds).
@@ -392,10 +395,10 @@ AlertCfg["Alert Config Resource"] --> RCS
   - For non-admin actors, ensure ownership checks pass.
 
 **Section sources**
-- [Dashboard.php:27-73](file://Admin/Pages/Dashboard.php#L27-L73)
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [AuditLogPage.php:83-103](file://Admin/Pages/AuditLogPage.php#L83-L103)
-- [ResourceReservationPolicy.php:14-68](file://Policies/ResourceReservationPolicy.php#L14-L68)
+- [Dashboard.php:27-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/Dashboard.php#L27-L73)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [AuditLogPage.php:83-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L83-L103)
+- [ResourceReservationPolicy.php:14-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L68)
 
 ## Conclusion
 The Filament 4 admin interface provides a comprehensive operational view of system health, node utilization, and business metrics. Administrators can configure dynamic pricing through the setup wizard, manage reservations manually, and monitor alert delivery effectiveness. Integration with Pterodactyl is real-time and resilient, while policies and middleware enforce secure access.
@@ -424,8 +427,8 @@ The Filament 4 admin interface provides a comprehensive operational view of syst
   - Non-admin users must own the reservation to cancel or extend.
 
 **Section sources**
-- [ResourceReservationPolicy.php:14-68](file://Policies/ResourceReservationPolicy.php#L14-L68)
-- [EnsureUserIsAdmin.php:11-20](file://Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
+- [ResourceReservationPolicy.php:14-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L14-L68)
+- [EnsureUserIsAdmin.php:11-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L11-L20)
 
 ### Customization and Styling
 - Views: Blade templates under resources/views/admin/ use Filament panel components and Tailwind utility classes for consistent styling.
@@ -433,10 +436,10 @@ The Filament 4 admin interface provides a comprehensive operational view of syst
 - Extensibility: Add custom columns, filters, or actions in resources; customize views with standard Blade patterns.
 
 **Section sources**
-- [dashboard.blade.php:1-104](file://resources/views/admin/dashboard.blade.php#L1-L104)
-- [node-monitoring.blade.php:1-110](file://resources/views/admin/node-monitoring.blade.php#L1-L110)
-- [setup-wizard.blade.php:1-6](file://resources/views/admin/setup-wizard.blade.php#L1-L6)
-- [audit-log.blade.php:1-48](file://resources/views/admin/audit-log.blade.php#L1-L48)
+- [dashboard.blade.php:1-103](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/dashboard.blade.php#L1-L103)
+- [node-monitoring.blade.php:1-109](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/node-monitoring.blade.php#L1-L109)
+- [setup-wizard.blade.php:1-5](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/setup-wizard.blade.php#L1-L5)
+- [audit-log.blade.php:1-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/resources/views/admin/audit-log.blade.php#L1-L47)
 
 ### Integration Points
 - Pterodactyl API:
@@ -449,9 +452,9 @@ The Filament 4 admin interface provides a comprehensive operational view of syst
   - ResourceReservation and AuditLog define storage structures and relationships.
 
 **Section sources**
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
-- [ResourceCalculationService.php:158-195](file://Services/ResourceCalculationService.php#L158-L195)
-- [ReservationService.php:335-405](file://Services/ReservationService.php#L335-L405)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [AuditLog.php:7-37](file://Models/AuditLog.php#L7-L37)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
+- [ResourceCalculationService.php:158-195](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L158-L195)
+- [ReservationService.php:335-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L335-L405)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [AuditLog.php:7-37](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php#L7-L37)

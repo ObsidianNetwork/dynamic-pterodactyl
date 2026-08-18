@@ -1,17 +1,20 @@
 # Reservation Endpoints
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [routes/api.php](file://routes/api.php)
-- [ReservationController.php](file://Http/Controllers/Api/ReservationController.php)
-- [StoreReservationRequest.php](file://Http/Requests/StoreReservationRequest.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ResourceReservationPolicy.php](file://Policies/ResourceReservationPolicy.php)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
-- [2026_04_22_000001_drop_released_from_reservation_status.php](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
-- [ReservationApiTest.php](file://tests/Feature/ReservationApiTest.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [ReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php)
+- [StoreReservationRequest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ResourceReservationPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php)
+- [2026_04_22_000001_drop_released_from_reservation_status.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php)
+- [ReservationApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php)
 </cite>
 
 ## Table of Contents
@@ -47,13 +50,13 @@ Controller --> Policy["ResourceReservationPolicy"]
 ```
 
 **Diagram sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [ReservationService.php:43-454](file://Services/ReservationService.php#L43-L454)
-- [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [ReservationService.php:43-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L453)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
 
 ## Core Components
 - Routes: Define four reservation endpoints under a throttled, session-gated group.
@@ -70,12 +73,12 @@ Key responsibilities:
 - Idempotency: Optional idempotency key prevents duplicate reservations.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [StoreReservationRequest.php:31-113](file://Http/Requests/StoreReservationRequest.php#L31-L113)
-- [ReservationService.php:43-454](file://Services/ReservationService.php#L43-L454)
-- [ResourceReservation.php:10-65](file://Models/ResourceReservation.php#L10-L65)
-- [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [StoreReservationRequest.php:31-113](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L31-L113)
+- [ReservationService.php:43-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L453)
+- [ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Architecture Overview
 The reservation flow uses database transactions with pessimistic locking to avoid race conditions when selecting nodes and creating reservations. Idempotency is enforced through a unique constraint on active idempotency keys per user. Status transitions are strictly controlled by the service layer.
@@ -99,12 +102,12 @@ Ctrl-->>C : 200 OK {success : true, data}
 ```
 
 **Diagram sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:24-60](file://Http/Controllers/Api/ReservationController.php#L24-L60)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:24-60](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L60)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 ## Detailed Component Analysis
 
@@ -139,11 +142,11 @@ Example lifecycle step:
 - Client sends POST with product_id, location_id, and resource sliders; receives token and expires_at.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:24-60](file://Http/Controllers/Api/ReservationController.php#L24-L60)
-- [StoreReservationRequest.php:31-113](file://Http/Requests/StoreReservationRequest.php#L31-L113)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationApiTest.php:37-78](file://tests/Feature/ReservationApiTest.php#L37-L78)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:24-60](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L60)
+- [StoreReservationRequest.php:31-113](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L31-L113)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationApiTest.php:37-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L37-L78)
 
 ### Endpoint: Get Reservation Status
 - Method: GET
@@ -165,10 +168,10 @@ Example lifecycle step:
 - Client polls GET with token to check status before proceeding to payment confirmation.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:62-79](file://Http/Controllers/Api/ReservationController.php#L62-L79)
-- [ResourceReservationPolicy.php:28-31](file://Policies/ResourceReservationPolicy.php#L28-L31)
-- [ReservationApiTest.php:290-300](file://tests/Feature/ReservationApiTest.php#L290-L300)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:62-79](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L62-L79)
+- [ResourceReservationPolicy.php:28-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L28-L31)
+- [ReservationApiTest.php:290-300](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L290-L300)
 
 ### Endpoint: Cancel Reservation
 - Method: DELETE
@@ -190,11 +193,11 @@ Example lifecycle step:
 - Client cancels if user abandons checkout or explicitly opts out.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:81-100](file://Http/Controllers/Api/ReservationController.php#L81-L100)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
-- [ResourceReservationPolicy.php:37-40](file://Policies/ResourceReservationPolicy.php#L37-L40)
-- [ReservationApiTest.php:302-317](file://tests/Feature/ReservationApiTest.php#L302-L317)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:81-100](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L81-L100)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
+- [ResourceReservationPolicy.php:37-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L37-L40)
+- [ReservationApiTest.php:302-317](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L302-L317)
 
 ### Endpoint: Extend Reservation TTL
 - Method: POST
@@ -219,11 +222,11 @@ Example lifecycle step:
 - Client extends TTL during checkout delays to keep the reservation alive.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:102-136](file://Http/Controllers/Api/ReservationController.php#L102-L136)
-- [ReservationService.php:250-281](file://Services/ReservationService.php#L250-L281)
-- [ResourceReservationPolicy.php:45-48](file://Policies/ResourceReservationPolicy.php#L45-L48)
-- [ReservationApiTest.php:319-329](file://tests/Feature/ReservationApiTest.php#L319-L329)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:102-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L102-L136)
+- [ReservationService.php:250-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L250-L281)
+- [ResourceReservationPolicy.php:45-48](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L45-L48)
+- [ReservationApiTest.php:319-329](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L319-L329)
 
 ### Request and Response Schemas
 
@@ -264,9 +267,9 @@ Validation rules:
 - Idempotency key must match the allowed pattern.
 
 **Section sources**
-- [StoreReservationRequest.php:31-113](file://Http/Requests/StoreReservationRequest.php#L31-L113)
-- [ReservationService.php:407-429](file://Services/ReservationService.php#L407-L429)
-- [ReservationApiTest.php:114-177](file://tests/Feature/ReservationApiTest.php#L114-L177)
+- [StoreReservationRequest.php:31-113](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L31-L113)
+- [ReservationService.php:407-429](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L407-L429)
+- [ReservationApiTest.php:114-177](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L114-L177)
 
 ### Authentication and Authorization
 - Middleware:
@@ -282,9 +285,9 @@ Security considerations:
 - Session-based auth: All endpoints require a web session; guests can create reservations but subsequent actions still require session context.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
-- [ReservationApiTest.php:290-362](file://tests/Feature/ReservationApiTest.php#L290-L362)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
+- [ReservationApiTest.php:290-362](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L290-L362)
 
 ### Rate Limiting
 - Reservation endpoints are throttled to 10 requests per minute.
@@ -295,9 +298,9 @@ Operational guidance:
 - Avoid rapid polling; batch status checks where possible.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationApiTest.php:249-271](file://tests/Feature/ReservationApiTest.php#L249-L271)
-- [ReservationApiTest.php:375-400](file://tests/Feature/ReservationApiTest.php#L375-L400)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationApiTest.php:249-271](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L249-L271)
+- [ReservationApiTest.php:375-400](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L375-L400)
 
 ### Idempotency Support
 - Optional idempotency_key parameter or Idempotency-Key header.
@@ -310,12 +313,12 @@ Implementation notes:
 - Database-level duplicate detection handled via exception inspection and fallback lookup.
 
 **Section sources**
-- [StoreReservationRequest.php:31-36](file://Http/Requests/StoreReservationRequest.php#L31-L36)
-- [ReservationService.php:60-73](file://Services/ReservationService.php#L60-L73)
-- [ReservationService.php:143-157](file://Services/ReservationService.php#L143-L157)
-- [ReservationService.php:431-452](file://Services/ReservationService.php#L431-L452)
-- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-20](file://database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L20)
-- [ReservationApiTest.php:37-78](file://tests/Feature/ReservationApiTest.php#L37-L78)
+- [StoreReservationRequest.php:31-36](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L31-L36)
+- [ReservationService.php:60-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L60-L73)
+- [ReservationService.php:143-157](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L143-L157)
+- [ReservationService.php:431-452](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L431-L452)
+- [2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_23_000001_add_idempotency_key_to_ptero_resource_reservations.php#L9-L20)
+- [ReservationApiTest.php:37-78](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L37-L78)
 
 ### State Machine
 Strict lifecycle:
@@ -332,10 +335,10 @@ Why 'released' was removed:
 - Ensures clear end states for operational visibility and reporting.
 
 **Section sources**
-- [ReservationService.php:166-199](file://Services/ReservationService.php#L166-L199)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [2026_04_22_000001_drop_released_from_reservation_status.php:8-18](file://database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L18)
+- [ReservationService.php:166-199](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L199)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [2026_04_22_000001_drop_released_from_reservation_status.php:8-18](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2026_04_22_000001_drop_released_from_reservation_status.php#L8-L18)
 
 ### Complete Lifecycle Examples
 
@@ -356,10 +359,10 @@ Error scenarios:
 - Pterodactyl API failures: Node selection failure raises a runtime error; controller returns 422 with message.
 
 **Section sources**
-- [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
+- [ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ReservationService.php:166-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L281)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
 
 ## Dependency Analysis
 The reservation subsystem depends on:
@@ -379,16 +382,16 @@ Service --> DB["Database"]
 ```
 
 **Diagram sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [StoreReservationRequest.php:10-162](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
+- [ReservationService.php:16-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L453)
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [ReservationService.php:16-454](file://Services/ReservationService.php#L16-L454)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [ReservationService.php:16-453](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L453)
 
 ## Performance Considerations
 - Pessimistic locking: Uses lockForUpdate to prevent concurrent modifications during node selection and reservation creation.
@@ -402,8 +405,8 @@ Recommendations:
 - Monitor database locks and adjust timeouts if necessary.
 
 **Section sources**
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [2025_01_01_000001_create_ptero_resource_reservations_table.php:55-61](file://database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L55-L61)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [2025_01_01_000001_create_ptero_resource_reservations_table.php:55-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000001_create_ptero_resource_reservations_table.php#L55-L61)
 
 ## Troubleshooting Guide
 Common issues and resolutions:
@@ -429,11 +432,11 @@ Operational tips:
 - Monitor scheduled cleanup jobs that mark expired reservations.
 
 **Section sources**
-- [ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [ReservationService.php:125-141](file://Services/ReservationService.php#L125-L141)
-- [ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [ReservationApiTest.php:114-177](file://tests/Feature/ReservationApiTest.php#L114-L177)
-- [ReservationApiTest.php:249-271](file://tests/Feature/ReservationApiTest.php#L249-L271)
+- [ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [ReservationService.php:125-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L125-L141)
+- [ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [ReservationApiTest.php:114-177](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L114-L177)
+- [ReservationApiTest.php:249-271](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L249-L271)
 
 ## Conclusion
 The reservation endpoints provide a secure, rate-limited, and idempotent mechanism to manage the checkout lifecycle. They enforce strict state transitions, robust authorization, and resilient database operations. Clients should rely on tokens for access control, use idempotency keys for safe retries, and respect rate limits. The removal of the 'released' state simplifies the lifecycle and improves clarity for operational workflows.

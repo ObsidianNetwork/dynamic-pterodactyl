@@ -2,18 +2,18 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources;
 
+use Filament\Actions\Action as TableAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Schemas\Components\Grid;
-use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
+use Filament\Schemas\Components\Grid;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
-use Filament\Actions\Action as TableAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -21,6 +21,7 @@ use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources\AlertConfigRe
 use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources\AlertConfigResource\Pages\EditAlertConfig;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Admin\Resources\AlertConfigResource\Pages\ListAlertConfigs;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Models\AlertConfig;
+use Paymenter\Extensions\Others\DynamicPterodactyl\Rules\PublicWebhookUrl;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\AlertService;
 use Paymenter\Extensions\Others\DynamicPterodactyl\Services\ResourceCalculationService;
 
@@ -43,10 +44,7 @@ class AlertConfigResource extends Resource
         return $schema->components([
             Select::make('location_id')
                 ->label('Location')
-                ->options(fn () => array_merge(
-                    ['' => 'Global (All Locations)'],
-                    self::getLocationOptions()
-                ))
+                ->options(fn () => self::getScopedLocationOptions())
                 ->placeholder('Global (All Locations)'),
 
             Toggle::make('is_active')
@@ -65,6 +63,20 @@ class AlertConfigResource extends Resource
                             ->maxValue(100),
                         TextInput::make('memory_critical_threshold')
                             ->label('Memory Critical')
+                            ->suffix('%')
+                            ->numeric()
+                            ->default(95)
+                            ->minValue(1)
+                            ->maxValue(100),
+                        TextInput::make('cpu_warning_threshold')
+                            ->label('CPU Warning')
+                            ->suffix('%')
+                            ->numeric()
+                            ->default(80)
+                            ->minValue(1)
+                            ->maxValue(100),
+                        TextInput::make('cpu_critical_threshold')
+                            ->label('CPU Critical')
                             ->suffix('%')
                             ->numeric()
                             ->default(95)
@@ -107,6 +119,7 @@ class AlertConfigResource extends Resource
                     TextInput::make('webhook_url')
                         ->label('Webhook URL')
                         ->url()
+                        ->rules([new PublicWebhookUrl])
                         ->visible(fn (Get $get) => $get('webhook_notifications'))
                         ->placeholder('https://...'),
 
@@ -133,9 +146,11 @@ class AlertConfigResource extends Resource
                 TextColumn::make('thresholds')
                     ->label('Thresholds')
                     ->getStateUsing(fn ($record) => sprintf(
-                        'Mem: %d%%/%d%% | Disk: %d%%/%d%%',
+                        'Mem: %d%%/%d%% | CPU: %d%%/%d%% | Disk: %d%%/%d%%',
                         $record->memory_warning_threshold,
                         $record->memory_critical_threshold,
+                        $record->cpu_warning_threshold,
+                        $record->cpu_critical_threshold,
                         $record->disk_warning_threshold,
                         $record->disk_critical_threshold
                     )),
@@ -185,6 +200,16 @@ class AlertConfigResource extends Resource
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    /**
+     * Array union preserves numeric Pterodactyl location IDs. array_merge()
+     * would silently reindex them from zero and save the wrong location.
+     */
+    private static function getScopedLocationOptions(): array
+    {
+        return ['' => 'Global (All Locations)']
+            + self::getLocationOptions();
     }
 
     private static function getLocationName(int $locationId): string

@@ -1,0 +1,276 @@
+name: Cross-repository integration
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dynamic-slider
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  COMPOSER_MAX_PARALLEL_HTTP: 1
+  COMPOSER_PROCESS_TIMEOUT: 900
+
+concurrency:
+  group: dynamic-pterodactyl-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Extension quality
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Dynamic Pterodactyl
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: dynamic-pterodactyl
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Check out companion Paymenter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ObsidianNetwork/Paymenter-Obsidian-Network
+          ref: d58ab220998947cbb05b3806484a69ed7a419def
+          path: paymenter
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: '8.3'
+          extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Install Paymenter dependencies
+        working-directory: paymenter
+        run: |
+          for attempt in 1 2 3 4; do
+            composer install --no-interaction --no-ansi --prefer-dist --no-progress && exit 0
+            test "$attempt" -eq 4 && exit 1
+            sleep $((attempt * 20))
+          done
+
+      - name: Audit Composer dependencies
+        working-directory: paymenter
+        run: composer audit --locked --no-interaction
+
+      - name: Run Pint on the complete extension branch diff
+        working-directory: dynamic-pterodactyl
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then
+            BASE_SHA="$(git rev-parse HEAD^)"
+          fi
+          mapfile -d '' files < <(
+            git diff --diff-filter=ACMR --name-only -z \
+              "$BASE_SHA"...HEAD -- '*.php'
+          )
+          if ((${#files[@]})); then
+            ../paymenter/vendor/bin/pint --test "${files[@]}"
+          fi
+
+  extension-sqlite:
+    name: PHP ${{ matrix.php }} / SQLite
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        php:
+          - '8.3'
+          - '8.4'
+
+    steps:
+      - name: Check out Dynamic Pterodactyl
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: dynamic-pterodactyl
+
+      - name: Check out companion Paymenter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ObsidianNetwork/Paymenter-Obsidian-Network
+          ref: d58ab220998947cbb05b3806484a69ed7a419def
+          path: paymenter
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, pdo_sqlite, sqlite3, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Install Paymenter dependencies
+        working-directory: paymenter
+        run: |
+          for attempt in 1 2 3 4; do
+            composer install --no-interaction --prefer-dist --no-progress && exit 0
+            test "$attempt" -eq 4 && exit 1
+            sleep $((attempt * 20))
+          done
+
+      - name: Assemble extension checkout
+        run: |
+          mkdir -p paymenter/extensions/Others/DynamicPterodactyl
+          rsync -a \
+            --exclude=.git \
+            --exclude=.github \
+            dynamic-pterodactyl/ \
+            paymenter/extensions/Others/DynamicPterodactyl/
+
+      - name: Prepare SQLite test database
+        working-directory: paymenter
+        env:
+          APP_ENV: testing
+          CACHE_STORE: array
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/paymenter_test.sqlite
+          MAIL_MAILER: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
+        run: |
+          cp .env.example .env
+          touch database/paymenter_test.sqlite
+          php artisan key:generate --force
+          php artisan migrate --force
+          php artisan migrate \
+            --path=extensions/Others/DynamicPterodactyl/database/migrations \
+            --force
+
+      - name: Run Dynamic Pterodactyl tests on SQLite
+        working-directory: paymenter
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':temporary:'
+        run: vendor/bin/phpunit -c extensions/Others/DynamicPterodactyl/phpunit.xml
+
+      - name: Run Paymenter provisioning seam tests on SQLite
+        working-directory: paymenter
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: database/paymenter_test.sqlite
+        run: vendor/bin/phpunit tests/Unit/PterodactylReservationIntegrationTest.php
+
+  extension:
+    name: PHP ${{ matrix.php }} / MariaDB ${{ matrix.mariadb.version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        php:
+          - '8.3'
+          - '8.4'
+        mariadb:
+          - version: '11'
+            image: mariadb@sha256:d9f7eb2637296652f24b484afd5d246f759f49f5babcadc6a9e344c9acb75fbf # 11
+          - version: '12'
+            image: mariadb@sha256:759869cb6f003234a95c6384cdee245b4bce7de26913fe607a8110362c0c007d # 12
+
+    services:
+      mariadb:
+        image: ${{ matrix.mariadb.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: password
+          MYSQL_DATABASE: paymenter_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+
+    steps:
+      - name: Check out Dynamic Pterodactyl
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          path: dynamic-pterodactyl
+
+      - name: Check out companion Paymenter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ObsidianNetwork/Paymenter-Obsidian-Network
+          ref: d58ab220998947cbb05b3806484a69ed7a419def
+          path: paymenter
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: bcmath, curl, gd, mbstring, mysql, openssl, pdo, tokenizer, xml, zip
+          tools: composer:v2
+          coverage: none
+
+      - name: Install Paymenter dependencies
+        working-directory: paymenter
+        run: |
+          for attempt in 1 2 3 4; do
+            composer install --no-interaction --prefer-dist --no-progress && exit 0
+            test "$attempt" -eq 4 && exit 1
+            sleep $((attempt * 20))
+          done
+
+      - name: Assemble extension checkout
+        run: |
+          mkdir -p paymenter/extensions/Others/DynamicPterodactyl
+          rsync -a \
+            --exclude=.git \
+            --exclude=.github \
+            dynamic-pterodactyl/ \
+            paymenter/extensions/Others/DynamicPterodactyl/
+
+      - name: Prepare test database
+        working-directory: paymenter
+        env:
+          APP_ENV: testing
+          CACHE_STORE: array
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: paymenter_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+          MAIL_MAILER: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          php artisan migrate --force
+          php artisan migrate \
+            --path=extensions/Others/DynamicPterodactyl/database/migrations \
+            --force
+
+      - name: Run Dynamic Pterodactyl tests
+        working-directory: paymenter
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: paymenter_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+        run: vendor/bin/phpunit -c extensions/Others/DynamicPterodactyl/phpunit.xml
+
+      - name: Run Paymenter provisioning seam tests
+        working-directory: paymenter
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mariadb
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: paymenter_test
+          DB_USERNAME: root
+          DB_PASSWORD: password
+        run: vendor/bin/phpunit tests/Unit/PterodactylReservationIntegrationTest.php

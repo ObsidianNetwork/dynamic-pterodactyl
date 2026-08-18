@@ -1,19 +1,45 @@
 # API Reference
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+## Current API Contract
+
+The reconciled extension exposes two quote endpoints and four admin endpoints.
+Product quotes are guest-safe web requests protected by CSRF and the configured
+quote limiter. Upgrade quotes require the authenticated service owner. Admin
+routes require an authenticated Paymenter panel user and the extension's admin
+middleware.
+
+| Method and path | Access |
+|---|---|
+| `POST /api/dynamic-pterodactyl/products/{product}/resource-quote` | Guest-safe web session, throttled |
+| `POST /api/dynamic-pterodactyl/services/{service}/upgrade-quote` | Authenticated owner, throttled |
+| `GET /api/dynamic-pterodactyl/admin/reservations` | Admin |
+| `POST /api/dynamic-pterodactyl/admin/reservations/{token}/cancel` | Admin |
+| `GET /api/dynamic-pterodactyl/admin/capacity` | Admin |
+| `GET /api/dynamic-pterodactyl/admin/availability/{locationId}/nodes` | Admin |
+
+There are no standalone customer availability, pricing, reservation-create,
+reservation-confirm, or reservation-extend endpoints. Customer quote failures
+are generic; upstream bodies and internal exception messages are never returned.
+
+[Current routes](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php)
+
+
 <cite>
 **Referenced Files in This Document**
-- [routes/api.php](file://routes/api.php)
-- [AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [PricingController.php](file://Http/Controllers/Api/PricingController.php)
-- [ReservationController.php](file://Http/Controllers/Api/ReservationController.php)
-- [AdminCapacityController.php](file://Http/Controllers/Api/Admin/AdminCapacityController.php)
-- [AdminReservationController.php](file://Http/Controllers/Api/Admin/AdminReservationController.php)
-- [StoreReservationRequest.php](file://Http/Requests/StoreReservationRequest.php)
-- [EnsureUserIsAdmin.php](file://Http/Middleware/EnsureUserIsAdmin.php)
-- [ResourceReservationPolicy.php](file://Policies/ResourceReservationPolicy.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [ResourceReservation.php](file://Models/ResourceReservation.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php)
+- [AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [PricingController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php)
+- [ReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php)
+- [AdminCapacityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php)
+- [AdminReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php)
+- [StoreReservationRequest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php)
+- [EnsureUserIsAdmin.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php)
+- [ResourceReservationPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
 </cite>
 
 ## Table of Contents
@@ -56,10 +82,10 @@ F --> I["AvailabilityController<br/>GET /availability/{locationId}/nodes"]
 ```
 
 **Diagram sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L17-L40)
 
 **Section sources**
-- [routes/api.php:1-41](file://routes/api.php#L1-L41)
+- [routes/api.php:1-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L1-L40)
 
 ## Core Components
 - AvailabilityController: Returns per-location availability aggregates and, when authenticated as admin, detailed node information.
@@ -69,11 +95,11 @@ F --> I["AvailabilityController<br/>GET /availability/{locationId}/nodes"]
 - AdminReservationController: Lists and cancels reservations with filtering and pagination.
 
 **Section sources**
-- [AvailabilityController.php:9-70](file://Http/Controllers/Api/AvailabilityController.php#L9-L70)
-- [PricingController.php:12-158](file://Http/Controllers/Api/PricingController.php#L12-L158)
-- [ReservationController.php:13-138](file://Http/Controllers/Api/ReservationController.php#L13-L138)
-- [AdminCapacityController.php:8-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L63)
-- [AdminReservationController.php:9-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L76)
+- [AvailabilityController.php:9-70](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L70)
+- [PricingController.php:12-157](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L157)
+- [ReservationController.php:13-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L137)
+- [AdminCapacityController.php:8-62](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L62)
+- [AdminReservationController.php:9-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L9-L75)
 
 ## Architecture Overview
 The API integrates with Paymenter core models and services and with the Pterodactyl panel via HTTP. Services encapsulate business logic and data aggregation.
@@ -88,22 +114,23 @@ participant ResCalc as "ResourceCalculationService"
 participant Ptero as "Pterodactyl API"
 Client->>Routes : GET /api/dynamic-pterodactyl/availability/{locationId}
 Routes->>AvailCtrl : getByLocation(locationId)
-AvailCtrl->>NodeSel : getMaxAvailable(locationId)
 AvailCtrl->>ResCalc : getLocationAvailability(locationId)
 ResCalc->>Ptero : fetch nodes/servers (real-time)
 Ptero-->>ResCalc : node/server data
 ResCalc-->>AvailCtrl : aggregated availability
+AvailCtrl->>NodeSel : getMaxAvailable(locationId, locationData)
+NodeSel-->>AvailCtrl : max_available from same snapshot
 AvailCtrl-->>Client : {success,data : {location_id,max_memory,max_cpu,max_disk,node_count,has_capacity,resource_capacity}}
 ```
 
 **Diagram sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L17-L22)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 **Section sources**
-- [AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [ResourceCalculationService.php:26-67](file://Services/ResourceCalculationService.php#L26-L67)
+- [AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [ResourceCalculationService.php:26-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L26-L67)
 
 ## Detailed Component Analysis
 
@@ -114,9 +141,9 @@ AvailCtrl-->>Client : {success,data : {location_id,max_memory,max_cpu,max_disk,n
 - Resource-level authorization uses ResourceReservationPolicy to enforce ownership for view/cancel/extend actions.
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
-- [EnsureUserIsAdmin.php:9-22](file://Http/Middleware/EnsureUserIsAdmin.php#L9-L22)
-- [ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L17-L40)
+- [EnsureUserIsAdmin.php:9-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Middleware/EnsureUserIsAdmin.php#L9-L22)
+- [ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 ### Rate Limiting
 - Availability and pricing: 30 requests per minute per client.
@@ -124,7 +151,7 @@ AvailCtrl-->>Client : {success,data : {location_id,max_memory,max_cpu,max_disk,n
 - Admin endpoints: 30 requests per minute per client.
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L17-L40)
 
 ### Endpoints
 
@@ -145,7 +172,7 @@ AvailCtrl-->>Client : {success,data : {location_id,max_memory,max_cpu,max_disk,n
       - has_capacity: boolean
       - resource_capacity: object with memory/cpu/disk booleans
   - Errors:
-    - 500: failure to fetch availability (includes message and error fields)
+    - 500: failure to fetch availability (returns only the generic message; exception details are reported server-side)
 
 - GET /api/dynamic-pterodactyl/admin/availability/{locationId}/nodes
   - Auth: web + auth + admin
@@ -163,8 +190,8 @@ Notes:
 - Node-level detail (including names and per-node capacity) is restricted to admin.
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L17-L40)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
 
 #### Pricing
 - POST /api/dynamic-pterodactyl/pricing/calculate
@@ -202,9 +229,9 @@ Important:
 - This extension does not compute prices itself; it delegates to Paymenter core’s dynamic slider pricing.
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [PricingController.php:24-158](file://Http/Controllers/Api/PricingController.php#L24-L158)
-- [StoreReservationRequest.php:38-112](file://Http/Requests/StoreReservationRequest.php#L38-L112)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L17-L22)
+- [PricingController.php:24-157](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L157)
+- [StoreReservationRequest.php:38-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L38-L112)
 
 #### Reservations
 - POST /api/dynamic-pterodactyl/reservation
@@ -286,11 +313,11 @@ Notes:
 - Reservation lifecycle is strictly pending → confirmed | expired | cancelled.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [ReservationController.php:24-138](file://Http/Controllers/Api/ReservationController.php#L24-L138)
-- [StoreReservationRequest.php:10-163](file://Http/Requests/StoreReservationRequest.php#L10-L163)
-- [ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [ResourceReservationPolicy.php:25-58](file://Policies/ResourceReservationPolicy.php#L25-L58)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L24-L30)
+- [ReservationController.php:24-137](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L137)
+- [StoreReservationRequest.php:10-162](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L10-L162)
+- [ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [ResourceReservationPolicy.php:25-58](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L25-L58)
 
 #### Admin Capacity
 - GET /api/dynamic-pterodactyl/admin/capacity
@@ -316,9 +343,9 @@ Notes:
 - Aggregates include per-node availability derived from Pterodactyl servers and pending reservations.
 
 **Section sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminCapacityController.php:17-63](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L63)
-- [ResourceCalculationService.php:69-141](file://Services/ResourceCalculationService.php#L69-L141)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L32-L40)
+- [AdminCapacityController.php:17-62](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L17-L62)
+- [ResourceCalculationService.php:69-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L69-L141)
 
 #### Admin Reservations
 - GET /api/dynamic-pterodactyl/admin/reservations
@@ -351,9 +378,9 @@ Notes:
     - 409: reservation not in pending state or status changed concurrently
 
 **Section sources**
-- [routes/api.php:32-40](file://routes/api.php#L32-L40)
-- [AdminReservationController.php:18-76](file://Http/Controllers/Api/Admin/AdminReservationController.php#L18-L76)
-- [ReservationService.php:208-241](file://Services/ReservationService.php#L208-L241)
+- [routes/api.php:32-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/fe20627c71984aef6676a21fc7445c4fa5a19911/routes/api.php#L32-L40)
+- [AdminReservationController.php:18-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L18-L75)
+- [ReservationService.php:208-241](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L208-L241)
 
 ## Dependency Analysis
 The controllers depend on services for business logic and data aggregation. The following diagram shows key dependencies between controllers and services.
@@ -406,22 +433,22 @@ AdminReservationController --> ReservationService : "uses"
 ```
 
 **Diagram sources**
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [PricingController.php:12-19](file://Http/Controllers/Api/PricingController.php#L12-L19)
-- [ReservationController.php:13-22](file://Http/Controllers/Api/ReservationController.php#L13-L22)
-- [AdminCapacityController.php:8-15](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L15)
-- [AdminReservationController.php:9-16](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L16)
-- [ResourceCalculationService.php:10-21](file://Services/ResourceCalculationService.php#L10-L21)
-- [ReservationService.php:16-35](file://Services/ReservationService.php#L16-L35)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [PricingController.php:12-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L19)
+- [ReservationController.php:13-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L22)
+- [AdminCapacityController.php:8-15](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L15)
+- [AdminReservationController.php:9-16](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L9-L16)
+- [ResourceCalculationService.php:10-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L21)
+- [ReservationService.php:16-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L35)
 
 **Section sources**
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [PricingController.php:12-19](file://Http/Controllers/Api/PricingController.php#L12-L19)
-- [ReservationController.php:13-22](file://Http/Controllers/Api/ReservationController.php#L13-L22)
-- [AdminCapacityController.php:8-15](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L15)
-- [AdminReservationController.php:9-16](file://Http/Controllers/Api/Admin/AdminReservationController.php#L9-L16)
-- [ResourceCalculationService.php:10-21](file://Services/ResourceCalculationService.php#L10-L21)
-- [ReservationService.php:16-35](file://Services/ReservationService.php#L16-L35)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [PricingController.php:12-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L19)
+- [ReservationController.php:13-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L22)
+- [AdminCapacityController.php:8-15](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L8-L15)
+- [AdminReservationController.php:9-16](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L9-L16)
+- [ResourceCalculationService.php:10-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L21)
+- [ReservationService.php:16-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L35)
 
 ## Performance Considerations
 - Real-time Pterodactyl API calls are made without caching to ensure accurate availability.
@@ -445,11 +472,11 @@ Operational notes:
 - Reservation creation supports idempotency via Idempotency-Key header or request body field; duplicates return the existing active reservation.
 
 **Section sources**
-- [PricingController.php:104-121](file://Http/Controllers/Api/PricingController.php#L104-L121)
-- [ReservationController.php:49-59](file://Http/Controllers/Api/ReservationController.php#L49-L59)
-- [AdminReservationController.php:51-73](file://Http/Controllers/Api/Admin/AdminReservationController.php#L51-L73)
-- [AdminCapacityController.php:53-60](file://Http/Controllers/Api/Admin/AdminCapacityController.php#L53-L60)
-- [ResourceCalculationService.php:403-417](file://Services/ResourceCalculationService.php#L403-L417)
+- [PricingController.php:104-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L104-L121)
+- [ReservationController.php:49-59](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L49-L59)
+- [AdminReservationController.php:51-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminReservationController.php#L51-L73)
+- [AdminCapacityController.php:53-60](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/Admin/AdminCapacityController.php#L53-L60)
+- [ResourceCalculationService.php:403-417](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L403-L417)
 
 ## Conclusion
 The Dynamic Pterodactyl extension exposes a focused set of APIs for availability, pricing, and reservation management with clear separation between customer-facing and admin-only capabilities. Customer endpoints provide safe, aggregate data while protecting sensitive node-level details. Admin endpoints enable operational visibility and control over capacity and reservations. Robust rate limiting, authorization, and idempotency mechanisms help ensure reliability and security.

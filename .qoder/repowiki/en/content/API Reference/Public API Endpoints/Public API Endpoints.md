@@ -1,19 +1,22 @@
 # Public API Endpoints
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [routes/api.php](file://routes/api.php)
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [Http/Controllers/Api/AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [Http/Controllers/Api/PricingController.php](file://Http/Controllers/Api/PricingController.php)
-- [Http/Controllers/Api/ReservationController.php](file://Http/Controllers/Api/ReservationController.php)
-- [Http/Requests/StoreReservationRequest.php](file://Http/Requests/StoreReservationRequest.php)
-- [Services/ReservationService.php](file://Services/ReservationService.php)
-- [Models/ResourceReservation.php](file://Models/ResourceReservation.php)
-- [Policies/ResourceReservationPolicy.php](file://Policies/ResourceReservationPolicy.php)
-- [tests/Feature/AvailabilityApiTest.php](file://tests/Feature/AvailabilityApiTest.php)
-- [tests/Feature/ReservationApiTest.php](file://tests/Feature/ReservationApiTest.php)
-- [tests/Feature/PricingPreviewParityTest.php](file://tests/Feature/PricingPreviewParityTest.php)
+- [routes/api.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [Http/Controllers/Api/AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [Http/Controllers/Api/PricingController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php)
+- [Http/Controllers/Api/ReservationController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php)
+- [Http/Requests/StoreReservationRequest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php)
+- [Services/ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [Models/ResourceReservation.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php)
+- [Policies/ResourceReservationPolicy.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php)
+- [tests/Feature/AvailabilityApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php)
+- [tests/Feature/ReservationApiTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php)
+- [tests/Feature/PricingPreviewParityTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/PricingPreviewParityTest.php)
 </cite>
 
 ## Table of Contents
@@ -56,15 +59,15 @@ ResSvc --> DB["Database (ptero_resource_reservations)"]
 ```
 
 **Diagram sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
-- [Http/Controllers/Api/AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [Http/Controllers/Api/PricingController.php:12-19](file://Http/Controllers/Api/PricingController.php#L12-L19)
-- [Http/Controllers/Api/ReservationController.php:13-22](file://Http/Controllers/Api/ReservationController.php#L13-L22)
-- [Services/ReservationService.php:16-35](file://Services/ReservationService.php#L16-L35)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
+- [Http/Controllers/Api/AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [Http/Controllers/Api/PricingController.php:12-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L19)
+- [Http/Controllers/Api/ReservationController.php:13-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L22)
+- [Services/ReservationService.php:16-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L16-L35)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-127](file://DynamicPterodactyl.php#L96-L127)
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [DynamicPterodactyl.php:96-127](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L127)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Core Components
 - AvailabilityController: Returns aggregate per-location capacity and whether all resources have capacity.
@@ -75,13 +78,13 @@ ResSvc --> DB["Database (ptero_resource_reservations)"]
 - ResourceReservation model and policy: Define storage schema and authorization rules for viewing/canceling/extending.
 
 **Section sources**
-- [Http/Controllers/Api/AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [Http/Controllers/Api/PricingController.php:24-122](file://Http/Controllers/Api/PricingController.php#L24-L122)
-- [Http/Controllers/Api/ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [Http/Requests/StoreReservationRequest.php:38-113](file://Http/Requests/StoreReservationRequest.php#L38-L113)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Models/ResourceReservation.php:10-66](file://Models/ResourceReservation.php#L10-L66)
-- [Policies/ResourceReservationPolicy.php:9-69](file://Policies/ResourceReservationPolicy.php#L9-L69)
+- [Http/Controllers/Api/AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [Http/Controllers/Api/PricingController.php:24-122](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L122)
+- [Http/Controllers/Api/ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [Http/Requests/StoreReservationRequest.php:38-113](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L38-L113)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Models/ResourceReservation.php:10-65](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/ResourceReservation.php#L10-L65)
+- [Policies/ResourceReservationPolicy.php:9-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L69)
 
 ## Architecture Overview
 The API is split into three protected groups:
@@ -98,19 +101,19 @@ participant N as "NodeSelectionService"
 participant S as "ResourceCalculationService"
 C->>R : GET /api/dynamic-pterodactyl/availability/{locationId}
 R->>A : getByLocation(locationId)
-A->>N : getMaxAvailable(locationId)
-N-->>A : {memory, cpu, disk}
 A->>S : getLocationAvailability(locationId)
-S-->>A : {nodes, ...}
+S-->>A : {nodes, max_available, ...}
+A->>N : getMaxAvailable(locationId, locationData)
+N-->>A : {memory, cpu, disk} from same snapshot
 A-->>C : {success, data : {max_memory, max_cpu, max_disk, has_capacity, ...}}
 ```
 
 **Diagram sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [Http/Controllers/Api/AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [Http/Controllers/Api/AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
 
 **Section sources**
-- [routes/api.php:17-40](file://routes/api.php#L17-L40)
+- [routes/api.php:17-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L40)
 
 ## Detailed Component Analysis
 
@@ -132,7 +135,7 @@ Example request:
 - Success response example:
   - { "success": true, "data": { "location_id": 1, "max_memory": 1000, "max_cpu": 100, "max_disk": 1000, "node_count": 3, "has_capacity": true, "resource_capacity": { "memory": true, "cpu": true, "disk": true } } }
 - Error response example:
-  - { "success": false, "message": "Failed to fetch availability", "error": "<exception message>" }
+  - { "success": false, "message": "Failed to fetch availability" }
 
 Implementation notes:
 - Uses NodeSelectionService to compute maximum available resources per location.
@@ -140,9 +143,9 @@ Implementation notes:
 - Errors return 500 with a generic message plus error only when applicable.
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [Http/Controllers/Api/AvailabilityController.php:22-52](file://Http/Controllers/Api/AvailabilityController.php#L22-L52)
-- [tests/Feature/AvailabilityApiTest.php:23-73](file://tests/Feature/AvailabilityApiTest.php#L23-L73)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [Http/Controllers/Api/AvailabilityController.php:22-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L52)
+- [tests/Feature/AvailabilityApiTest.php:23-73](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/AvailabilityApiTest.php#L23-L73)
 
 ### Pricing API
 - Base path: /api/dynamic-pterodactyl
@@ -182,10 +185,10 @@ Notes:
 - Errors are logged; detailed error messages are included only when debug is enabled.
 
 **Section sources**
-- [routes/api.php:17-22](file://routes/api.php#L17-L22)
-- [Http/Controllers/Api/PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [tests/Feature/PricingPreviewParityTest.php:25-79](file://tests/Feature/PricingPreviewParityTest.php#L25-L79)
-- [tests/Feature/PricingPreviewParityTest.php:110-152](file://tests/Feature/PricingPreviewParityTest.php#L110-L152)
+- [routes/api.php:17-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L22)
+- [Http/Controllers/Api/PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [tests/Feature/PricingPreviewParityTest.php:25-79](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/PricingPreviewParityTest.php#L25-L79)
+- [tests/Feature/PricingPreviewParityTest.php:110-152](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/PricingPreviewParityTest.php#L110-L152)
 
 ### Reservation API
 - Base path: /api/dynamic-pterodactyl
@@ -249,17 +252,17 @@ TTL and lifecycle:
 - After successful payment, reservations are confirmed and linked to a service.
 
 **Section sources**
-- [routes/api.php:24-30](file://routes/api.php#L24-L30)
-- [Http/Controllers/Api/ReservationController.php:24-136](file://Http/Controllers/Api/ReservationController.php#L24-L136)
-- [Http/Requests/StoreReservationRequest.php:38-113](file://Http/Requests/StoreReservationRequest.php#L38-L113)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
-- [Services/ReservationService.php:166-281](file://Services/ReservationService.php#L166-L281)
-- [Services/ReservationService.php:387-405](file://Services/ReservationService.php#L387-L405)
-- [Policies/ResourceReservationPolicy.php:28-69](file://Policies/ResourceReservationPolicy.php#L28-L69)
-- [tests/Feature/ReservationApiTest.php:37-112](file://tests/Feature/ReservationApiTest.php#L37-L112)
-- [tests/Feature/ReservationApiTest.php:179-247](file://tests/Feature/ReservationApiTest.php#L179-L247)
-- [tests/Feature/ReservationApiTest.php:289-362](file://tests/Feature/ReservationApiTest.php#L289-L362)
-- [tests/Feature/ReservationApiTest.php:375-400](file://tests/Feature/ReservationApiTest.php#L375-L400)
+- [routes/api.php:24-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L24-L30)
+- [Http/Controllers/Api/ReservationController.php:24-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L24-L136)
+- [Http/Requests/StoreReservationRequest.php:38-113](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L38-L113)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
+- [Services/ReservationService.php:166-281](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L166-L281)
+- [Services/ReservationService.php:387-405](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L387-L405)
+- [Policies/ResourceReservationPolicy.php:28-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L28-L69)
+- [tests/Feature/ReservationApiTest.php:37-112](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L37-L112)
+- [tests/Feature/ReservationApiTest.php:179-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L179-L247)
+- [tests/Feature/ReservationApiTest.php:289-362](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L289-L362)
+- [tests/Feature/ReservationApiTest.php:375-400](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L375-L400)
 
 ### Checkout Flow Integration Example
 Typical customer journey:
@@ -292,8 +295,8 @@ Note over U,API : On payment success, system confirms reservation
 ```
 
 **Diagram sources**
-- [routes/api.php:17-30](file://routes/api.php#L17-L30)
-- [Services/ReservationService.php:43-141](file://Services/ReservationService.php#L43-L141)
+- [routes/api.php:17-30](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/routes/api.php#L17-L30)
+- [Services/ReservationService.php:43-141](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L141)
 
 ## Dependency Analysis
 - Availability depends on NodeSelectionService and ResourceCalculationService to compute aggregates and node counts.
@@ -310,16 +313,16 @@ ResSvc --> Policy["ResourceReservationPolicy"]
 ```
 
 **Diagram sources**
-- [Http/Controllers/Api/AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [Http/Controllers/Api/PricingController.php:12-19](file://Http/Controllers/Api/PricingController.php#L12-L19)
-- [Http/Controllers/Api/ReservationController.php:13-22](file://Http/Controllers/Api/ReservationController.php#L13-L22)
-- [Policies/ResourceReservationPolicy.php:9-23](file://Policies/ResourceReservationPolicy.php#L9-L23)
+- [Http/Controllers/Api/AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [Http/Controllers/Api/PricingController.php:12-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L19)
+- [Http/Controllers/Api/ReservationController.php:13-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L22)
+- [Policies/ResourceReservationPolicy.php:9-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L23)
 
 **Section sources**
-- [Http/Controllers/Api/AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [Http/Controllers/Api/PricingController.php:12-19](file://Http/Controllers/Api/PricingController.php#L12-L19)
-- [Http/Controllers/Api/ReservationController.php:13-22](file://Http/Controllers/Api/ReservationController.php#L13-L22)
-- [Policies/ResourceReservationPolicy.php:9-23](file://Policies/ResourceReservationPolicy.php#L9-L23)
+- [Http/Controllers/Api/AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [Http/Controllers/Api/PricingController.php:12-19](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L12-L19)
+- [Http/Controllers/Api/ReservationController.php:13-22](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L13-L22)
+- [Policies/ResourceReservationPolicy.php:9-23](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Policies/ResourceReservationPolicy.php#L9-L23)
 
 ## Performance Considerations
 - Real-time availability: Pterodactyl API responses are not cached; availability is always fresh. Batching occurs internally to minimize calls.
@@ -345,16 +348,16 @@ Common issues and resolutions:
   - You do not own the reservation and are not an admin.
 
 Error response patterns:
-- Availability failures: 500 with generic message and optional error details.
+- Availability failures: 500 with a generic message only; exception details are reported server-side.
 - Pricing failures: 500 with generic message; detailed error only when debug is enabled.
 - Reservation failures: 422 for validation/runtime errors; 404 for not found; 403 for unauthorized.
 
 **Section sources**
-- [Http/Controllers/Api/AvailabilityController.php:45-52](file://Http/Controllers/Api/AvailabilityController.php#L45-L52)
-- [Http/Controllers/Api/PricingController.php:104-121](file://Http/Controllers/Api/PricingController.php#L104-L121)
-- [Http/Controllers/Api/ReservationController.php:62-136](file://Http/Controllers/Api/ReservationController.php#L62-L136)
-- [Http/Requests/StoreReservationRequest.php:38-113](file://Http/Requests/StoreReservationRequest.php#L38-L113)
-- [tests/Feature/ReservationApiTest.php:114-177](file://tests/Feature/ReservationApiTest.php#L114-L177)
+- [Http/Controllers/Api/AvailabilityController.php:45-52](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L45-L52)
+- [Http/Controllers/Api/PricingController.php:104-121](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L104-L121)
+- [Http/Controllers/Api/ReservationController.php:62-136](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/ReservationController.php#L62-L136)
+- [Http/Requests/StoreReservationRequest.php:38-113](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Requests/StoreReservationRequest.php#L38-L113)
+- [tests/Feature/ReservationApiTest.php:114-177](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Feature/ReservationApiTest.php#L114-L177)
 
 ## Conclusion
 The Dynamic Pterodactyl public API provides secure, rate-limited endpoints for checking availability, calculating dynamic pricing, and managing short-lived resource reservations during checkout. It exposes only aggregate capacity to customers, preserving node-level details for administrative use. The design emphasizes idempotency, real-time accuracy, and robust authorization to ensure safe and reliable integration with the checkout flow.

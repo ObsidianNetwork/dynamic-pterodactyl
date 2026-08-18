@@ -1,15 +1,18 @@
 # Supporting Services
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [AuditLogService.php](file://Services/AuditLogService.php)
-- [ConfigOptionSetupService.php](file://Services/ConfigOptionSetupService.php)
-- [SliderConfigReaderService.php](file://Services/SliderConfigReaderService.php)
-- [AuditsExtensionActions.php](file://Services/Concerns/AuditsExtensionActions.php)
-- [AuditLog.php](file://Models/AuditLog.php)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
-- [PricingController.php](file://Http/Controllers/Api/PricingController.php)
-- [AuditLogPage.php](file://Admin/Pages/AuditLogPage.php)
+- [AuditLogService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php)
+- [ConfigOptionSetupService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php)
+- [SliderConfigReaderService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php)
+- [AuditsExtensionActions.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php)
+- [AuditLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AuditLog.php)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php)
+- [PricingController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php)
+- [AuditLogPage.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php)
 </cite>
 
 ## Table of Contents
@@ -64,20 +67,20 @@ A --> I
 ```
 
 **Diagram sources**
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [SliderConfigReaderService.php:14-53](file://Services/SliderConfigReaderService.php#L14-L53)
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [SliderConfigReaderService.php:14-53](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L53)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 **Section sources**
-- [AuditLogService.php:1-83](file://Services/AuditLogService.php#L1-L83)
-- [ConfigOptionSetupService.php:1-260](file://Services/ConfigOptionSetupService.php#L1-L260)
-- [SliderConfigReaderService.php:1-69](file://Services/SliderConfigReaderService.php#L1-L69)
-- [PricingController.php:1-158](file://Http/Controllers/Api/PricingController.php#L1-L158)
-- [AuditLogPage.php:1-105](file://Admin/Pages/AuditLogPage.php#L1-L105)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:1-55](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L1-L55)
+- [AuditLogService.php:1-82](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L1-L82)
+- [ConfigOptionSetupService.php:1-259](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L1-L259)
+- [SliderConfigReaderService.php:1-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L1-L68)
+- [PricingController.php:1-157](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L1-L157)
+- [AuditLogPage.php:1-104](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L1-L104)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:1-54](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L1-L54)
 
 ## Core Components
 - AuditLogService: Provides methods to log actions and retrieve filtered logs. Captures user context, request metadata, and before/after values for changes.
@@ -90,9 +93,9 @@ Key responsibilities:
 - Expose slider configuration to clients without exposing internal pricing logic.
 
 **Section sources**
-- [AuditLogService.php:15-81](file://Services/AuditLogService.php#L15-L81)
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
+- [AuditLogService.php:15-81](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L81)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
 
 ## Architecture Overview
 The supporting services form a clear separation of concerns:
@@ -118,10 +121,10 @@ Setup-->>Admin : created option ids
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-77](file://Services/ConfigOptionSetupService.php#L44-L77)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [ConfigOptionSetupService.php:44-77](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L77)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 ## Detailed Component Analysis
 
@@ -152,18 +155,18 @@ ReturnId --> End(["Done"])
 ```
 
 **Diagram sources**
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 Usage examples:
 - Setup wizard triggers a “setup_run” audit entry after successfully creating slider options for a product.
 - Administrative actions across the extension can call the service to maintain a consistent audit trail.
 
 **Section sources**
-- [AuditLogService.php:15-81](file://Services/AuditLogService.php#L15-L81)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditLogService.php:15-81](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L81)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 ### ConfigOptionSetupService
 Purpose:
@@ -203,7 +206,7 @@ class ConfigOptionSetupService {
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-258](file://Services/ConfigOptionSetupService.php#L44-L258)
+- [ConfigOptionSetupService.php:44-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L258)
 
 Example workflow:
 - Admin submits slider configuration for a product.
@@ -212,9 +215,9 @@ Example workflow:
 - On success, an audit entry records which sliders were configured and how many.
 
 **Section sources**
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
-- [ConfigOptionSetupService.php:173-258](file://Services/ConfigOptionSetupService.php#L173-L258)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
+- [ConfigOptionSetupService.php:173-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L173-L258)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
 
 ### SliderConfigReaderService
 Purpose:
@@ -245,15 +248,15 @@ Controller-->>Client : JSON response
 ```
 
 **Diagram sources**
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [PricingController.php:127-145](file://Http/Controllers/Api/PricingController.php#L127-L145)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [PricingController.php:127-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L127-L145)
 
 Important note:
 - Price calculation is delegated to Paymenter core methods (Plan::dynamicSliderBasePrice and ConfigOption::calculateDynamicPriceDelta). This service only provides configuration metadata.
 
 **Section sources**
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
 
 ## Dependency Analysis
 - ConfigOptionSetupService depends on Paymenter’s ConfigOption model and validation rules to persist slider metadata. It also uses the AuditsExtensionActions trait to emit audit events.
@@ -275,20 +278,20 @@ AdminUI["AuditLogPage"] --> DB
 ```
 
 **Diagram sources**
-- [ConfigOptionSetupService.php:44-171](file://Services/ConfigOptionSetupService.php#L44-L171)
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
-- [AuditLogService.php:15-41](file://Services/AuditLogService.php#L15-L41)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [ConfigOptionSetupService.php:44-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L171)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [AuditLogService.php:15-41](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L41)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 **Section sources**
-- [ConfigOptionSetupService.php:44-258](file://Services/ConfigOptionSetupService.php#L44-L258)
-- [SliderConfigReaderService.php:14-66](file://Services/SliderConfigReaderService.php#L14-L66)
-- [PricingController.php:24-145](file://Http/Controllers/Api/PricingController.php#L24-L145)
-- [AuditLogService.php:15-81](file://Services/AuditLogService.php#L15-L81)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
+- [ConfigOptionSetupService.php:44-258](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L44-L258)
+- [SliderConfigReaderService.php:14-66](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/SliderConfigReaderService.php#L14-L66)
+- [PricingController.php:24-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/PricingController.php#L24-L145)
+- [AuditLogService.php:15-81](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AuditLogService.php#L15-L81)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
 
 ## Performance Considerations
 - Audit logging uses direct table inserts with minimal overhead and indexed columns for common queries (entity_type/entity_id, user_id, created_at, action).
@@ -309,10 +312,10 @@ Operational checks:
 - Use the Admin Audit Log page to filter by action, entity type, and date range to investigate changes.
 
 **Section sources**
-- [AuditsExtensionActions.php:10-32](file://Services/Concerns/AuditsExtensionActions.php#L10-L32)
-- [AuditLogPage.php:31-80](file://Admin/Pages/AuditLogPage.php#L31-L80)
-- [ConfigOptionSetupService.php:117-171](file://Services/ConfigOptionSetupService.php#L117-L171)
-- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](file://database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
+- [AuditsExtensionActions.php:10-32](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/Concerns/AuditsExtensionActions.php#L10-L32)
+- [AuditLogPage.php:31-80](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Admin/Pages/AuditLogPage.php#L31-L80)
+- [ConfigOptionSetupService.php:117-171](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ConfigOptionSetupService.php#L117-L171)
+- [2025_01_01_000003_create_ptero_audit_logs_table.php:11-47](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/database/migrations/2025_01_01_000003_create_ptero_audit_logs_table.php#L11-L47)
 
 ## Conclusion
 These supporting services provide essential auxiliary functionality:

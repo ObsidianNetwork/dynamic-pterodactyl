@@ -1,17 +1,20 @@
 # Event Registration and Configuration
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [DynamicPterodactyl.php](file://DynamicPterodactyl.php)
-- [CartItemCreatedListener.php](file://Listeners/CartItemCreatedListener.php)
-- [CartItemDeletedListener.php](file://Listeners/CartItemDeletedListener.php)
-- [InvoicePaidListener.php](file://Listeners/InvoicePaidListener.php)
-- [ServiceCreatedListener.php](file://Listeners/ServiceCreatedListener.php)
-- [AlertDeliveryFailed.php](file://Events/AlertDeliveryFailed.php)
-- [AlertService.php](file://Services/AlertService.php)
-- [AlertDeliveryLog.php](file://Models/AlertDeliveryLog.php)
-- [CartItemDeletedListenerTest.php](file://tests/Unit/CartItemDeletedListenerTest.php)
-- [InvoicePaidListenerTest.php](file://tests/Unit/InvoicePaidListenerTest.php)
+- [DynamicPterodactyl.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php)
+- [CartItemCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php)
+- [CartItemDeletedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemDeletedListener.php)
+- [InvoicePaidListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php)
+- [ServiceCreatedListener.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php)
+- [AlertDeliveryFailed.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php)
+- [AlertService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php)
+- [AlertDeliveryLog.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php)
+- [CartItemDeletedListenerTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/CartItemDeletedListenerTest.php)
+- [InvoicePaidListenerTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/InvoicePaidListenerTest.php)
 </cite>
 
 ## Table of Contents
@@ -84,16 +87,16 @@ S3 --> D1
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [CartItemDeletedListener.php:12-57](file://Listeners/CartItemDeletedListener.php#L12-L57)
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
-- [AlertService.php:128-247](file://Services/AlertService.php#L128-L247)
-- [AlertDeliveryFailed.php:9-15](file://Events/AlertDeliveryFailed.php#L9-L15)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [CartItemDeletedListener.php:12-57](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemDeletedListener.php#L12-L57)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
+- [AlertService.php:128-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L247)
+- [AlertDeliveryFailed.php:9-15](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php#L9-L15)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
 
 ## Core Components
 - Event registration occurs in the extension’s boot method via Laravel’s Event facade. Four Paymenter core events are mapped to dedicated listeners:
@@ -109,9 +112,9 @@ Key responsibilities:
 - Domain events decouple failure reporting from primary flows
 
 **Section sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [AlertDeliveryFailed.php:9-15](file://Events/AlertDeliveryFailed.php#L9-L15)
-- [AlertService.php:128-247](file://Services/AlertService.php#L128-L247)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [AlertDeliveryFailed.php:9-15](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php#L9-L15)
+- [AlertService.php:128-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L247)
 
 ## Architecture Overview
 The extension integrates with Paymenter’s event system by registering listeners during boot. Each listener handles one stage of the checkout lifecycle and coordinates with services to perform side effects such as reserving resources or sending alerts.
@@ -151,11 +154,11 @@ LService-->>Paymenter : Log linkage only
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [CartItemDeletedListener.php:12-57](file://Listeners/CartItemDeletedListener.php#L12-L57)
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [CartItemDeletedListener.php:12-57](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemDeletedListener.php#L12-L57)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
 
 ## Detailed Component Analysis
 
@@ -174,7 +177,7 @@ Best practices demonstrated:
 - Exceptions in listeners are caught and logged so they do not block core flows
 
 **Section sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
 
 ### CartItemCreatedListener
 Responsibilities:
@@ -188,8 +191,8 @@ Error handling:
 - Gracefully continues even if reservation creation fails, ensuring checkout can proceed without guaranteed resources
 
 **Section sources**
-- [CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [CartItemCreatedListener.php:93-172](file://Listeners/CartItemCreatedListener.php#L93-L172)
+- [CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [CartItemCreatedListener.php:93-172](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L93-L172)
 
 ### CartItemDeletedListener
 Responsibilities:
@@ -202,10 +205,10 @@ Race condition safeguard:
 - If a service exists with the same reservation token, the deletion is treated as part of a successful checkout and cancellation is skipped
 
 **Section sources**
-- [CartItemDeletedListener.php:12-57](file://Listeners/CartItemDeletedListener.php#L12-L57)
-- [CartItemDeletedListenerTest.php:33-68](file://tests/Unit/CartItemDeletedListenerTest.php#L33-L68)
-- [CartItemDeletedListenerTest.php:70-95](file://tests/Unit/CartItemDeletedListenerTest.php#L70-L95)
-- [CartItemDeletedListenerTest.php:97-125](file://tests/Unit/CartItemDeletedListenerTest.php#L97-L125)
+- [CartItemDeletedListener.php:12-57](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemDeletedListener.php#L12-L57)
+- [CartItemDeletedListenerTest.php:33-68](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/CartItemDeletedListenerTest.php#L33-L68)
+- [CartItemDeletedListenerTest.php:70-95](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/CartItemDeletedListenerTest.php#L70-L95)
+- [CartItemDeletedListenerTest.php:97-125](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/CartItemDeletedListenerTest.php#L97-L125)
 
 ### InvoicePaidListener
 Responsibilities:
@@ -220,9 +223,9 @@ Critical checks:
 - State drift detection triggers alerts when the reservation cannot be confirmed due to status changes between checks
 
 **Section sources**
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [InvoicePaidListenerTest.php:25-61](file://tests/Unit/InvoicePaidListenerTest.php#L25-L61)
-- [InvoicePaidListenerTest.php:63-102](file://tests/Unit/InvoicePaidListenerTest.php#L63-L102)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [InvoicePaidListenerTest.php:25-61](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/InvoicePaidListenerTest.php#L25-L61)
+- [InvoicePaidListenerTest.php:63-102](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/InvoicePaidListenerTest.php#L63-L102)
 
 ### ServiceCreatedListener
 Responsibilities:
@@ -230,7 +233,7 @@ Responsibilities:
 - Does not alter reservation state; confirmation is handled by the invoice paid flow
 
 **Section sources**
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
 
 ### Custom Event: AlertDeliveryFailed
 Purpose:
@@ -246,8 +249,8 @@ Design notes:
 - Accepts a readonly AlertDeliveryLog to preserve immutability of the payload
 
 **Section sources**
-- [AlertDeliveryFailed.php:9-15](file://Events/AlertDeliveryFailed.php#L9-L15)
-- [AlertService.php:218-236](file://Services/AlertService.php#L218-L236)
+- [AlertDeliveryFailed.php:9-15](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Events/AlertDeliveryFailed.php#L9-L15)
+- [AlertService.php:218-236](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L218-L236)
 
 ### AlertService Integration
 Responsibilities:
@@ -262,11 +265,11 @@ Failure handling:
 - Reports throwables through the application exception handler when available
 
 **Section sources**
-- [AlertService.php:33-75](file://Services/AlertService.php#L33-L75)
-- [AlertService.php:128-247](file://Services/AlertService.php#L128-L247)
-- [AlertService.php:250-299](file://Services/AlertService.php#L250-L299)
-- [AlertService.php:328-361](file://Services/AlertService.php#L328-L361)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [AlertService.php:33-75](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L33-L75)
+- [AlertService.php:128-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L247)
+- [AlertService.php:250-299](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L250-L299)
+- [AlertService.php:328-361](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L328-L361)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
 
 ## Dependency Analysis
 The extension depends on Paymenter core events and provides listeners that coordinate with internal services. Dependencies are intentionally loose:
@@ -310,17 +313,17 @@ AlertService --> AlertDeliveryLog : "writes"
 ```
 
 **Diagram sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [CartItemCreatedListener.php:13-87](file://Listeners/CartItemCreatedListener.php#L13-L87)
-- [CartItemDeletedListener.php:12-57](file://Listeners/CartItemDeletedListener.php#L12-L57)
-- [InvoicePaidListener.php:14-133](file://Listeners/InvoicePaidListener.php#L14-L133)
-- [ServiceCreatedListener.php:10-31](file://Listeners/ServiceCreatedListener.php#L10-L31)
-- [AlertService.php:128-247](file://Services/AlertService.php#L128-L247)
-- [AlertDeliveryLog.php:8-33](file://Models/AlertDeliveryLog.php#L8-L33)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [CartItemCreatedListener.php:13-87](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemCreatedListener.php#L13-L87)
+- [CartItemDeletedListener.php:12-57](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemDeletedListener.php#L12-L57)
+- [InvoicePaidListener.php:14-133](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L14-L133)
+- [ServiceCreatedListener.php:10-31](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/ServiceCreatedListener.php#L10-L31)
+- [AlertService.php:128-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L247)
+- [AlertDeliveryLog.php:8-33](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Models/AlertDeliveryLog.php#L8-L33)
 
 **Section sources**
-- [DynamicPterodactyl.php:96-145](file://DynamicPterodactyl.php#L96-L145)
-- [AlertService.php:128-247](file://Services/AlertService.php#L128-L247)
+- [DynamicPterodactyl.php:96-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L96-L145)
+- [AlertService.php:128-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L128-L247)
 
 ## Performance Considerations
 - Event listeners avoid blocking core flows by catching exceptions and logging errors instead of failing loudly
@@ -350,10 +353,10 @@ Operational tips:
 - Monitor logs for error entries related to reservation processing and alert delivery
 
 **Section sources**
-- [CartItemDeletedListener.php:24-40](file://Listeners/CartItemDeletedListener.php#L24-L40)
-- [InvoicePaidListener.php:58-90](file://Listeners/InvoicePaidListener.php#L58-L90)
-- [InvoicePaidListener.php:103-125](file://Listeners/InvoicePaidListener.php#L103-L125)
-- [AlertService.php:218-247](file://Services/AlertService.php#L218-L247)
+- [CartItemDeletedListener.php:24-40](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/CartItemDeletedListener.php#L24-L40)
+- [InvoicePaidListener.php:58-90](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L58-L90)
+- [InvoicePaidListener.php:103-125](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Listeners/InvoicePaidListener.php#L103-L125)
+- [AlertService.php:218-247](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L218-L247)
 
 ## Conclusion
 The Dynamic Pterodactyl extension integrates cleanly with Paymenter’s event system by registering focused listeners during boot. It extends existing functionality without conflicts by:
@@ -376,8 +379,8 @@ This design supports scalable, maintainable event-driven architecture for extens
 - Custom AlertDeliveryFailed → dispatched by AlertService on delivery failure
 
 **Section sources**
-- [DynamicPterodactyl.php:134-145](file://DynamicPterodactyl.php#L134-L145)
-- [AlertService.php:218-236](file://Services/AlertService.php#L218-L236)
+- [DynamicPterodactyl.php:134-145](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/DynamicPterodactyl.php#L134-L145)
+- [AlertService.php:218-236](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/AlertService.php#L218-L236)
 
 ### Best Practices for Event-Driven Extensions
 - Register listeners centrally in boot to keep wiring explicit

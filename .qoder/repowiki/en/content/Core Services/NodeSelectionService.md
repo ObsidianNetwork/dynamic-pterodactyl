@@ -1,13 +1,16 @@
 # NodeSelectionService
 
+> **Preserved Qoder snapshot.** This deep-dive page is retained so the earlier Wiki work and its source trail are not lost. For the reconciled implementation, [[Architecture Overview|Architecture-Overview]] is canonical; references below to retired controllers, listeners, services, or API shapes are historical.
+
+
 <cite>
 **Referenced Files in This Document**
-- [NodeSelectionService.php](file://Services/NodeSelectionService.php)
-- [ResourceCalculationService.php](file://Services/ResourceCalculationService.php)
-- [ReservationService.php](file://Services/ReservationService.php)
-- [AvailabilityController.php](file://Http/Controllers/Api/AvailabilityController.php)
-- [NodeSelectionServiceTest.php](file://tests/Unit/NodeSelectionServiceTest.php)
-- [ResourceCalculationServiceTest.php](file://tests/Unit/ResourceCalculationServiceTest.php)
+- [NodeSelectionService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php)
+- [ResourceCalculationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php)
+- [ReservationService.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php)
+- [AvailabilityController.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php)
+- [NodeSelectionServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php)
+- [ResourceCalculationServiceTest.php](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php)
 </cite>
 
 ## Table of Contents
@@ -48,22 +51,22 @@ RCS --> PTERO
 ```
 
 **Diagram sources**
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
-- [ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [NodeSelectionService.php:5-12](file://Services/NodeSelectionService.php#L5-L12)
-- [ResourceCalculationService.php:10-21](file://Services/ResourceCalculationService.php#L10-L21)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [NodeSelectionService.php:5-12](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L12)
+- [ResourceCalculationService.php:10-21](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L10-L21)
 
 **Section sources**
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
-- [NodeSelectionService.php:5-86](file://Services/NodeSelectionService.php#L5-L86)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
+- [NodeSelectionService.php:5-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L86)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
 
 ## Core Components
 - NodeSelectionService: Implements best-fit selection using weighted headroom scoring and filters out unsuitable nodes.
 - ResourceCalculationService: Provides real-time per-location and per-node availability by querying Pterodactyl and aggregating server allocations and pending reservations.
 - ReservationService: Orchestrates reservation creation and calls NodeSelectionService to pick a node; enforces pessimistic locking and idempotency.
-- AvailabilityController: Exposes safe customer-facing endpoints that return aggregate capacity and node counts without exposing raw node identifiers or FQDNs.
+- AvailabilityController: Exposes aggregate-only customer availability plus a separately authorized admin endpoint for raw node details.
 
 Key responsibilities:
 - NodeSelectionService: Evaluate candidates, compute scores, and return the best node or null if none qualify.
@@ -72,10 +75,10 @@ Key responsibilities:
 - AvailabilityController: Present capacity summaries and ensure no sensitive node details are exposed.
 
 **Section sources**
-- [NodeSelectionService.php:14-86](file://Services/NodeSelectionService.php#L14-L86)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [NodeSelectionService.php:14-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L14-L86)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
 
 ## Architecture Overview
 The selection process is a two-phase pipeline:
@@ -100,9 +103,9 @@ NSS-->>Caller : best node or null
 ```
 
 **Diagram sources**
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
 
 ## Detailed Component Analysis
 
@@ -158,8 +161,8 @@ Examples validated by tests:
 - Weighted scoring prefers memory headroom due to its higher weight.
 
 **Section sources**
-- [NodeSelectionService.php:14-86](file://Services/NodeSelectionService.php#L14-L86)
-- [NodeSelectionServiceTest.php:32-351](file://tests/Unit/NodeSelectionServiceTest.php#L32-L351)
+- [NodeSelectionService.php:14-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L14-L86)
+- [NodeSelectionServiceTest.php:32-351](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/NodeSelectionServiceTest.php#L32-L351)
 
 ### ResourceCalculationService
 Responsibilities:
@@ -184,10 +187,10 @@ Error handling and resilience:
 - Server errors (5xx) degrade gracefully in cluster snapshot paths.
 
 **Section sources**
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ResourceCalculationService.php:247-289](file://Services/ResourceCalculationService.php#L247-L289)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationServiceTest.php:53-139](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ResourceCalculationService.php:227-257](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L227-L257)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationServiceTest.php:53-139](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
 
 ### Integration with ReservationService
 ReservationService orchestrates the reservation lifecycle and depends on NodeSelectionService during creation:
@@ -204,18 +207,18 @@ Flow highlights:
 - Audit actions for traceability.
 
 **Section sources**
-- [ReservationService.php:43-124](file://Services/ReservationService.php#L43-L124)
+- [ReservationService.php:43-124](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L43-L124)
 
 ### Integration with AvailabilityController
-AvailabilityController provides safe, customer-facing endpoints:
+AvailabilityController provides separate customer and administrator surfaces:
 - getByLocation(locationId): returns max allocatable resources and whether the location has capacity across memory, CPU, and disk. It does not expose node names or FQDNs.
-- getNodes(locationId): returns availability data for the location; while it includes node arrays internally, the controller’s contract ensures only aggregate metrics are surfaced to clients.
+- getNodes(locationId): is admin-only (web + auth + EnsureUserIsAdmin + throttle) and returns raw per-node availability for internal monitoring.
 
 Usage of NodeSelectionService:
-- getMaxAvailable(locationId) is used to determine per-location maximums for capacity checks.
+- getMaxAvailable(locationId, locationData) reads per-location maximums from the already fetched snapshot, avoiding a second panel request.
 
 **Section sources**
-- [AvailabilityController.php:22-69](file://Http/Controllers/Api/AvailabilityController.php#L22-L69)
+- [AvailabilityController.php:22-69](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L22-L69)
 
 ## Dependency Analysis
 - NodeSelectionService depends on ResourceCalculationService for live availability data.
@@ -249,16 +252,16 @@ AvailabilityController --> ResourceCalculationService : "uses"
 ```
 
 **Diagram sources**
-- [NodeSelectionService.php:5-86](file://Services/NodeSelectionService.php#L5-L86)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [NodeSelectionService.php:5-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L86)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
 
 **Section sources**
-- [NodeSelectionService.php:5-86](file://Services/NodeSelectionService.php#L5-L86)
-- [ResourceCalculationService.php:23-67](file://Services/ResourceCalculationService.php#L23-L67)
-- [ReservationService.php:20-35](file://Services/ReservationService.php#L20-L35)
-- [AvailabilityController.php:9-20](file://Http/Controllers/Api/AvailabilityController.php#L9-L20)
+- [NodeSelectionService.php:5-86](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L5-L86)
+- [ResourceCalculationService.php:23-67](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L23-L67)
+- [ReservationService.php:20-35](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L20-L35)
+- [AvailabilityController.php:9-20](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Http/Controllers/Api/AvailabilityController.php#L9-L20)
 
 ## Performance Considerations
 - Real-time queries: ResourceCalculationService always queries Pterodactyl for current availability; this avoids stale state but incurs network latency.
@@ -289,10 +292,10 @@ Operational tips:
 - Ensure pending reservations are cleaned up to prevent artificial scarcity.
 
 **Section sources**
-- [NodeSelectionService.php:22-76](file://Services/NodeSelectionService.php#L22-L76)
-- [ReservationService.php:75-79](file://Services/ReservationService.php#L75-L79)
-- [ResourceCalculationService.php:452-498](file://Services/ResourceCalculationService.php#L452-L498)
-- [ResourceCalculationServiceTest.php:53-139](file://tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
+- [NodeSelectionService.php:22-76](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/NodeSelectionService.php#L22-L76)
+- [ReservationService.php:75-79](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ReservationService.php#L75-L79)
+- [ResourceCalculationService.php:452-498](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/Services/ResourceCalculationService.php#L452-L498)
+- [ResourceCalculationServiceTest.php:53-139](https://github.com/ObsidianNetwork/dynamic-pterodactyl/blob/6b7f83bda6f7c3fe014d52428b31af1638daa6cc/tests/Unit/ResourceCalculationServiceTest.php#L53-L139)
 
 ## Conclusion
 NodeSelectionService provides a robust, weighted best-fit algorithm that balances memory, disk, and CPU headroom to select optimal nodes for resource allocation. It integrates tightly with ResourceCalculationService for real-time availability and works within ReservationService’s transactional and idempotent reservation workflow. The design ensures safety through maintenance mode filtering, hard constraint enforcement, and clear error signaling when resources are insufficient. Customer-facing APIs remain safe by exposing only aggregate capacity metrics.

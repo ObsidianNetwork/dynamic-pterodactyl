@@ -1,579 +1,74 @@
 # Database Schema
 
-> **Related docs**: [02-SERVICES.md](02-SERVICES.md) (services that use these tables)
+The extension owns seven live tables:
 
----
+| Table | Purpose |
+|---|---|
+| `ptero_resource_reservations` | Authoritative cart-to-provisioning capacity holds |
+| `ptero_reservation_allocations` | Exact primary and additional Pterodactyl allocation claims |
+| `ptero_node_capacity_policies` | Authoritative physical CPU and overcommit policy per panel/node |
+| `ptero_capacity_scopes` | Database rows used to serialize stock and policy mutations per panel/location |
+| `ptero_audit_logs` | Extension action history |
+| `ptero_alert_configs` | Per-location alert thresholds |
+| `ptero_alert_delivery_log` | Alert delivery outcomes |
 
-## Tables Overview
+`ptero_pricing_configs` is retired. Paymenter `config_options.metadata` is the pricing source of truth.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                  ptero_resource_reservations                     │
-├─────────────────────────────────────────────────────────────────┤
-│  Temporary holds on resources during checkout (15-min TTL)      │
-│  Links cart items → reserved resources → specific nodes         │
-└─────────────────────────────────────────────────────────────────┘
+## Resource reservations
 
-┌─────────────────────────────────────────────────────────────────┐
-│                     ptero_pricing_configs                        │
-├─────────────────────────────────────────────────────────────────┤
-│  Per-product pricing configuration                               │
-│  Slider limits, step sizes, pricing model parameters            │
-└─────────────────────────────────────────────────────────────────┘
+The base table is created by `2025_01_01_000001_create_ptero_resource_reservations_table.php`. The server-owned checkout identity is added by `2026_07_25_000001_add_checkout_identity_to_ptero_resource_reservations.php`.
 
-┌─────────────────────────────────────────────────────────────────┐
-│                       ptero_audit_logs                           │
-├─────────────────────────────────────────────────────────────────┤
-│  Tracks configuration changes for accountability                │
-│  Who changed what, when, and previous values                    │
-└─────────────────────────────────────────────────────────────────┘
+### Identity
 
-┌─────────────────────────────────────────────────────────────────┐
-│                      ptero_alert_configs                         │
-├─────────────────────────────────────────────────────────────────┤
-│  Alert thresholds and notification preferences                  │
-│  Per-location capacity warnings                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Column | Meaning |
+|---|---|
+| `cart_item_id`, `cart_id` | Original cart identity; the item FK becomes null when checkout clears the cart |
+| `server_extension_id`, `panel_identity` | Paymenter provisioner identity and SHA-256 of its normalized panel URL |
+| `service_id`, `user_id` | Assigned atomically at checkout/login |
+| `product_id`, `plan_id`, `quantity`, `currency_code` | Purchase identity |
+| `configuration_payload` | Canonical immutable checkout snapshot, including customer, cart, server extension, hashed panel identity, node, and selected options |
+| `configuration_fingerprint` | SHA-256 of the canonical payload |
+| `pricing_version`, `formula_version`, `calculated_price` | Pricing provenance |
+| `node_id`, `location_id`, `memory`, `cpu`, `disk` | Reserved placement and authoritative limits |
+| `purpose`, `service_upgrade_id`, `reserved_*` | Checkout or fixed-node upgrade identity and the positive upgrade delta |
+| `guaranteed_until`, `paid_committed_at` | Seven-day invoice deadline and non-expiring post-payment commitment |
+| `external_server_*`, `external_user_id`, `nest_id`, `egg_id` | Durable Pterodactyl lifecycle identity |
 
----
+The opaque `token` remains for internal/admin lookup of legacy rows. It is not a customer bearer credential and is never placed in browser, URL, cart, or service state.
 
-## Migration 1: Resource Reservations
+### Lifecycle
 
-**File**: `2025_01_01_000001_create_ptero_resource_reservations_table.php`
-
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::create('ptero_resource_reservations', function (Blueprint $table) {
-            $table->id();
-            
-            // Unique token for tracking reservation
-            $table->string('token', 64)->unique();
-            
-            // Link to cart (nullable - cleared after checkout)
-            $table->unsignedBigInteger('cart_item_id')->nullable();
-            
-            // Link to service (set after provisioning)
-            $table->unsignedBigInteger('service_id')->nullable();
-            
-            // Link to user for tracking
-            $table->unsignedBigInteger('user_id')->nullable();
-            
-            // Pterodactyl references
-            $table->unsignedInteger('node_id');
-            $table->unsignedInteger('location_id');
-            
-            // Reserved resources (all in MB except CPU)
-            $table->unsignedInteger('memory');        // MB
-            $table->unsignedBigInteger('disk');       // MB
-            $table->unsignedInteger('cpu');           // Percentage (100 = 1 core)
-            
-            // Pricing snapshot at reservation time
-            $table->decimal('calculated_price', 10, 2);
-            $table->json('pricing_breakdown');
-            
-            // Status tracking
-            $table->enum('status', [
-                'pending',      // Cart item exists, awaiting payment
-                'confirmed',    // Payment received, server created
-                'expired',      // TTL exceeded without payment
-                'cancelled'     // User removed from cart
-            ])->default('pending');
-            
-            // Admin notes
-            $table->text('admin_notes')->nullable();
-            
-            // Timestamps
-            $table->timestamp('expires_at');
-            $table->timestamps();
-            
-            // Indexes for efficient queries
-            $table->index(['node_id', 'status', 'expires_at'], 'idx_node_pending');
-            $table->index(['cart_item_id']);
-            $table->index(['status', 'expires_at'], 'idx_cleanup');
-            $table->index(['location_id', 'status']);
-            $table->index(['user_id', 'status']);
-            $table->index(['created_at']);
-            
-            // Foreign keys
-            $table->foreign('cart_item_id')
-                  ->references('id')
-                  ->on('cart_items')
-                  ->onDelete('set null');
-                  
-            $table->foreign('service_id')
-                  ->references('id')
-                  ->on('services')
-                  ->onDelete('set null');
-                  
-            $table->foreign('user_id')
-                  ->references('id')
-                  ->on('users')
-                  ->onDelete('set null');
-        });
-    }
-
-    public function down(): void
-    {
-        Schema::dropIfExists('ptero_resource_reservations');
-    }
-};
+```mermaid
+stateDiagram-v2
+    [*] --> pending: cart create or edit
+    pending --> pending: login or seven-day checkout bind
+    pending --> paid_committed: invoice payment
+    paid_committed --> confirmed: exact Pterodactyl state verified
+    pending --> expired: hold deadline passes
+    pending --> cancelled: cart removal or replacement
+    confirmed --> cancelled: external absence verified
 ```
 
-### Reservation Status Flow
+`provisioning_started_at` and the unguessable `provisioning_lease_id`
+prevent concurrent or stale workers from consuming the same commitment.
+`consumed_at` records verified Pterodactyl creation or upgrade. A failed
+attempt clears only its matching lease and records
+`last_provisioning_error`; paid capacity remains committed for retry and
+operator reconciliation.
 
-```
-┌─────────┐    cart item    ┌─────────┐    payment    ┌───────────┐
-│ (none)  │ ──────────────▶ │ pending │ ────────────▶ │ confirmed │
-└─────────┘                 └─────────┘               └───────────┘
-                                 │
-                    ┌────────────┴────────────┐
-                    ▼                         ▼
-               ┌─────────┐              ┌───────────┐
-               │ expired │              │ cancelled │
-               │ (TTL)   │              │ (user)    │
-               └─────────┘              └───────────┘
-```
+Database-specific generated columns or partial indexes enforce one live
+checkout hold per cart item, one live checkout commitment per service, and one
+live upgrade commitment per service upgrade.
 
-Reservation lifecycle: `pending → confirmed | expired | cancelled`.
+During migration, legacy pending rows without a configuration fingerprint are cancelled. They came from the retired browser/listener token flows and cannot be proved safe. Active carts acquire a fresh server-owned hold on edit or checkout.
 
----
+## Units
 
-## Migration 2: Pricing Configs
+- Memory and disk: MiB-compatible integer values used by Pterodactyl.
+- CPU: Pterodactyl percentage (`100` = one logical core). Effective node stock
+  is `physical percentage × overcommit basis points / 10,000`.
+- Money: decimal snapshot in the cart currency.
 
-**File**: `2025_01_01_000002_create_ptero_pricing_configs_table.php`
+## Rollback
 
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::create('ptero_pricing_configs', function (Blueprint $table) {
-            $table->id();
-            
-            // Link to Paymenter product
-            $table->unsignedBigInteger('product_id')->unique();
-            
-            // Pricing model selection
-            $table->enum('pricing_model', [
-                'linear',
-                'tiered',
-                'base_addon'
-            ])->default('linear');
-            
-            // JSON configuration for pricing model
-            // Structure varies by model - see 07-PRICING-MODELS.md
-            $table->json('pricing_config');
-            
-            // Memory slider configuration (stored in MB)
-            $table->unsignedInteger('min_memory')->default(1024);      // 1GB
-            $table->unsignedInteger('max_memory')->default(65536);     // 64GB
-            $table->unsignedInteger('memory_step')->default(1024);     // 1GB steps
-            $table->unsignedInteger('default_memory')->default(4096);  // 4GB default
-            
-            // CPU slider configuration (percentage: 100 = 1 core)
-            $table->unsignedInteger('min_cpu')->default(100);          // 1 core
-            $table->unsignedInteger('max_cpu')->default(800);          // 8 cores
-            $table->unsignedInteger('cpu_step')->default(100);         // 1 core steps
-            $table->unsignedInteger('default_cpu')->default(200);      // 2 cores default
-            
-            // Disk slider configuration (stored in MB)
-            $table->unsignedInteger('min_disk')->default(10240);       // 10GB
-            $table->unsignedInteger('max_disk')->default(512000);      // 500GB
-            $table->unsignedInteger('disk_step')->default(10240);      // 10GB steps
-            $table->unsignedInteger('default_disk')->default(51200);   // 50GB default
-            
-            // Feature toggles
-            $table->boolean('enable_memory_slider')->default(true);
-            $table->boolean('enable_cpu_slider')->default(true);
-            $table->boolean('enable_disk_slider')->default(true);
-            $table->boolean('is_active')->default(true);
-            
-            // Customer display customization (labels, tooltips)
-            $table->json('display_config')->nullable();
-            
-            // Location restrictions (null = all locations allowed)
-            $table->json('allowed_locations')->nullable();
-            
-            $table->timestamps();
-            
-            // Foreign key
-            $table->foreign('product_id')
-                  ->references('id')
-                  ->on('products')
-                  ->onDelete('cascade');
-        });
-    }
-
-    public function down(): void
-    {
-        Schema::dropIfExists('ptero_pricing_configs');
-    }
-};
-```
-
-### Display Config JSON Structure
-
-```json
-{
-    "memory_label": "RAM",
-    "cpu_label": "CPU Cores", 
-    "disk_label": "Storage",
-    "memory_tooltip": "RAM determines how much data your server can hold...",
-    "cpu_tooltip": "CPU cores determine processing power...",
-    "disk_tooltip": "Storage space for your server files...",
-    "price_format": "monthly",
-    "show_breakdown": true,
-    "show_savings_badge": true
-}
-```
-
----
-
-## Migration 3: Audit Logs
-
-**File**: `2025_01_01_000003_create_ptero_audit_logs_table.php`
-
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::create('ptero_audit_logs', function (Blueprint $table) {
-            $table->id();
-            
-            // Who made the change
-            $table->unsignedBigInteger('user_id');
-            $table->string('user_name');
-            $table->string('user_email');
-            
-            // What was changed
-            $table->string('action'); // created, updated, deleted, cancelled
-            $table->string('entity_type'); // pricing_config, reservation, alert_config
-            $table->unsignedBigInteger('entity_id');
-            $table->string('entity_name')->nullable(); // Product name, etc.
-            
-            // Change details
-            $table->json('old_values')->nullable();
-            $table->json('new_values')->nullable();
-            $table->text('description')->nullable();
-            
-            // Request context
-            $table->string('ip_address', 45)->nullable();
-            $table->string('user_agent')->nullable();
-            
-            $table->timestamp('created_at');
-            
-            // Indexes
-            $table->index(['entity_type', 'entity_id']);
-            $table->index(['user_id']);
-            $table->index(['created_at']);
-            $table->index(['action']);
-            
-            // Foreign key
-            $table->foreign('user_id')
-                  ->references('id')
-                  ->on('users')
-                  ->onDelete('cascade');
-        });
-    }
-
-    public function down(): void
-    {
-        Schema::dropIfExists('ptero_audit_logs');
-    }
-};
-```
-
----
-
-## Migration 4: Alert Configs
-
-**File**: `2025_01_01_000004_create_ptero_alert_configs_table.php`
-
-```php
-<?php
-
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
-
-return new class extends Migration
-{
-    public function up(): void
-    {
-        Schema::create('ptero_alert_configs', function (Blueprint $table) {
-            $table->id();
-            
-            // Scope: global (null) or per-location
-            $table->unsignedInteger('location_id')->nullable();
-            $table->string('location_name')->nullable();
-            
-            // Capacity thresholds (percentage)
-            $table->unsignedTinyInteger('memory_warning_threshold')->default(80);
-            $table->unsignedTinyInteger('memory_critical_threshold')->default(95);
-            $table->unsignedTinyInteger('disk_warning_threshold')->default(80);
-            $table->unsignedTinyInteger('disk_critical_threshold')->default(95);
-            
-            // Notification settings
-            $table->boolean('email_notifications')->default(true);
-            $table->json('notification_emails')->nullable(); // Array of emails
-            $table->boolean('webhook_notifications')->default(false);
-            $table->string('webhook_url')->nullable();
-            
-            // Cooldown to prevent spam
-            $table->unsignedInteger('cooldown_minutes')->default(60);
-            $table->timestamp('last_notification_at')->nullable();
-            
-            // Status
-            $table->boolean('is_active')->default(true);
-            
-            $table->timestamps();
-            
-            // Indexes
-            $table->index(['location_id']);
-            $table->index(['is_active']);
-        });
-    }
-
-    public function down(): void
-    {
-        Schema::dropIfExists('ptero_alert_configs');
-    }
-};
-```
-
----
-
-## Eloquent Models
-
-### PricingConfig Model
-
-```php
-<?php
-
-namespace Paymenter\Extensions\Others\DynamicPterodactyl\Models;
-
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
-class PricingConfig extends Model
-{
-    protected $table = 'ptero_pricing_configs';
-    
-    protected $fillable = [
-        'product_id',
-        'pricing_model',
-        'pricing_config',
-        'min_memory', 'max_memory', 'memory_step', 'default_memory',
-        'min_cpu', 'max_cpu', 'cpu_step', 'default_cpu',
-        'min_disk', 'max_disk', 'disk_step', 'default_disk',
-        'enable_memory_slider', 'enable_cpu_slider', 'enable_disk_slider',
-        'is_active',
-        'display_config',
-        'allowed_locations',
-    ];
-    
-    protected $casts = [
-        'pricing_config' => 'array',
-        'display_config' => 'array',
-        'allowed_locations' => 'array',
-        'enable_memory_slider' => 'boolean',
-        'enable_cpu_slider' => 'boolean',
-        'enable_disk_slider' => 'boolean',
-        'is_active' => 'boolean',
-    ];
-    
-    public function product(): BelongsTo
-    {
-        return $this->belongsTo(\App\Models\Product::class);
-    }
-}
-```
-
-### ResourceReservation Model
-
-```php
-<?php
-
-namespace Paymenter\Extensions\Others\DynamicPterodactyl\Models;
-
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-
-class ResourceReservation extends Model
-{
-    protected $table = 'ptero_resource_reservations';
-    
-    protected $fillable = [
-        'token', 'cart_item_id', 'service_id', 'user_id',
-        'node_id', 'location_id',
-        'memory', 'cpu', 'disk',
-        'calculated_price', 'pricing_breakdown',
-        'status', 'admin_notes', 'expires_at',
-    ];
-    
-    protected $casts = [
-        'pricing_breakdown' => 'array',
-        'expires_at' => 'datetime',
-        'calculated_price' => 'decimal:2',
-    ];
-    
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(\App\Models\User::class);
-    }
-    
-    public function service(): BelongsTo
-    {
-        return $this->belongsTo(\App\Models\Service::class);
-    }
-    
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending')
-                     ->where('expires_at', '>', now());
-    }
-    
-    public function scopeExpired($query)
-    {
-        return $query->where('status', 'pending')
-                     ->where('expires_at', '<=', now());
-    }
-}
-```
-
-### AuditLog Model
-
-```php
-<?php
-
-namespace Paymenter\Extensions\Others\DynamicPterodactyl\Models;
-
-use Illuminate\Database\Eloquent\Model;
-
-class AuditLog extends Model
-{
-    protected $table = 'ptero_audit_logs';
-    
-    public $timestamps = false;
-    
-    protected $fillable = [
-        'user_id', 'user_name', 'user_email',
-        'action', 'entity_type', 'entity_id', 'entity_name',
-        'old_values', 'new_values', 'description',
-        'ip_address', 'user_agent', 'created_at',
-    ];
-    
-    protected $casts = [
-        'old_values' => 'array',
-        'new_values' => 'array',
-        'created_at' => 'datetime',
-    ];
-}
-```
-
-### AlertConfig Model
-
-```php
-<?php
-
-namespace Paymenter\Extensions\Others\DynamicPterodactyl\Models;
-
-use Illuminate\Database\Eloquent\Model;
-
-class AlertConfig extends Model
-{
-    protected $table = 'ptero_alert_configs';
-    
-    protected $fillable = [
-        'location_id', 'location_name',
-        'memory_warning_threshold', 'memory_critical_threshold',
-        'disk_warning_threshold', 'disk_critical_threshold',
-        'email_notifications', 'notification_emails',
-        'webhook_notifications', 'webhook_url',
-        'cooldown_minutes', 'last_notification_at',
-        'is_active',
-    ];
-    
-    protected $casts = [
-        'notification_emails' => 'array',
-        'email_notifications' => 'boolean',
-        'webhook_notifications' => 'boolean',
-        'is_active' => 'boolean',
-        'last_notification_at' => 'datetime',
-    ];
-    
-    public function scopeGlobal($query)
-    {
-        return $query->whereNull('location_id');
-    }
-    
-    public function scopeForLocation($query, int $locationId)
-    {
-        return $query->where('location_id', $locationId);
-    }
-}
-```
-
----
-
-## Index Strategy
-
-| Table | Index | Purpose |
-|-------|-------|---------|
-| reservations | `idx_node_pending` | Fast lookup of pending reservations by node |
-| reservations | `idx_cleanup` | Efficient expired reservation cleanup |
-| reservations | `location_id, status` | Location availability calculations |
-| pricing_configs | `product_id` (unique) | One config per product |
-| audit_logs | `entity_type, entity_id` | View history for specific entity |
-| audit_logs | `created_at` | Time-based filtering |
-| alert_configs | `location_id` | Per-location alert lookup |
-
----
-
-## Data Relationships
-
-```
-products (Paymenter)
-    │
-    └──< ptero_pricing_configs (1:1)
-    
-users (Paymenter)
-    │
-    ├──< ptero_resource_reservations (1:many)
-    └──< ptero_audit_logs (1:many)
-    
-cart_items (Paymenter)
-    │
-    └──< ptero_resource_reservations (1:1 while in cart)
-    
-services (Paymenter)
-    │
-    └──< ptero_resource_reservations (1:1 after confirmation)
-```
-
-## Removed / deprecated
-
-- `released` removed in dp-07 (2026-04-22). No service ever set this state. Use `provision_failed` if a post-confirm failure state is needed.
+The key-normalization migration is intentionally irreversible: restoring uppercase `MEMORY`, `CPU`, `DISK`, or `LOCATION` keys would make the built-in provisioner ignore slider selections.

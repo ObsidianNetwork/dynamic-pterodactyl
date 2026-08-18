@@ -2,26 +2,75 @@
 
 namespace Paymenter\Extensions\Others\DynamicPterodactyl\Tests;
 
+use App\Models\User;
+use App\Models\UserSession;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class LaravelTestCase extends BaseTestCase
 {
+    private static bool $standaloneSqliteMigrated = false;
+
     /**
      * Creates the application.
      */
     public function createApplication()
     {
-        $bootstrap = __DIR__ . '/../../../../bootstrap/app.php';
+        $paymenterBasePath = getenv('PAYMENTER_BASE_PATH');
+        $bootstrap = $paymenterBasePath
+            ? rtrim($paymenterBasePath, '/\\').'/bootstrap/app.php'
+            : __DIR__.'/../../../../bootstrap/app.php';
 
-        if (!file_exists($bootstrap)) {
+        if (! file_exists($bootstrap)) {
             $bootstrap = '/var/www/paymenter/bootstrap/app.php';
         }
 
+        if (! file_exists($bootstrap)) {
+            throw new \RuntimeException('Unable to locate Paymenter bootstrap/app.php. Set PAYMENTER_BASE_PATH for standalone checkouts.');
+        }
+
         $app = require $bootstrap;
-        $app->make(Kernel::class)->bootstrap();
+        $kernel = $app->make(Kernel::class);
+        $kernel->bootstrap();
+
+        $database = $_ENV['DB_DATABASE'] ?? $_SERVER['DB_DATABASE'] ?? getenv('DB_DATABASE') ?: '';
+        $connection = $_ENV['DB_CONNECTION'] ?? $_SERVER['DB_CONNECTION'] ?? getenv('DB_CONNECTION') ?: '';
+        if (! self::$standaloneSqliteMigrated
+            && $connection === 'sqlite'
+            && $database !== ':memory:'
+        ) {
+            $kernel->call('migrate', [
+                '--database' => 'sqlite',
+                '--force' => true,
+            ]);
+            $kernel->call('migrate', [
+                '--database' => 'sqlite',
+                '--path' => dirname(__DIR__).'/database/migrations',
+                '--realpath' => true,
+                '--force' => true,
+            ]);
+            self::$standaloneSqliteMigrated = true;
+        }
 
         return $app;
+    }
+
+    /**
+     * Create the persisted session required by Paymenter's web middleware.
+     *
+     * @return array{user_session: string}
+     */
+    protected function loginUser(User $user): array
+    {
+        $userSession = UserSession::create([
+            'user_id' => $user->id,
+            'ip_address' => request()->ip(),
+            'user_agent' => substr(request()->userAgent() ?? '', 0, 512),
+            'last_activity' => now(),
+            'expires_at' => null,
+        ]);
+
+        return ['user_session' => $userSession->ulid];
     }
 
     /**
@@ -163,8 +212,14 @@ abstract class LaravelTestCase extends BaseTestCase
             'node_id' => $nodeId,
             'name' => $name,
             'maintenance_mode' => $maintenance,
+            'eligible' => ! $maintenance,
             'total' => $total,
             'available' => $available,
+            'available_allocations' => [[
+                'id' => ($nodeId * 1000) + 1,
+                'ip' => '192.0.2.'.$nodeId,
+                'port' => 25565,
+            ]],
         ];
     }
 
